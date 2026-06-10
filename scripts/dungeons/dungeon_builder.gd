@@ -1,0 +1,160 @@
+extends Node3D
+## Builds procedural dungeon geometry, enemies, and boss room from DungeonManager layout.
+
+const FLOOR_TILE := preload("res://scenes/dungeons/dungeon_floor_tile.tscn")
+const ENTRANCE_SCENE := preload("res://scenes/dungeons/dungeon_entrance.tscn")
+
+const ENEMY_SCENES: Array[PackedScene] = [
+	preload("res://scenes/enemies/forest_bandit.tscn"),
+	preload("res://scenes/enemies/shield_bandit.tscn"),
+	preload("res://scenes/enemies/bandit_archer.tscn"),
+]
+
+@export var players_container: NodePath = NodePath("../Players")
+@export var enemies_container: NodePath = NodePath("../Enemies")
+@export var interactables_container: NodePath = NodePath("../Interactables")
+
+var _cell_size: float = 2.0
+var _boss_node: Node = null
+var _exit_portal: DungeonExitPortal
+var _treasure_chest: DungeonTreasureChest
+
+
+func _ready() -> void:
+	call_deferred("_build")
+
+
+func _build() -> void:
+	var layout: Dictionary = DungeonManager.layout
+	if layout.is_empty():
+		layout = DungeonGenerator.generate(DungeonManager.seed, DungeonManager.tier)
+		DungeonManager.layout = layout
+	_cell_size = layout.get("cell_size", DungeonGenerator.CELL_SIZE)
+	var rooms: Array = layout.get("rooms", [])
+	for room in rooms:
+		if room is DungeonRoom:
+			_build_room(room)
+	_spawn_exit_and_treasure(rooms)
+
+
+func _build_room(room: DungeonRoom) -> void:
+	var origin := room.get_world_origin(_cell_size)
+	var size := room.get_world_size(_cell_size)
+	_fill_floor(origin, size)
+	if room.room_type == DungeonRoom.RoomType.CORRIDOR:
+		return
+	_build_walls(origin, size)
+	match room.room_type:
+		DungeonRoom.RoomType.SPAWN:
+			pass
+		DungeonRoom.RoomType.COMBAT:
+			_spawn_combat_enemies(room)
+		DungeonRoom.RoomType.TREASURE:
+			_spawn_treasure_room(room)
+		DungeonRoom.RoomType.BOSS:
+			_spawn_boss_room(room)
+
+
+func _fill_floor(origin: Vector3, size: Vector3) -> void:
+	var cols := int(size.x / _cell_size)
+	var rows := int(size.z / _cell_size)
+	for x in cols:
+		for z in rows:
+			var tile: Node3D = FLOOR_TILE.instantiate()
+			tile.position = origin + Vector3(x * _cell_size + _cell_size * 0.5, 0, z * _cell_size + _cell_size * 0.5)
+			add_child(tile)
+
+
+func _build_walls(origin: Vector3, size: Vector3) -> void:
+	var wall_h := 2.5
+	var thickness := 0.4
+	var walls: Array[Dictionary] = [
+		{"pos": origin + Vector3(size.x * 0.5, wall_h * 0.5, -thickness * 0.5), "size": Vector3(size.x, wall_h, thickness)},
+		{"pos": origin + Vector3(size.x * 0.5, wall_h * 0.5, size.z + thickness * 0.5), "size": Vector3(size.x, wall_h, thickness)},
+		{"pos": origin + Vector3(-thickness * 0.5, wall_h * 0.5, size.z * 0.5), "size": Vector3(thickness, wall_h, size.z)},
+		{"pos": origin + Vector3(size.x + thickness * 0.5, wall_h * 0.5, size.z * 0.5), "size": Vector3(thickness, wall_h, size.z)},
+	]
+	for w in walls:
+		var mesh_inst := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = w.size
+		mesh_inst.mesh = box
+		mesh_inst.position = w.pos
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.18, 0.16, 0.14)
+		mat.roughness = 0.95
+		mesh_inst.material_override = mat
+		add_child(mesh_inst)
+		var body := StaticBody3D.new()
+		body.position = w.pos
+		var col := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = w.size
+		col.shape = shape
+		body.add_child(col)
+		add_child(body)
+
+
+func _spawn_combat_enemies(room: DungeonRoom) -> void:
+	var container := get_node_or_null(enemies_container)
+	if container == null:
+		return
+	var center := room.get_world_center(_cell_size)
+	for i in room.enemy_count:
+		var scene: PackedScene = ENEMY_SCENES[i % ENEMY_SCENES.size()]
+		var enemy: Node3D = scene.instantiate()
+		var offset := Vector3(randf_range(-3, 3), 0, randf_range(-3, 3))
+		enemy.position = center + offset
+		container.add_child(enemy)
+
+
+func _spawn_treasure_room(room: DungeonRoom) -> void:
+	var container := get_node_or_null(interactables_container)
+	if container == null:
+		return
+	var chest: Node3D = preload("res://scenes/dungeons/dungeon_treasure_chest.tscn").instantiate()
+	chest.position = room.get_world_center(_cell_size)
+	container.add_child(chest)
+
+
+func _spawn_boss_room(room: DungeonRoom) -> void:
+	var container := get_node_or_null(enemies_container)
+	if container == null:
+		return
+	var boss_scene := preload("res://scenes/enemies/bandit_captain.tscn")
+	_boss_node = boss_scene.instantiate()
+	_boss_node.position = room.get_world_center(_cell_size)
+	if _boss_node is EnemyBase:
+		(_boss_node as EnemyBase).loot_table_id = "dungeon_boss"
+		(_boss_node as EnemyBase).max_health = 180.0
+		(_boss_node as EnemyBase).display_name = "Crypt Warden"
+	if _boss_node.has_signal("enemy_died"):
+		_boss_node.enemy_died.connect(_on_boss_died)
+	container.add_child(_boss_node)
+
+
+func _spawn_exit_and_treasure(rooms: Array) -> void:
+	var container := get_node_or_null(interactables_container)
+	if container == null:
+		return
+	var boss_room: DungeonRoom = null
+	for room in rooms:
+		if room is DungeonRoom and room.room_type == DungeonRoom.RoomType.BOSS:
+			boss_room = room
+			break
+	if boss_room == null:
+		return
+	var center := boss_room.get_world_center(_cell_size)
+	_exit_portal = preload("res://scenes/dungeons/dungeon_exit_portal.tscn").instantiate()
+	_exit_portal.position = center + Vector3(4, 0, 0)
+	container.add_child(_exit_portal)
+	_treasure_chest = preload("res://scenes/dungeons/dungeon_treasure_chest.tscn").instantiate()
+	_treasure_chest.position = center + Vector3(-3, 0, 2)
+	container.add_child(_treasure_chest)
+
+
+func _on_boss_died(_enemy: EnemyBase) -> void:
+	LootManager.drop_loot_table("dungeon_boss", _boss_node.global_position if _boss_node else Vector3.ZERO)
+	DungeonManager.on_boss_defeated()
+	if _exit_portal:
+		_exit_portal.reveal()

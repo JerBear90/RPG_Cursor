@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3 uid="uid://shieldbandit001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+[ext_resource type="Material" path="res://materials/placeholder/enemy_shield.tres" id="2"]
+
+[node name="ShieldBandit" instance=ExtResource("1")]
+enemy_id = "shield_bandit"
+display_name = "Shield Bandit"
+enemy_level = 4
+max_health = 90.0
+damage = 8.0
+move_speed = 2.8
+
+[node name="BodyMesh" parent="MeshRoot" index="0"]
+transform = Transform3D(1.2, 0, 0, 0, 1, 0, 0, 0, 1.1, 0, 0.8, 0)
+material_override = ExtResource("2")
+
+[node name="CharacterVisual" parent="MeshRoot" index="1"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Sam_SingleWeapon.gltf"
+mesh_scale = Vector3(1.1, 1.1, 1.1)

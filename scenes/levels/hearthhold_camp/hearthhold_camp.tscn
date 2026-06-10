@@ -1,0 +1,75 @@
+[gd_scene load_steps=12 format=3 uid="uid://hearthhold001"]
+
+[ext_resource type="Script" path="res://scripts/levels/level_manager.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://camerarig001" path="res://scenes/camera/camera_rig.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://gamehud001" path="res://scenes/ui/game_hud.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://workbench001" path="res://scenes/base/workbench.tscn" id="4"]
+[ext_resource type="PackedScene" uid="uid://forge001" path="res://scenes/base/forge.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://itembox001" path="res://scenes/base/item_box.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://memoryaltar001" path="res://scenes/base/memory_altar.tscn" id="7"]
+[ext_resource type="PackedScene" uid="uid://waystone001" path="res://scenes/interactables/waystone.tscn" id="8"]
+[ext_resource type="Script" path="res://scripts/spawn_point.gd" id="9"]
+[ext_resource type="Material" path="res://materials/placeholder/ground_camp.tres" id="10"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_ground"]
+size = Vector3(40, 1, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(40, 1, 40)
+
+[node name="HearthholdCamp" type="Node3D"]
+
+[node name="Level" type="Node3D" parent="."]
+script = ExtResource("1")
+region_id = "hearthhold_camp"
+spawn_points = Array[NodePath]([NodePath("SpawnPoints/Spawn1")])
+
+[node name="Players" type="Node3D" parent="Level"]
+
+[node name="CameraRig" parent="Level" instance=ExtResource("2")]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Level"]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+
+[node name="Ground" type="StaticBody3D" parent="Level"]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+mesh = SubResource("BoxMesh_ground")
+surface_material_override/0 = ExtResource("10")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("BoxShape3D_ground")
+
+[node name="SpawnPoints" type="Node3D" parent="Level"]
+
+[node name="Spawn1" type="Marker3D" parent="Level/SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+
+[node name="WaystoneSpawn" type="Marker3D" parent="Level/SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -6)
+script = ExtResource("9")
+spawn_id = "waystone_spawn"
+
+[node name="Stations" type="Node3D" parent="Level"]
+
+[node name="Workbench" parent="Level/Stations" instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 2)
+
+[node name="Forge" parent="Level/Stations" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
+
+[node name="ItemBox" parent="Level/Stations" instance=ExtResource("6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4)
+
+[node name="MemoryAltar" parent="Level/Stations" instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
+
+[node name="Interactables" type="Node3D" parent="Level"]
+
+[node name="Waystone" parent="Level/Interactables" instance=ExtResource("8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8)
+waystone_id = "hearthhold_camp"
+
+[node name="GameHUD" parent="." instance=ExtResource("3")]

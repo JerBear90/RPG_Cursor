@@ -1,0 +1,35 @@
+[gd_scene load_steps=6 format=3 uid="uid://crate001"]
+
+[ext_resource type="Script" path="res://scripts/destructibles/destructible_object.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/combat/hurtbox.gd" id="2"]
+[ext_resource type="Material" path="res://materials/placeholder/crate.tres" id="3"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(1, 1, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_1"]
+size = Vector3(1, 1, 1)
+
+[node name="DestructibleCrate" type="StaticBody3D"]
+collision_layer = 1
+script = ExtResource("1")
+drop_table_id = "destructible_crate"
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = ExtResource("3")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("BoxShape3D_1")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+collision_layer = 16
+collision_mask = 8
+script = ExtResource("2")
+team = "prop"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("BoxShape3D_1")

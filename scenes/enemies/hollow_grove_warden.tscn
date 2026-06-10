@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3 uid="uid://hollowwarden001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+[ext_resource type="Script" path="res://scripts/ai/boss_controller.gd" id="2"]
+[ext_resource type="Material" path="res://materials/placeholder/enemy_boss.tres" id="3"]
+
+[node name="HollowGroveWarden" instance=ExtResource("1")]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
+script = ExtResource("2")
+enemy_id = "hollow_grove_warden"
+display_name = "Hollow Grove Warden"
+enemy_level = 12
+max_health = 800.0
+damage = 25.0
+move_speed = 3.2
+detection_range = 20.0
+attack_range = 3.0
+loot_table_id = "boss_warden"
+xp_reward = 500
+
+[node name="BodyMesh" parent="MeshRoot" index="0"]
+material_override = ExtResource("3")
+
+[node name="CharacterVisual" parent="MeshRoot" index="1"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Zombie_Chubby.gltf"
+mesh_scale = Vector3(1.5, 1.5, 1.5)

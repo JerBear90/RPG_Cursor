@@ -1,0 +1,7 @@
+Player 1 visual — "Matt" (SingleWeapon variant) from Quaternius Zombie Apocalypse Kit
+File: art/characters/player1/exiled_survivor_matt.gltf
+License: CC0 (Public Domain) — https://creativecommons.org/publicdomain/zero/1.0/
+Source: https://quaternius.com/packs/zombieapocalypsekit.html
+Artist: Quaternius (https://quaternius.com)
+
+Free for personal and commercial use. Attribution appreciated but not required.

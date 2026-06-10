@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://capturepreview001"]
+
+[ext_resource type="PackedScene" path="res://scenes/main_menu/main_menu.tscn" id="1"]
+[ext_resource type="Script" path="res://tests/capture_preview.gd" id="2"]
+
+[node name="CapturePreview" type="Node"]
+script = ExtResource("2")
+
+[node name="MainMenu" parent="." instance=ExtResource("1")]
