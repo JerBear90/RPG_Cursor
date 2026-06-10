@@ -147,11 +147,20 @@ func _on_died() -> void:
 	var killer := GameManager.get_player(0)
 	if killer and killer.has_node("StatsComponent"):
 		killer.get_node("StatsComponent").add_experience(xp_reward)
+	if "first_blood" not in QuestManager.completed_quests:
+		if not QuestManager.active_quests.has("first_blood"):
+			QuestManager.start_quest("first_blood")
+		QuestManager.advance_objective("first_blood", "kill_enemy", 1)
 	enemy_died.emit(self)
 	queue_free()
 
 
 func _set_state(state: AIState) -> void:
+	if state == AIState.ALERT and is_in_group("boss"):
+		GameManager.in_boss_fight = true
+		for hud in get_tree().get_nodes_in_group("game_hud"):
+			if hud.has_method("track_boss"):
+				hud.track_boss(self)
 	current_state = state
 	state_changed.emit(state)
 

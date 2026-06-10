@@ -14,6 +14,8 @@ signal dehydrated
 
 var hunger: float = 100.0
 var thirst: float = 100.0
+var _starvation_timer: float = 0.0
+var _dehydration_timer: float = 0.0
 
 
 func _process(delta: float) -> void:
@@ -22,9 +24,15 @@ func _process(delta: float) -> void:
 	hunger_changed.emit(hunger)
 	thirst_changed.emit(thirst)
 	if hunger <= 0.0:
-		starving.emit()
+		_starvation_timer += delta
+		if _starvation_timer >= 2.0:
+			_starvation_timer = 0.0
+			starving.emit()
 	if thirst <= 0.0:
-		dehydrated.emit()
+		_dehydration_timer += delta
+		if _dehydration_timer >= 1.5:
+			_dehydration_timer = 0.0
+			dehydrated.emit()
 
 
 func eat(amount: float) -> void:

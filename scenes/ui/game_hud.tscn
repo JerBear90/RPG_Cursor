@@ -36,6 +36,20 @@ max_value = 100.0
 value = 100.0
 show_percentage = false
 
+[node name="FocusBar" type="ProgressBar" parent="MarginContainer/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 16)
+layout_mode = 2
+max_value = 50.0
+value = 50.0
+show_percentage = false
+
+[node name="LevelLabel" type="Label" parent="MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Lv 1 Survivor"
+
 [node name="HungerBar" type="ProgressBar" parent="MarginContainer/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(240, 16)

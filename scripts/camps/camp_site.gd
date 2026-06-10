@@ -14,9 +14,14 @@ func _on_interact(player: Node) -> void:
 		return
 	if GameManager.active_player_count > 1:
 		if not GameManager.all_players_near(global_position, 5.0):
+			DialogueManager.start_dialogue("camp_wait", [
+				{"speaker": "Camp", "text": "Both exiles must be at the fire before you rest."},
+			])
 			return
-	_rest_player(player)
+	for p in GameManager.get_alive_players():
+		_rest_player(p)
 	camp_rest_started.emit()
+	AudioManager.play_music("camp")
 
 
 func _rest_player(player: Node) -> void:

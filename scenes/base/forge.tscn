@@ -1,12 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://forge001"]
+[gd_scene load_steps=5 format=3 uid="uid://forge001"]
 
 [ext_resource type="Script" path="res://scripts/base/base_station.gd" id="1"]
-[ext_resource type="Material" path="res://materials/placeholder/forge.tres" id="2"]
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="2"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_1"]
-size = Vector3(1.8, 1.2, 1.2)
-
-[sub_resource type="BoxMesh" id="BoxMesh_1"]
 size = Vector3(1.8, 1.2, 1.2)
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
@@ -18,10 +15,10 @@ script = ExtResource("1")
 station_id = "forge"
 display_name = "Forge"
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
-mesh = SubResource("BoxMesh_1")
-surface_material_override/0 = ExtResource("2")
+[node name="KenneyVisual" type="Node3D" parent="."]
+script = ExtResource("2")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/campfire_bricks.glb"
+mesh_scale = Vector3(1.3, 1.3, 1.3)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)

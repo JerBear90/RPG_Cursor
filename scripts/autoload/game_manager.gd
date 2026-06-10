@@ -22,6 +22,7 @@ var player_data: Array[Dictionary] = [
 	{"name": "Exile One", "class_id": "survivor", "body_preset": 0},
 	{"name": "Exile Two", "class_id": "survivor", "body_preset": 1},
 ]
+var pending_player_progress: Dictionary = {}
 
 
 func _ready() -> void:
@@ -31,6 +32,7 @@ func _ready() -> void:
 func start_new_game(co_op: bool = false) -> void:
 	active_player_count = 2 if co_op else 1
 	game_started = true
+	pending_player_progress = {}
 	InventoryManager.reset_for_new_game()
 	CurrencyManager.reset_for_new_game()
 	QuestManager.reset_for_new_game()
@@ -41,13 +43,13 @@ func start_new_game(co_op: bool = false) -> void:
 	PetManager.reset_for_new_game()
 	DungeonManager.reset_for_new_game()
 	SceneTransitionManager.change_scene("res://scenes/levels/darkpine_forest/darkpine_forest.tscn")
+	AudioManager.play_music("ambient")
 
 
 func continue_game(slot: int = 0) -> bool:
 	if not SaveManager.load_game(slot):
 		return false
 	game_started = true
-	active_player_count = 1
 	var region := current_region_id
 	var path := "res://scenes/levels/%s/%s.tscn" % [region, region]
 	SceneTransitionManager.change_scene(path)

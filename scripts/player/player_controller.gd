@@ -24,6 +24,20 @@ func _ready() -> void:
 	_combat = get_node_or_null("Combat")
 	_dodge = get_node_or_null("DodgeComponent")
 	_stamina = get_node_or_null("StaminaComponent")
+	var needs := get_node_or_null("SurvivalNeedsComponent") as SurvivalNeedsComponent
+	if needs:
+		needs.starving.connect(_on_starving)
+		needs.dehydrated.connect(_on_dehydrated)
+
+
+func _on_starving() -> void:
+	if has_node("HealthComponent") and is_alive():
+		(get_node("HealthComponent") as HealthComponent).take_damage(DamageData.create_physical(1.0, self))
+
+
+func _on_dehydrated() -> void:
+	if has_node("StaminaComponent"):
+		(get_node("StaminaComponent") as StaminaComponent).spend(2.0)
 
 
 func _physics_process(delta: float) -> void:

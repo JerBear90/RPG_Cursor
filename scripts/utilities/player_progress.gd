@@ -1,0 +1,79 @@
+extends Node
+## Serialize and restore per-player progression (stats, skills, survival).
+
+static func collect(player: Node) -> Dictionary:
+	if player == null:
+		return {}
+	var data := {}
+	if player.has_node("StatsComponent"):
+		var stats := player.get_node("StatsComponent") as StatsComponent
+		data["stats"] = {
+			"level": stats.level,
+			"experience": stats.experience,
+			"strength": stats.strength,
+			"dexterity": stats.dexterity,
+			"intelligence": stats.intelligence,
+			"vitality": stats.vitality,
+			"endurance": stats.endurance,
+			"spirit": stats.spirit,
+			"unspent_stat_points": stats.unspent_stat_points,
+			"unspent_skill_points": stats.unspent_skill_points,
+		}
+	if player.has_node("SkillTree"):
+		data["skill_tree"] = {
+			"unlocked": (player.get_node("SkillTree") as Node).unlocked_nodes.duplicate(),
+		}
+	if player.has_node("SurvivalNeedsComponent"):
+		var needs := player.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent
+		data["survival"] = {"hunger": needs.hunger, "thirst": needs.thirst}
+	if player.has_node("Spellcaster"):
+		var spellcaster := player.get_node("Spellcaster")
+		if spellcaster.has_method("serialize"):
+			data["spells"] = spellcaster.serialize()
+	return data
+
+
+static func apply(player: Node, data: Dictionary) -> void:
+	if player == null or data.is_empty():
+		return
+	if data.has("stats") and player.has_node("StatsComponent"):
+		var stats := player.get_node("StatsComponent") as StatsComponent
+		var s: Dictionary = data.stats
+		stats.level = int(s.get("level", 1))
+		stats.experience = int(s.get("experience", 0))
+		stats.strength = int(s.get("strength", 5))
+		stats.dexterity = int(s.get("dexterity", 5))
+		stats.intelligence = int(s.get("intelligence", 5))
+		stats.vitality = int(s.get("vitality", 5))
+		stats.endurance = int(s.get("endurance", 5))
+		stats.spirit = int(s.get("spirit", 5))
+		stats.unspent_stat_points = int(s.get("unspent_stat_points", 0))
+		stats.unspent_skill_points = int(s.get("unspent_skill_points", 0))
+	if data.has("skill_tree") and player.has_node("SkillTree"):
+		var tree := player.get_node("SkillTree")
+		tree.unlocked_nodes = data.skill_tree.get("unlocked", []).duplicate()
+		if tree.has_method("reapply_all_bonuses"):
+			tree.reapply_all_bonuses()
+	if data.has("survival") and player.has_node("SurvivalNeedsComponent"):
+		var needs := player.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent
+		needs.hunger = float(data.survival.get("hunger", needs.hunger))
+		needs.thirst = float(data.survival.get("thirst", needs.thirst))
+	if data.has("spells") and player.has_node("Spellcaster"):
+		var spellcaster := player.get_node("Spellcaster")
+		if spellcaster.has_method("deserialize"):
+			spellcaster.deserialize(data.spells)
+	_apply_equipment_stats(player)
+
+
+static func _apply_equipment_stats(player: Node) -> void:
+	if not player.has_node("HealthComponent"):
+		return
+	var health := player.get_node("HealthComponent") as HealthComponent
+	var base_max := 100.0
+	if player.has_node("StatsComponent"):
+		base_max += (player.get_node("StatsComponent") as StatsComponent).get_max_health_bonus()
+	var chest_id: String = InventoryManager.equipment.get("chest", "")
+	base_max += ItemDatabase.get_armor_health_bonus(chest_id)
+	health.max_health = base_max
+	health.current_health = minf(health.current_health, health.max_health)
+	health.health_changed.emit(health.current_health, health.max_health)

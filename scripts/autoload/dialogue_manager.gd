@@ -48,10 +48,16 @@ func _show_current() -> void:
 
 
 func get_npc_greeting(npc_id: String) -> Array[Dictionary]:
+	if QuestManager.active_quests.has("merchant_errand") and npc_id == "wounded_scout":
+		return [{"speaker": "Wounded Scout", "text": "Bring me herb bundles — three will do. The merchant pays well."}]
+	if QuestManager.completed_quests.has("find_wolf_crest") and npc_id == "silent_merchant":
+		return [{"speaker": "Silent Merchant", "text": "You carry the wolf's mark now. Prices stay the same."}]
 	match npc_id:
 		"silent_merchant":
 			return [{"speaker": "Silent Merchant", "text": "Coins talk. I don't."}]
 		"wounded_scout":
+			if QuestManager.completed_quests.has("merchant_errand"):
+				return [{"speaker": "Wounded Scout", "text": "You kept someone breathing. The forest owes you."}]
 			return [{"speaker": "Wounded Scout", "text": "The grove... something watches from the roots."}]
 		"old_blacksmith":
 			return [{"speaker": "Old Blacksmith", "text": "Bring me scrap and I'll make it bite."}]

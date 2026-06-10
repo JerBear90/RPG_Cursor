@@ -14,7 +14,7 @@ Dark post-apocalyptic fantasy **shared-screen co-op survival Action RPG** protot
 cd C:\Users\shawn\Projects\exiled-survivors
 .\start` game.ps1                # quickest — launches main menu (no editor)
 .\start` game.ps1 -Editor        # open Godot editor instead
-.\scripts\run_tests.ps1          # 18 headless checks — expect exit 0
+.\scripts\run_tests.ps1          # headless checks — expect exit 0
 .\scripts\run_preview.ps1        # opens game window (main menu)
 .\scripts\capture_screenshot.ps1   # saves docs/screenshots/preview.png
 ```
@@ -30,7 +30,7 @@ Characters use the [Quaternius Zombie Apocalypse Kit](https://quaternius.com/pac
 - **P1:** Matt (`art/characters/player1/exiled_survivor_matt.gltf`)
 - **P2:** Sam (kit GLTF via `player_visual.gd`)
 - **Enemies / NPCs / pet:** Quaternius GLTF via `gltf_visual.gd` with capsule fallback
-- **Props / ground:** colored primitives until environment GLTF is imported
+- **Props / ground:** placeholders until Kenney environment pass (deferred)
 
 After pulling art changes, use **Project → Reload Current Project** in Godot.
 
@@ -122,16 +122,19 @@ Automated screenshot capture requires Godot with display support; use editor **F
 - Loot, currency, inventory, quests, survival meters
 - Waystone, camp site, camp chest, destructible crates, resource trees
 - NPCs: Silent Merchant, Wounded Scout
-- Spells (Ember Bolt, Healing Mist, etc.) via RB
+- Spells unlock progressively (Ember Bolt starter; Healing Mist/Venom Dart via skill tree; Shadow Lash from boss quest)
+- Ash Hound pet attacks nearby enemies when unlocked
+- Data-driven merchant catalogs; hostile vendor combat after repeated friendly fire
+- Text fog-of-war grid in world map menu; 4 additional stub regions for waystone travel
 
-**Hearthhold Camp** (`scenes/levels/hearthhold_camp/`) — base with Workbench, Forge, Item Box, Memory Altar.
+**Hearthhold Camp** (`scenes/levels/hearthhold_camp/`) — base with Workbench, Forge, Item Box, Memory Altar, Pet Shelter, Mask Stand, Camp Vendor. Linked via waystone after Wolf Crest quest.
 
 ## Folder Structure
 
 ```
 scenes/          # Player, enemies, UI, levels, interactables
 scripts/         # Gameplay, autoload, combat, AI, UI
-  autoload/      # 16 manager singletons
+  autoload/      # 17 manager singletons (incl. MerchantManager)
   run_tests.ps1  # Headless test launcher
   run_preview.ps1
 tests/           # test_runner.gd + last_run.log

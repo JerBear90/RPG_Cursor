@@ -91,3 +91,17 @@ func get_floor_display() -> String:
 	if not in_dungeon:
 		return ""
 	return "Depth %d — %s" % [depth, dungeon_name]
+
+
+func serialize() -> Dictionary:
+	return {
+		"depth": depth,
+		"in_dungeon": in_dungeon,
+		"dungeon_name": dungeon_name,
+	}
+
+
+func deserialize(data: Dictionary) -> void:
+	depth = int(data.get("depth", 0))
+	in_dungeon = false
+	dungeon_name = data.get("dungeon_name", "")

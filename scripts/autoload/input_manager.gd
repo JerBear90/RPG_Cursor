@@ -12,9 +12,33 @@ var camera_sensitivity: float = 1.0
 const DEVICE_KEYBOARD := 0
 const DEVICE_GAMEPAD := 1
 
+const CO_OP_ACTIONS: Array[String] = [
+	"move_left", "move_right", "move_forward", "move_back",
+	"look_left", "look_right", "look_up", "look_down",
+	"light_attack", "heavy_attack", "dodge", "block", "sprint",
+	"lock_on", "interact", "quick_spell", "use_quick_item", "quick_heal",
+	"cycle_quick_left", "cycle_quick_right", "open_spell_wheel",
+]
+
+const P2_KEYBOARD: Dictionary = {
+	"move_left": KEY_LEFT,
+	"move_right": KEY_RIGHT,
+	"move_forward": KEY_UP,
+	"move_back": KEY_DOWN,
+	"light_attack": KEY_U,
+	"heavy_attack": KEY_O,
+	"dodge": KEY_P,
+	"interact": KEY_ENTER,
+	"sprint": KEY_SHIFT,
+	"quick_spell": KEY_8,
+	"use_quick_item": KEY_9,
+	"quick_heal": KEY_0,
+}
+
 
 func _ready() -> void:
 	Input.joy_connection_changed.connect(_on_joy_changed)
+	_setup_player2_inputs()
 	_detect_device()
 
 
@@ -27,6 +51,28 @@ func _input(event: InputEvent) -> void:
 		if current_device != DEVICE_KEYBOARD:
 			current_device = DEVICE_KEYBOARD
 			device_changed.emit(current_device)
+
+
+func _setup_player2_inputs() -> void:
+	for action in CO_OP_ACTIONS:
+		var p2_action := "p2_%s" % action
+		if InputMap.has_action(p2_action):
+			continue
+		InputMap.add_action(p2_action)
+		if P2_KEYBOARD.has(action):
+			var key := InputEventKey.new()
+			key.physical_keycode = P2_KEYBOARD[action]
+			InputMap.action_add_event(p2_action, key)
+		if InputMap.has_action(action):
+			for event in InputMap.action_get_events(action):
+				if event is InputEventJoypadButton:
+					var btn := event.duplicate() as InputEventJoypadButton
+					btn.device = 1
+					InputMap.action_add_event(p2_action, btn)
+				elif event is InputEventJoypadMotion:
+					var motion := event.duplicate() as InputEventJoypadMotion
+					motion.device = 1
+					InputMap.action_add_event(p2_action, motion)
 
 
 func _on_joy_changed(_device: int, _connected: bool) -> void:
@@ -75,4 +121,4 @@ func is_action_pressed(action: String, player_index: int = 0) -> bool:
 func _player_action(action: String, player_index: int) -> String:
 	if player_index <= 0:
 		return action
-	return "p%d_%s" % [player_index + 1, action]
+	return "p2_%s" % action

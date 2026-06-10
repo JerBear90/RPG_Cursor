@@ -1,22 +1,16 @@
-[gd_scene load_steps=3 format=3 uid="uid://banditarcher001"]
+[gd_scene load_steps=2 format=3 uid="uid://banditarcher001"]
 
 [ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
-[ext_resource type="Material" path="res://materials/placeholder/enemy_archer.tres" id="2"]
 
 [node name="BanditArcher" instance=ExtResource("1")]
 enemy_id = "bandit_archer"
 display_name = "Bandit Archer"
 enemy_level = 4
-max_health = 45.0
+max_health = 50.0
 damage = 14.0
-move_speed = 4.0
+move_speed = 3.8
 attack_range = 8.0
 detection_range = 14.0
 
-[node name="BodyMesh" parent="MeshRoot" index="0"]
-transform = Transform3D(0.85, 0, 0, 0, 1.1, 0, 0, 0, 0.85, 0, 0.8, 0)
-material_override = ExtResource("2")
-
-[node name="CharacterVisual" parent="MeshRoot" index="1"]
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
 gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Lis_SingleWeapon.gltf"
-mesh_scale = Vector3(0.95, 0.95, 0.95)

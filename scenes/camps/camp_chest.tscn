@@ -1,12 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://campchest001"]
+[gd_scene load_steps=5 format=3 uid="uid://campchest001"]
 
 [ext_resource type="Script" path="res://scripts/camps/camp_chest.gd" id="1"]
-[ext_resource type="Material" path="res://materials/placeholder/camp_chest.tres" id="2"]
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="2"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_chest"]
-size = Vector3(1.2, 0.8, 0.8)
-
-[sub_resource type="BoxMesh" id="BoxMesh_chest"]
 size = Vector3(1.2, 0.8, 0.8)
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
@@ -16,10 +13,10 @@ radius = 2.0
 collision_layer = 1
 script = ExtResource("1")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
-mesh = SubResource("BoxMesh_chest")
-surface_material_override/0 = ExtResource("2")
+[node name="KenneyVisual" type="Node3D" parent="."]
+script = ExtResource("2")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/tent_smallClosed.glb"
+mesh_scale = Vector3(0.9, 0.9, 0.9)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)

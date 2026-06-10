@@ -1,7 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://forestbandit001"]
+[gd_scene load_steps=2 format=3 uid="uid://forestbandit001"]
 
 [ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
-[ext_resource type="Material" path="res://materials/placeholder/enemy_bandit.tres" id="2"]
 
 [node name="ForestBandit" instance=ExtResource("1")]
 enemy_id = "forest_bandit"
@@ -11,8 +10,5 @@ max_health = 60.0
 damage = 10.0
 move_speed = 3.5
 
-[node name="BodyMesh" parent="MeshRoot" index="0"]
-material_override = ExtResource("2")
-
-[node name="CharacterVisual" parent="MeshRoot" index="1"]
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
 gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Shaun_SingleWeapon.gltf"

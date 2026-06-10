@@ -18,6 +18,7 @@ func _ready() -> void:
 	max_health = 800.0
 	damage = 25.0
 	loot_table_id = "boss_warden"
+	MapManager.mark_region_dangerous(GameManager.current_region_id)
 
 
 func receive_damage(dmg: DamageData) -> void:
@@ -55,4 +56,10 @@ func _on_died() -> void:
 	var stats := GameManager.get_player(0)
 	if stats and stats.has_node("StatsComponent"):
 		stats.get_node("StatsComponent").unspent_skill_points += 1
+	QuestManager.advance_objective("defeat_warden", "kill_warden", 1)
+	MapManager.clear_region(GameManager.current_region_id)
+	MapManager.discover_region("hollow_grove_shrine")
+	for hud in get_tree().get_nodes_in_group("game_hud"):
+		if hud.has_method("show_toast"):
+			hud.show_toast("Region cleared!")
 	super._on_died()

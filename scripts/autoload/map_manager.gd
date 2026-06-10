@@ -6,8 +6,18 @@ signal map_updated(region_id: String)
 enum RegionState { UNDISCOVERED, DISCOVERED, EXPLORED, CLEARED, DANGEROUS }
 
 var regions: Dictionary = {}
+var region_layout: Dictionary = {
+	"darkpine_forest": {"kind": "island", "radius": 28.0, "water_extent": 52.0},
+	"hearthhold_camp": {"kind": "camp", "radius": 12.0},
+	"ruined_watchtower": {"kind": "stub", "radius": 20.0},
+	"bandit_camp": {"kind": "stub", "radius": 20.0},
+	"crystal_cave": {"kind": "stub", "radius": 20.0},
+	"hollow_grove_shrine": {"kind": "stub", "radius": 20.0},
+}
 var icons: Array[Dictionary] = []
 var player_positions: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
+var explored_cells: Dictionary = {}
+const CELL_SIZE: float = 8.0
 
 
 func reset_for_new_game() -> void:
@@ -38,6 +48,18 @@ func explore_region(region_id: String) -> void:
 		map_updated.emit(region_id)
 
 
+func clear_region(region_id: String) -> void:
+	if regions.has(region_id):
+		regions[region_id] = RegionState.CLEARED
+		map_updated.emit(region_id)
+
+
+func mark_region_dangerous(region_id: String) -> void:
+	if regions.has(region_id) and regions[region_id] < RegionState.DANGEROUS:
+		regions[region_id] = RegionState.DANGEROUS
+		map_updated.emit(region_id)
+
+
 func add_icon(icon_type: String, position: Vector2, label: String = "") -> void:
 	icons.append({"type": icon_type, "position": position, "label": label})
 	map_updated.emit(GameManager.current_region_id)
@@ -47,14 +69,68 @@ func update_player_position(index: int, world_pos: Vector3) -> void:
 	while player_positions.size() <= index:
 		player_positions.append(Vector2.ZERO)
 	player_positions[index] = Vector2(world_pos.x, world_pos.z)
+	var region_id := GameManager.current_region_id
+	if region_id == "":
+		return
+	if not explored_cells.has(region_id):
+		explored_cells[region_id] = []
+	var cell_key := "%d,%d" % [int(floor(world_pos.x / CELL_SIZE)), int(floor(world_pos.z / CELL_SIZE))]
+	var cells: Array = explored_cells[region_id]
+	if cell_key not in cells:
+		cells.append(cell_key)
+		explored_cells[region_id] = cells
+		explore_region(region_id)
+		map_updated.emit(region_id)
 
 
 func get_region_state(region_id: String) -> RegionState:
 	return regions.get(region_id, RegionState.UNDISCOVERED)
 
 
+func get_region_layout(region_id: String) -> Dictionary:
+	return region_layout.get(region_id, {})
+
+
+func get_map_position_label(world_pos: Vector3) -> String:
+	var layout := get_region_layout(GameManager.current_region_id)
+	if layout.get("kind") == "island":
+		var dist := Vector2(world_pos.x, world_pos.z).length()
+		var radius: float = layout.get("radius", 28.0)
+		if dist > radius:
+			return "Off island (%.0fm)" % dist
+		return "On island (%.0f, %.0f)" % [world_pos.x, world_pos.z]
+	return "(%.0f, %.0f)" % [world_pos.x, world_pos.z]
+
+
+func get_fog_grid_lines(region_id: String, grid_radius: int = 4) -> PackedStringArray:
+	var lines: PackedStringArray = []
+	var cells: Array = explored_cells.get(region_id, [])
+	var player_cell := Vector2i.ZERO
+	if player_positions.size() > 0:
+		var pos := player_positions[0]
+		player_cell = Vector2i(int(floor(pos.x / CELL_SIZE)), int(floor(pos.y / CELL_SIZE)))
+	for z in range(-grid_radius, grid_radius + 1):
+		var row := ""
+		for x in range(-grid_radius, grid_radius + 1):
+			var key := "%d,%d" % [player_cell.x + x, player_cell.y + z]
+			if x == 0 and z == 0:
+				row += "@"
+			elif key in cells:
+				row += "."
+			elif regions.get(region_id, RegionState.UNDISCOVERED) == RegionState.UNDISCOVERED:
+				row += "#"
+			else:
+				row += "?"
+		lines.append(row)
+	return lines
+
+
 func serialize() -> Dictionary:
-	return {"regions": regions.duplicate(), "icons": icons.duplicate(true)}
+	return {
+		"regions": regions.duplicate(),
+		"icons": icons.duplicate(true),
+		"explored_cells": explored_cells.duplicate(true),
+	}
 
 
 func deserialize(data: Dictionary) -> void:
@@ -62,3 +138,5 @@ func deserialize(data: Dictionary) -> void:
 		regions = data.regions
 	if data.has("icons"):
 		icons = data.icons
+	if data.has("explored_cells"):
+		explored_cells = data.explored_cells

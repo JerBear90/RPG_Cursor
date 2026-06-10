@@ -2,13 +2,52 @@
 
 All assets listed below are **CC0 (Public Domain)** unless noted. Free for personal and commercial use.
 
+## Kenney — Nature Kit
+
+- **Source:** https://kenney.nl/assets/nature-kit
+- **Artist:** Kenney (https://kenney.nl)
+- **License:** CC0
+- **Location:** `art/kenney/nature_kit/Models/GLTF format/`
+
+### Environment & terrain
+
+| Use | Kenney asset |
+|-----|----------------|
+| Island/camp ground | `ground_grass.glb` |
+| Water ring | `ground_riverTile.glb` |
+| Shore cliffs | `rock_large*.glb`, `cliff_block_rock.glb` |
+| Camp fence | `fence_simple.glb` |
+| Dungeon floor | `platform_stone.glb` |
+| Dungeon walls | `cliff_block_stone.glb` |
+
+### Props & interactables
+
+| Role | Kenney asset |
+|------|----------------|
+| Trees (gatherable) | `tree_pineDefaultA.glb` |
+| Herbs | `plant_bush.glb` |
+| Crates / stacks | `log_stack.glb`, `log_stackLarge.glb` |
+| Waystone | `statue_obelisk.glb` |
+| Wolf crest shrine | `statue_column.glb`, `statue_head.glb` |
+| Camp fire | `campfire_logs.glb` |
+| Camp / dungeon chest | `tent_smallClosed.glb`, `tent_detailedClosed.glb` |
+| Workbench | `fence_planksDouble.glb` |
+| Forge | `campfire_bricks.glb` |
+| Memory altar | `statue_column.glb` |
+| Dungeon entrance | `cliff_cave_stone.glb` |
+| Dungeon exit portal | `statue_ring.glb` |
+| Loot pickup | `mushroom_red.glb` |
+| Currency pickup | `flower_yellowA.glb` (coin substitute) |
+| Spell projectiles | `flower_redA.glb` (fire), `flower_purpleA.glb` (water), `mushroom_tan.glb` (poison) |
+
 ## Quaternius — Zombie Apocalypse Kit
 
 - **Source:** https://quaternius.com/packs/zombieapocalypsekit.html
 - **Artist:** Quaternius (https://quaternius.com)
 - **License:** CC0
+- **Location:** `art/characters/_quaternius_zombie_kit/Characters/glTF/`
 
-### Characters in use
+### Characters
 
 | Role | File |
 |------|------|
@@ -22,18 +61,6 @@ All assets listed below are **CC0 (Public Domain)** unless noted. Free for perso
 | Silent Merchant | `Characters_Sam.gltf` |
 | Wounded Scout | `Characters_Lis.gltf` |
 | Ash Hound pet | `Characters_GermanShepherd.gltf` |
+| Crypt Warden (dungeon boss) | `Characters_Shaun.gltf` (scaled) |
 
-Kit files live under `art/characters/_quaternius_zombie_kit/Characters/glTF/`.
-
-### Environment props
-
-Environment GLTF from the kit was **not fully downloaded** (Google Drive fetch interrupted). Props (crates, waystone, trees, stations) still use **colored primitive placeholders** until environment GLTF is imported.
-
-## Placeholder materials
-
-Colored `StandardMaterial3D` resources in `materials/placeholder/` are project-authored fallbacks when GLTF is unavailable.
-
-## Future sources (not yet integrated)
-
-- **Kenney** (CC0) — nature/survival kits: https://kenney.nl/assets
-- **Poly Pizza** (CC0) — low-poly props via `https://static.poly.pizza/{id}.glb`
+Loaded via `MeshLoader` / `GltfVisual` / `PlayerVisual`.

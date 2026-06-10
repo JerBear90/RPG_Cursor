@@ -18,18 +18,8 @@
 [ext_resource type="PackedScene" uid="uid://wolfcrest001" path="res://scenes/interactables/wolf_crest_shrine.tscn" id="16"]
 [ext_resource type="PackedScene" uid="uid://resourceherb001" path="res://scenes/resources/resource_herb.tscn" id="17"]
 [ext_resource type="Script" path="res://scripts/spawn_point.gd" id="18"]
-[ext_resource type="Material" path="res://materials/placeholder/ground_forest.tres" id="19"]
 [ext_resource type="PackedScene" uid="uid://dungeonentrance001" path="res://scenes/dungeons/dungeon_entrance.tscn" id="20"]
-
-[sub_resource type="BoxMesh" id="BoxMesh_ground"]
-size = Vector3(80, 1, 80)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
-size = Vector3(80, 1, 80)
-
-[sub_resource type="NavigationMesh" id="NavigationMesh_1"]
-vertices = PackedVector3Array(-40, 0.5, -40, -40, 0.5, 40, 40, 0.5, 40, 40, 0.5, -40)
-polygons = [PackedInt32Array(0, 1, 2, 3)]
+[ext_resource type="PackedScene" uid="uid://islandterrain001" path="res://scenes/levels/darkpine_forest/island_terrain.tscn" id="21"]
 
 [node name="DarkpineForest" type="Node3D"]
 
@@ -48,19 +38,7 @@ spawn_points = Array[NodePath]([NodePath("SpawnPoints/Spawn1"), NodePath("SpawnP
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 12, 0)
 shadow_enabled = true
 
-[node name="Ground" type="StaticBody3D" parent="Level/Environment"]
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Environment/Ground"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
-mesh = SubResource("BoxMesh_ground")
-surface_material_override/0 = ExtResource("19")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Environment/Ground"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
-shape = SubResource("BoxShape3D_ground")
-
-[node name="NavigationRegion3D" type="NavigationRegion3D" parent="Level/Environment"]
-navigation_mesh = SubResource("NavigationMesh_1")
+[node name="IslandTerrain" parent="Level/Environment" instance=ExtResource("21")]
 
 [node name="SpawnPoints" type="Node3D" parent="Level"]
 
@@ -90,7 +68,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0.1, 8)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0.1, -12)
 
 [node name="HollowGroveWarden" parent="Level/Enemies" instance=ExtResource("8")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 0.1, -25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0.1, -18)
 
 [node name="Interactables" type="Node3D" parent="Level"]
 
@@ -125,7 +103,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 8)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 12)
 
 [node name="DungeonEntrance" parent="Level/Interactables" instance=ExtResource("20")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 0, -5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, -8)
 
 [node name="NPCs" type="Node3D" parent="Level"]
 

@@ -1,5 +1,5 @@
 extends Node3D
-## Swaps placeholder capsule for themed character meshes per player slot.
+## Loads Quaternius CC0 character meshes per player slot.
 
 const PLAYER1_MESH_PATH := "res://art/characters/player1/exiled_survivor_matt.gltf"
 const PLAYER2_MESH_PATH := "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Sam_SingleWeapon.gltf"
@@ -9,11 +9,8 @@ const PLAYER2_MESH_PATH := "res://art/characters/_quaternius_zombie_kit/Characte
 @export var mesh_offset: Vector3 = Vector3.ZERO
 @export var mesh_scale: Vector3 = Vector3.ONE
 
-var _body_mesh: MeshInstance3D
-
 
 func _ready() -> void:
-	_body_mesh = get_parent().get_node_or_null("BodyMesh")
 	var player := get_parent().get_parent() as PlayerController
 	if player:
 		player_index = player.player_index
@@ -33,5 +30,3 @@ func _setup_visual() -> void:
 	visual.rotation_degrees = Vector3(0, mesh_yaw_degrees, 0)
 	visual.position = mesh_offset
 	visual.scale = mesh_scale
-	if _body_mesh:
-		_body_mesh.visible = false

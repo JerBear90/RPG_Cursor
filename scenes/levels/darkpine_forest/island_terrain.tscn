@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3 uid="uid://islandterrain001"]
+
+[ext_resource type="Script" path="res://scripts/levels/island_terrain.gd" id="1"]
+
+[node name="IslandTerrain" type="Node3D"]
+script = ExtResource("1")
+island_radius = 28.0
+water_extent = 52.0
+
+[node name="Land" type="Node3D" parent="."]
+
+[node name="Water" type="Node3D" parent="."]
+
+[node name="Props" type="Node3D" parent="."]
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]

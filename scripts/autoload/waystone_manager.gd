@@ -4,8 +4,8 @@ extends Node
 signal waystone_discovered(waystone_id: String)
 signal fast_travel_started(destination_id: String)
 
-var discovered: Array[String] = ["hearthhold_camp"]
-var hearthhold_unlocked: bool = true
+var discovered: Array[String] = []
+var hearthhold_unlocked: bool = false
 
 
 func reset_for_new_game() -> void:
@@ -28,6 +28,10 @@ func can_fast_travel(destination_id: String) -> bool:
 		return false
 	if destination_id not in discovered:
 		return false
+	if destination_id == "hearthhold_camp" and not hearthhold_unlocked:
+		return false
+	if destination_id == GameManager.current_region_id:
+		return false
 	return true
 
 
@@ -45,5 +49,5 @@ func serialize() -> Dictionary:
 
 
 func deserialize(data: Dictionary) -> void:
-	discovered = data.get("discovered", ["hearthhold_camp"])
-	hearthhold_unlocked = data.get("hearthhold_unlocked", true)
+	discovered = data.get("discovered", [])
+	hearthhold_unlocked = data.get("hearthhold_unlocked", false)

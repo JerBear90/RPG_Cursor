@@ -28,11 +28,17 @@ func _on_interact(_player: Node) -> void:
 			hud.open_crafting_menu(station_id)
 		return
 	if station_id == "item_box":
-		_open_storage_menu()
-
-
-func _open_storage_menu() -> void:
-	DialogueManager.start_dialogue("item_box", [
-		{"speaker": "Item Box", "text": "Base storage holds %d item stacks." % InventoryManager.base_storage.size()},
-		{"speaker": "Item Box", "text": "Deposit from camp chests in the field to access gear here."},
-	])
+		for hud in get_tree().get_nodes_in_group("game_hud"):
+			hud.open_storage_menu()
+		return
+	if station_id == "pet_shelter":
+		PetManager.unlock_ash_hound_from_shelter()
+		DialogueManager.start_dialogue("pet_shelter", [
+			{"speaker": display_name, "text": "The Ash Hound stirs from the shelter and joins your exile."},
+		])
+		return
+	if station_id == "mask_stand":
+		DialogueManager.start_dialogue("mask_stand", [
+			{"speaker": display_name, "text": "Empty masks wait here. Future memories will be etched upon them."},
+		])
+		return

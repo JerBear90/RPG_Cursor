@@ -24,6 +24,8 @@ func _spawn_players() -> void:
 		player.name = "Player%d" % (i + 1)
 		players_container.add_child(player)
 		player.global_position = spawn_pos + Vector3(i * 2.0, 0.1, 0)
+		if i == 0 and not GameManager.pending_player_progress.is_empty():
+			PlayerProgress.apply(player, GameManager.pending_player_progress)
 		PetManager.try_spawn_for_player(player)
 
 

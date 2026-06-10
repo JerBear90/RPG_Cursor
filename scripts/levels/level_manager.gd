@@ -38,6 +38,9 @@ func _spawn_players() -> void:
 		if i == 1:
 			spawn_pos += Vector3(2, 0, 0)
 		player.global_position = spawn_pos
+		if i == 0 and not GameManager.pending_player_progress.is_empty():
+			PlayerProgress.apply(player, GameManager.pending_player_progress)
+			GameManager.pending_player_progress = {}
 		PetManager.try_spawn_for_player(player)
 
 
@@ -61,6 +64,13 @@ func _respawn_player(player: Node) -> void:
 		health.reset_health()
 	if player is PlayerController:
 		(player as PlayerController).current_state = PlayerController.State.IDLE
+	if player.has_node("SurvivalNeedsComponent"):
+		var needs := player.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent
+		needs.hunger = minf(needs.hunger + 25.0, needs.max_hunger)
+		needs.thirst = minf(needs.thirst + 25.0, needs.max_thirst)
+	for hud in get_tree().get_nodes_in_group("game_hud"):
+		if hud.has_method("show_toast"):
+			hud.show_toast("Respawned — lost some coin, needs partially restored")
 
 
 func _get_respawn_position() -> Vector3:

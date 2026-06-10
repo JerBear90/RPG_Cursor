@@ -1,0 +1,55 @@
+[gd_scene load_steps=8 format=3 uid="uid://ruinedwatch001"]
+
+[ext_resource type="Script" path="res://scripts/levels/level_manager.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://camerarig001" path="res://scenes/camera/camera_rig.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://gamehud001" path="res://scenes/ui/game_hud.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://waystone001" path="res://scenes/interactables/waystone.tscn" id="4"]
+[ext_resource type="PackedScene" uid="uid://forestbandit001" path="res://scenes/enemies/forest_bandit.tscn" id="5"]
+[ext_resource type="Script" path="res://scripts/spawn_point.gd" id="6"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(60, 0.5, 60)
+
+[node name="RuinedWatchtower" type="Node3D"]
+
+[node name="Level" type="Node3D" parent="."]
+script = ExtResource("1")
+region_id = "ruined_watchtower"
+spawn_points = Array[NodePath]([NodePath("SpawnPoints/Spawn1")])
+
+[node name="Players" type="Node3D" parent="Level"]
+
+[node name="CameraRig" parent="Level" instance=ExtResource("2")]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Level"]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+
+[node name="Floor" type="StaticBody3D" parent="Level"]
+collision_layer = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Floor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+shape = SubResource("BoxShape3D_floor")
+
+[node name="SpawnPoints" type="Node3D" parent="Level"]
+
+[node name="Spawn1" type="Marker3D" parent="Level/SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+
+[node name="WaystoneSpawn" type="Marker3D" parent="Level/SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -4)
+script = ExtResource("6")
+spawn_id = "waystone_spawn"
+
+[node name="Enemies" type="Node3D" parent="Level"]
+
+[node name="ForestBandit" parent="Level/Enemies" instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.1, -6)
+
+[node name="Interactables" type="Node3D" parent="Level"]
+
+[node name="Waystone" parent="Level/Interactables" instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
+waystone_id = "ruined_watchtower"
+
+[node name="GameHUD" parent="." instance=ExtResource("3")]

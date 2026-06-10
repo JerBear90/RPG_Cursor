@@ -1,6 +1,7 @@
 extends Node3D
 ## Builds procedural dungeon geometry, enemies, and boss room from DungeonManager layout.
 
+const _Kenney = preload("res://scripts/utilities/kenney_paths.gd")
 const FLOOR_TILE := preload("res://scenes/dungeons/dungeon_floor_tile.tscn")
 const ENTRANCE_SCENE := preload("res://scenes/dungeons/dungeon_entrance.tscn")
 
@@ -66,33 +67,34 @@ func _fill_floor(origin: Vector3, size: Vector3) -> void:
 
 
 func _build_walls(origin: Vector3, size: Vector3) -> void:
-	var wall_h := 2.5
-	var thickness := 0.4
-	var walls: Array[Dictionary] = [
-		{"pos": origin + Vector3(size.x * 0.5, wall_h * 0.5, -thickness * 0.5), "size": Vector3(size.x, wall_h, thickness)},
-		{"pos": origin + Vector3(size.x * 0.5, wall_h * 0.5, size.z + thickness * 0.5), "size": Vector3(size.x, wall_h, thickness)},
-		{"pos": origin + Vector3(-thickness * 0.5, wall_h * 0.5, size.z * 0.5), "size": Vector3(thickness, wall_h, size.z)},
-		{"pos": origin + Vector3(size.x + thickness * 0.5, wall_h * 0.5, size.z * 0.5), "size": Vector3(thickness, wall_h, size.z)},
-	]
-	for w in walls:
-		var mesh_inst := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = w.size
-		mesh_inst.mesh = box
-		mesh_inst.position = w.pos
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.18, 0.16, 0.14)
-		mat.roughness = 0.95
-		mesh_inst.material_override = mat
-		add_child(mesh_inst)
-		var body := StaticBody3D.new()
-		body.position = w.pos
-		var col := CollisionShape3D.new()
-		var shape := BoxShape3D.new()
-		shape.size = w.size
-		col.shape = shape
-		body.add_child(col)
-		add_child(body)
+	var segment := _cell_size
+	var wall_path := _Kenney.nature("cliff_block_stone.glb")
+	var cols := int(size.x / segment)
+	var rows := int(size.z / segment)
+	for x in cols:
+		var px := origin.x + x * segment + segment * 0.5
+		_add_wall_block(wall_path, Vector3(px, 0.0, origin.z - segment * 0.25))
+		_add_wall_block(wall_path, Vector3(px, 0.0, origin.z + size.z + segment * 0.25))
+	for z in rows:
+		var pz := origin.z + z * segment + segment * 0.5
+		_add_wall_block(wall_path, Vector3(origin.x - segment * 0.25, 0.0, pz))
+		_add_wall_block(wall_path, Vector3(origin.x + size.x + segment * 0.25, 0.0, pz))
+
+
+func _add_wall_block(path: String, pos: Vector3) -> void:
+	var holder := Node3D.new()
+	holder.position = pos
+	add_child(holder)
+	MeshLoader.instantiate(path, holder, randf_range(0.0, 360.0), Vector3.ZERO, Vector3(2.0, 2.5, 2.0))
+	var body := StaticBody3D.new()
+	body.position = pos
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(_cell_size, 2.5, _cell_size * 0.5)
+	col.shape = shape
+	col.position = Vector3(0.0, 1.25, 0.0)
+	body.add_child(col)
+	add_child(body)
 
 
 func _spawn_combat_enemies(room: DungeonRoom) -> void:
@@ -131,6 +133,11 @@ func _spawn_boss_room(room: DungeonRoom) -> void:
 	if _boss_node.has_signal("enemy_died"):
 		_boss_node.enemy_died.connect(_on_boss_died)
 	container.add_child(_boss_node)
+	_boss_node.add_to_group("boss")
+	for hud in get_tree().get_nodes_in_group("game_hud"):
+		if hud.has_method("track_boss"):
+			hud.track_boss(_boss_node)
+	GameManager.in_boss_fight = true
 
 
 func _spawn_exit_and_treasure(rooms: Array) -> void:
@@ -154,6 +161,7 @@ func _spawn_exit_and_treasure(rooms: Array) -> void:
 
 
 func _on_boss_died(_enemy: EnemyBase) -> void:
+	GameManager.in_boss_fight = false
 	LootManager.drop_loot_table("dungeon_boss", _boss_node.global_position if _boss_node else Vector3.ZERO)
 	DungeonManager.on_boss_defeated()
 	if _exit_portal:

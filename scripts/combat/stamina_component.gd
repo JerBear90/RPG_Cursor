@@ -22,7 +22,15 @@ func _process(delta: float) -> void:
 		_regen_timer -= delta
 		return
 	if current_stamina < max_stamina:
-		restore(regen_rate * delta)
+		var mult := _get_survival_multiplier()
+		restore(regen_rate * delta * mult)
+
+
+func _get_survival_multiplier() -> float:
+	var parent := get_parent()
+	if parent and parent.has_node("SurvivalNeedsComponent"):
+		return (parent.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent).get_stamina_regen_multiplier()
+	return 1.0
 
 
 func can_spend(amount: float) -> bool:

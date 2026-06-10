@@ -32,7 +32,7 @@ func apply_settings() -> void:
 	InputManager.camera_sensitivity = camera_sensitivity
 	InputManager.invert_look_y = invert_look_y
 	InputManager.invert_look_x = invert_look_x
-	AudioManager.master_volume = 1.0
+	AudioManager.set_master_volume(1.0)
 	if frame_cap > 0:
 		Engine.max_fps = frame_cap
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)

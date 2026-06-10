@@ -1,6 +1,6 @@
 class_name MeshLoader
 extends RefCounted
-## Loads GLTF/GLB scenes with optional primitive fallback.
+## Loads GLTF/GLB scenes and instantiates Kenney/CC0 visuals.
 
 
 static func load_scene(path: String) -> PackedScene:
@@ -22,9 +22,3 @@ static func instantiate(path: String, parent: Node3D, yaw_degrees: float = 0.0, 
 	visual.position = offset
 	visual.scale = scale
 	return visual
-
-
-static func hide_placeholder(parent: Node, mesh_node_name: String = "BodyMesh") -> void:
-	var mesh := parent.get_node_or_null(mesh_node_name)
-	if mesh is MeshInstance3D:
-		(mesh as MeshInstance3D).visible = false

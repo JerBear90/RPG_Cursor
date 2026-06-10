@@ -1,21 +1,11 @@
-[gd_scene load_steps=8 format=3 uid="uid://resourcetree001"]
+[gd_scene load_steps=5 format=3 uid="uid://resourcetree001"]
 
 [ext_resource type="Script" path="res://scripts/resources/resource_node.gd" id="1"]
-[ext_resource type="Material" path="res://materials/placeholder/wood.tres" id="2"]
-[ext_resource type="Material" path="res://materials/placeholder/tree_leaves.tres" id="3"]
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="2"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_trunk"]
 height = 2.0
 radius = 0.3
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_trunk"]
-top_radius = 0.25
-bottom_radius = 0.35
-height = 2.5
-
-[sub_resource type="SphereMesh" id="SphereMesh_leaves"]
-radius = 0.9
-height = 1.8
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
 radius = 2.0
@@ -26,15 +16,10 @@ script = ExtResource("1")
 resource_id = "wood"
 yield_amount = 3
 
-[node name="TrunkMesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
-mesh = SubResource("CylinderMesh_trunk")
-surface_material_override/0 = ExtResource("2")
-
-[node name="LeavesMesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.8, 0)
-mesh = SubResource("SphereMesh_leaves")
-surface_material_override/0 = ExtResource("3")
+[node name="KenneyVisual" type="Node3D" parent="."]
+script = ExtResource("2")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/tree_pineDefaultA.glb"
+mesh_scale = Vector3(1.2, 1.2, 1.2)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

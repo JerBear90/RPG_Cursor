@@ -19,4 +19,13 @@ func _on_interact(_player: Node) -> void:
 			{"speaker": "Ruined Hatch", "text": "Wait for your ally — both exiles must stand at the hatch."},
 		])
 		return
+	_enter_sequence()
+
+
+func _enter_sequence() -> void:
+	var next_depth := DungeonManager.depth + 1
+	DialogueManager.start_dialogue("dungeon_enter", [
+		{"speaker": "Ruined Hatch", "text": "Cold air rises from Depth %d. Ready?" % next_depth},
+	])
+	await DialogueManager.dialogue_ended
 	DungeonManager.enter_dungeon(entrance_region_id, return_scene_path, global_position)

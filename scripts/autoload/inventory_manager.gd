@@ -92,12 +92,74 @@ func send_to_base(item_id: String, quantity: int = 1) -> bool:
 
 
 func equip(item_id: String, slot: String) -> void:
+	if not has_item(item_id):
+		return
 	equipment[slot] = item_id
 	equipment_changed.emit(slot)
+	inventory_changed.emit()
+
+
+func use_item(item_id: String, player: Node) -> bool:
+	if not has_item(item_id) or player == null:
+		return false
+	var data := ItemDatabase.get_item(item_id)
+	if not ItemDatabase.can_use(item_id):
+		return false
+	match data.get("use"):
+		"eat":
+			if player.has_node("SurvivalNeedsComponent"):
+				(player.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent).eat(float(data.amount))
+				remove_item(item_id, 1)
+				return true
+		"drink":
+			if player.has_node("SurvivalNeedsComponent"):
+				(player.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent).drink(float(data.amount))
+				remove_item(item_id, 1)
+				return true
+		"heal":
+			if player.has_node("HealthComponent"):
+				(player.get_node("HealthComponent") as HealthComponent).heal(float(data.amount))
+				remove_item(item_id, 1)
+				return true
+		"repair":
+			if player.has_node("HealthComponent"):
+				var health := player.get_node("HealthComponent") as HealthComponent
+				health.heal(float(data.amount))
+				remove_item(item_id, 1)
+				return true
+	return false
+
+
+func equip_item(item_id: String, player: Node) -> bool:
+	if not has_item(item_id) or not ItemDatabase.can_equip(item_id):
+		return false
+	var data := ItemDatabase.get_item(item_id)
+	var slot: String = data.get("slot", "main_weapon")
+	equip(item_id, slot)
+	if player:
+		PlayerProgress._apply_equipment_stats(player)
+	return true
+
+
+func withdraw_from_base(item_id: String, quantity: int = 1) -> bool:
+	for i in base_storage.size():
+		if base_storage[i].id == item_id:
+			if base_storage[i].quantity < quantity:
+				return false
+			base_storage[i].quantity -= quantity
+			if base_storage[i].quantity <= 0:
+				base_storage.remove_at(i)
+			add_item(item_id, quantity)
+			return true
+	return false
+
+
+func deposit_to_base(item_id: String, quantity: int = 1) -> bool:
+	return send_to_base(item_id, quantity)
 
 
 func _is_stackable(item_id: String) -> bool:
-	var consumables := ["wood", "stone", "copper", "dried_rations", "waterskin", "herb_bundle"]
+	var consumables := ["wood", "stone", "copper", "dried_rations", "waterskin", "herb_bundle", "bandage", "purified_water", "repair_kit"]
 	return item_id in consumables
 
 

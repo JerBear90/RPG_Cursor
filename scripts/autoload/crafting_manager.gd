@@ -6,11 +6,16 @@ signal craft_failed(reason: String)
 
 var known_recipes: Array[String] = [
 	"bandage", "purified_water", "iron_sword", "repair_kit", "camp_fire_meal",
+	"leather_wrap", "sharpen_blade",
 ]
 
 
 func reset_for_new_game() -> void:
-	known_recipes = ["bandage", "purified_water", "repair_kit", "camp_fire_meal"]
+	known_recipes = ["bandage", "purified_water", "repair_kit", "camp_fire_meal", "leather_wrap", "sharpen_blade"]
+
+
+func get_recipe_station(recipe_id: String) -> String:
+	return _get_recipe(recipe_id).get("station", "")
 
 
 func can_craft(recipe_id: String, station_id: String = "") -> Dictionary:
@@ -70,6 +75,24 @@ func _get_recipe(recipe_id: String) -> Dictionary:
 			return {
 				"id": "iron_sword", "station": "forge", "station_level": 2, "copper_cost": 50,
 				"materials": [{"id": "iron_scrap", "quantity": 5}, {"id": "wood", "quantity": 2}],
+				"results": [{"id": "iron_sword", "quantity": 1}],
+			}
+		"camp_fire_meal":
+			return {
+				"id": "camp_fire_meal", "station": "workbench", "station_level": 1, "copper_cost": 0,
+				"materials": [{"id": "wood", "quantity": 2}, {"id": "herb_bundle", "quantity": 1}],
+				"results": [{"id": "dried_rations", "quantity": 2}],
+			}
+		"leather_wrap":
+			return {
+				"id": "leather_wrap", "station": "workbench", "station_level": 1, "copper_cost": 5,
+				"materials": [{"id": "cloth_scrap", "quantity": 4}],
+				"results": [{"id": "bandage", "quantity": 3}],
+			}
+		"sharpen_blade":
+			return {
+				"id": "sharpen_blade", "station": "forge", "station_level": 1, "copper_cost": 20,
+				"materials": [{"id": "iron_scrap", "quantity": 3}, {"id": "stone", "quantity": 2}],
 				"results": [{"id": "iron_sword", "quantity": 1}],
 			}
 		_:

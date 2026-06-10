@@ -49,11 +49,16 @@ func has_save(slot: int) -> bool:
 
 
 func _collect_save_data() -> Dictionary:
+	var player_progress := {}
+	var player := GameManager.get_player(0)
+	if player:
+		player_progress = PlayerProgress.collect(player)
 	return {
-		"version": 1,
+		"version": 2,
 		"timestamp": Time.get_unix_time_from_system(),
 		"region": GameManager.current_region_id,
 		"players": GameManager.player_data,
+		"player_progress": player_progress,
 		"inventory": InventoryManager.serialize(),
 		"currency": CurrencyManager.serialize(),
 		"quests": QuestManager.serialize(),
@@ -62,6 +67,7 @@ func _collect_save_data() -> Dictionary:
 		"waystones": WaystoneManager.serialize(),
 		"achievements": AchievementManager.serialize(),
 		"pets": PetManager.serialize(),
+		"dungeon": DungeonManager.serialize(),
 		"co_op": GameManager.active_player_count > 1,
 		"settings": SettingsManager.serialize(),
 	}
@@ -88,5 +94,9 @@ func _apply_save_data(data: Dictionary) -> void:
 		AchievementManager.deserialize(data.achievements)
 	if data.has("pets"):
 		PetManager.deserialize(data.pets)
+	if data.has("dungeon"):
+		DungeonManager.deserialize(data.dungeon)
+	if data.has("player_progress"):
+		GameManager.pending_player_progress = data.player_progress
 	if data.has("co_op"):
 		GameManager.active_player_count = 2 if data.co_op else 1

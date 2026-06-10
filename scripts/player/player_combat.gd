@@ -70,9 +70,10 @@ func _start_attack(damage: float, duration: float, stamina_cost: float) -> void:
 		return
 	_attack_active = true
 	_attack_timer = duration
-	_hitbox.base_damage = damage
+	_hitbox.base_damage = _get_final_physical_damage(damage)
 	_hitbox.enable()
 	_player.current_state = PlayerController.State.ATTACK
+	AudioManager.play_sfx("hit", randf_range(0.9, 1.1))
 	_combo_index = (_combo_index + 1) % 3
 
 
@@ -119,3 +120,14 @@ func _scan_executables() -> void:
 func _on_execution_available(_enemy: Node) -> void:
 	for hud in get_tree().get_nodes_in_group("game_hud"):
 		hud.set_execution_prompt(true)
+
+
+func _get_final_physical_damage(base: float) -> float:
+	var total := base
+	if _player.has_node("StatsComponent"):
+		total += (_player.get_node("StatsComponent") as StatsComponent).get_physical_damage_bonus()
+	var weapon_id: String = InventoryManager.equipment.get("main_weapon", "rusty_sword")
+	total += ItemDatabase.get_weapon_damage(weapon_id)
+	if _player.has_node("SkillTree"):
+		total *= (_player.get_node("SkillTree") as Node).get_physical_damage_multiplier()
+	return total

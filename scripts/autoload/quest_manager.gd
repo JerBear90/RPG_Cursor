@@ -4,6 +4,7 @@ extends Node
 signal quest_started(quest_id: String)
 signal quest_updated(quest_id: String)
 signal quest_completed(quest_id: String)
+signal quest_rewarded(quest_id: String, summary: String)
 signal tracked_quest_changed(quest_id: String)
 
 var active_quests: Dictionary = {}
@@ -53,12 +54,32 @@ func complete_quest(quest_id: String) -> void:
 		return
 	active_quests.erase(quest_id)
 	completed_quests.append(quest_id)
+	_grant_quest_rewards(quest_id)
 	quest_completed.emit(quest_id)
 	if tracked_quest_id == quest_id:
 		tracked_quest_id = active_quests.keys()[0] if active_quests.size() > 0 else ""
 		tracked_quest_changed.emit(tracked_quest_id)
 	if quest_id == "first_blood":
 		AchievementManager.unlock("first_blood")
+	_chain_next_quest(quest_id)
+
+
+func get_active_quest_list() -> Array[String]:
+	var ids: Array[String] = []
+	for quest_id in active_quests.keys():
+		ids.append(quest_id)
+	return ids
+
+
+func get_quest_summary(quest_id: String) -> String:
+	if not active_quests.has(quest_id):
+		return ""
+	var objectives: Array = active_quests[quest_id]
+	var parts: PackedStringArray = []
+	for obj in objectives:
+		var status := "done" if obj.completed else "%d/%d" % [obj.current, obj.target]
+		parts.append("%s (%s)" % [obj.description, status])
+	return "%s: %s" % [quest_id.replace("_", " ").capitalize(), ", ".join(parts)]
 
 
 func get_tracked_objective_text() -> String:
@@ -86,6 +107,10 @@ func _default_objectives(quest_id: String) -> Array:
 			return [{"id": "deliver_herbs", "description": "Deliver herb bundles", "current": 0, "target": 3, "completed": false}]
 		"clear_dungeon":
 			return [{"id": "defeat_boss", "description": "Clear the sunken crypt", "current": 0, "target": 1, "completed": false}]
+		"first_blood":
+			return [{"id": "kill_enemy", "description": "Slay your first foe", "current": 0, "target": 1, "completed": false}]
+		"defeat_warden":
+			return [{"id": "kill_warden", "description": "Defeat the Hollow Grove Warden", "current": 0, "target": 1, "completed": false}]
 		_:
 			return [{"id": "default", "description": quest_id, "current": 0, "target": 1, "completed": false}]
 
@@ -96,6 +121,53 @@ func serialize() -> Dictionary:
 		"completed": completed_quests.duplicate(),
 		"tracked": tracked_quest_id,
 	}
+
+
+func _grant_quest_rewards(quest_id: String) -> void:
+	var summary := ""
+	match quest_id:
+		"find_wolf_crest":
+			CurrencyManager.add_copper(50)
+			InventoryManager.add_item("herb_bundle", 2)
+			summary = "+50 copper, herb bundles"
+		"merchant_errand":
+			CurrencyManager.add_copper(80)
+			InventoryManager.add_item("dried_rations", 3)
+			summary = "+80 copper, rations"
+		"clear_dungeon":
+			CurrencyManager.add_copper(100)
+			InventoryManager.add_item("iron_scrap", 3)
+			summary = "+100 copper, iron scrap"
+		"first_blood":
+			CurrencyManager.add_copper(15)
+			summary = "+15 copper"
+		"defeat_warden":
+			CurrencyManager.add_silver(2)
+			InventoryManager.add_item("iron_scrap", 5)
+			summary = "+2 silver, iron scrap"
+			var player := GameManager.get_player(0)
+			if player and player.has_node("Spellcaster"):
+				(player.get_node("Spellcaster") as Node).unlock_spell("shadow_lash")
+	if summary != "":
+		quest_rewarded.emit(quest_id, summary)
+		AudioManager.play_sfx("quest")
+
+
+func _chain_next_quest(quest_id: String) -> void:
+	match quest_id:
+		"find_wolf_crest":
+			WaystoneManager.hearthhold_unlocked = true
+			if "hearthhold_camp" not in WaystoneManager.discovered:
+				WaystoneManager.discovered.append("hearthhold_camp")
+			start_quest("merchant_errand")
+			DialogueManager.start_dialogue("quest_wolf_done", [
+				{"speaker": "Quest", "text": "The Wolf Crest is yours. Hearthhold is linked. A wounded scout may need herb bundles."},
+			])
+		"merchant_errand":
+			start_quest("defeat_warden")
+			DialogueManager.start_dialogue("quest_errand_done", [
+				{"speaker": "Quest", "text": "The merchant owes you a favor. The Hollow Grove Warden must fall."},
+			])
 
 
 func deserialize(data: Dictionary) -> void:

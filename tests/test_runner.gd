@@ -3,6 +3,7 @@ extends Node
 
 const LOG_PATH := "res://tests/last_run.log"
 const DUNGEON_ROOM := preload("res://scripts/dungeons/dungeon_room.gd")
+const _Kenney = preload("res://scripts/utilities/kenney_paths.gd")
 var _log: PackedStringArray = []
 var _passed := 0
 var _failed := 0
@@ -93,8 +94,20 @@ func _test_main_scene_exists() -> void:
 	_assert(menu != null, "main_menu loads")
 
 
+func _test_island_terrain() -> void:
+	_assert(ResourceLoader.exists("res://scenes/levels/darkpine_forest/island_terrain.tscn"), "island_terrain.tscn exists")
+	_assert(ResourceLoader.exists(_Kenney.nature("ground_grass.glb")), "kenney ground_grass asset")
+	_assert(ResourceLoader.exists(_Kenney.nature("platform_stone.glb")), "kenney dungeon floor asset")
+	var layout := MapManager.get_region_layout("darkpine_forest")
+	_assert(layout.get("kind") == "island", "darkpine_forest is island region")
+
+
 func _get_autoload(name: String) -> Node:
-	return get_tree().root.get_node_or_null(name)
+	var root := get_tree().root
+	var node := root.get_node_or_null(name)
+	if node:
+		return node
+	return root.find_child(name, true, false)
 
 
 func _run_all() -> void:
@@ -107,6 +120,7 @@ func _run_all() -> void:
 	_test_dungeon_generator()
 	_test_dungeon_scene_exists()
 	_test_main_scene_exists()
+	_test_island_terrain()
 
 
 func _assert(condition: bool, label: String) -> void:

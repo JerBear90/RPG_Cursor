@@ -2,12 +2,14 @@ extends Node
 ## Quick spell and spell wheel casting.
 
 const SPELL_PROJECTILE := preload("res://scenes/weapons/spell_projectile.tscn")
+const ALL_SPELLS: Array[String] = ["ember_bolt", "healing_mist", "venom_dart", "shadow_lash"]
 
 signal spell_changed(spell_id: String)
 
 var _player: PlayerController
 var _focus: FocusComponent
-var equipped_spells: Array[String] = ["ember_bolt", "healing_mist", "venom_dart", "shadow_lash"]
+var unlocked_spells: Array[String] = ["ember_bolt"]
+var equipped_spells: Array[String] = ["ember_bolt"]
 var quick_spell_index: int = 0
 var _cooldowns: Dictionary = {}
 var _spell_wheel_open: bool = false
@@ -16,6 +18,7 @@ var _spell_wheel_open: bool = false
 func _ready() -> void:
 	_player = get_parent() as PlayerController
 	_focus = _player.get_node("FocusComponent")
+	_refresh_equipped_spells()
 	spell_changed.emit(equipped_spells[quick_spell_index])
 
 
@@ -30,6 +33,27 @@ func _process(delta: float) -> void:
 	if InputManager.is_action_just_pressed("cycle_quick_right", idx):
 		_select_spell((quick_spell_index + 1) % equipped_spells.size())
 	_handle_spell_wheel(idx)
+
+
+func unlock_spell(spell_id: String) -> bool:
+	if spell_id not in ALL_SPELLS or spell_id in unlocked_spells:
+		return false
+	unlocked_spells.append(spell_id)
+	_refresh_equipped_spells()
+	spell_changed.emit(equipped_spells[quick_spell_index])
+	return true
+
+
+func is_spell_unlocked(spell_id: String) -> bool:
+	return spell_id in unlocked_spells
+
+
+func _refresh_equipped_spells() -> void:
+	equipped_spells = unlocked_spells.duplicate()
+	if equipped_spells.is_empty():
+		equipped_spells = ["ember_bolt"]
+	if quick_spell_index >= equipped_spells.size():
+		quick_spell_index = 0
 
 
 func _handle_spell_wheel(player_index: int) -> void:
@@ -63,6 +87,8 @@ func get_active_spell_label() -> String:
 
 
 func cast_spell(spell_id: String) -> bool:
+	if spell_id not in unlocked_spells:
+		return false
 	if _cooldowns.get(spell_id, 0.0) > 0.0:
 		return false
 	var data := _get_spell_data(spell_id)
@@ -88,14 +114,37 @@ func _spawn_spell(data: Dictionary) -> void:
 
 
 func _get_spell_data(spell_id: String) -> Dictionary:
+	var data: Dictionary
 	match spell_id:
 		"ember_bolt":
-			return {"id": "ember_bolt", "school": "fire", "focus_cost": 8.0, "cooldown": 1.0, "damage": 15.0, "speed": 18.0}
+			data = {"id": "ember_bolt", "school": "fire", "focus_cost": 8.0, "cooldown": 1.0, "damage": 15.0, "speed": 18.0}
 		"healing_mist":
-			return {"id": "healing_mist", "school": "water", "focus_cost": 12.0, "cooldown": 5.0, "damage": 25.0, "speed": 0.0}
+			data = {"id": "healing_mist", "school": "water", "focus_cost": 12.0, "cooldown": 5.0, "damage": 25.0, "speed": 0.0}
 		"venom_dart":
-			return {"id": "venom_dart", "school": "poison", "focus_cost": 6.0, "cooldown": 0.8, "damage": 8.0, "speed": 22.0}
+			data = {"id": "venom_dart", "school": "poison", "focus_cost": 6.0, "cooldown": 0.8, "damage": 8.0, "speed": 22.0}
 		"shadow_lash":
-			return {"id": "shadow_lash", "school": "dark", "focus_cost": 10.0, "cooldown": 1.5, "damage": 20.0, "speed": 25.0}
+			data = {"id": "shadow_lash", "school": "dark", "focus_cost": 10.0, "cooldown": 1.5, "damage": 20.0, "speed": 25.0}
 		_:
-			return {"id": spell_id, "school": "fire", "focus_cost": 10.0, "cooldown": 1.0, "damage": 10.0, "speed": 15.0}
+			data = {"id": spell_id, "school": "fire", "focus_cost": 10.0, "cooldown": 1.0, "damage": 10.0, "speed": 15.0}
+	if _player.has_node("StatsComponent"):
+		data.damage = float(data.damage) + (_player.get_node("StatsComponent") as StatsComponent).get_spell_power_bonus()
+	if _player.has_node("SkillTree"):
+		data.damage = float(data.damage) * (_player.get_node("SkillTree") as Node).get_spell_damage_multiplier(spell_id)
+	return data
+
+
+func serialize() -> Dictionary:
+	return {"unlocked": unlocked_spells.duplicate(), "quick_index": quick_spell_index}
+
+
+func deserialize(data: Dictionary) -> void:
+	var saved: Array = data.get("unlocked", ["ember_bolt"])
+	unlocked_spells.clear()
+	for entry in saved:
+		var spell_id := str(entry)
+		if spell_id in ALL_SPELLS:
+			unlocked_spells.append(spell_id)
+	if unlocked_spells.is_empty():
+		unlocked_spells = ["ember_bolt"]
+	quick_spell_index = int(data.get("quick_index", 0))
+	_refresh_equipped_spells()
