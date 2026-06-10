@@ -41,10 +41,12 @@ func get_source() -> Node:
 func _on_area_entered(area: Area3D) -> void:
 	if not active or not area is Hurtbox:
 		return
-	var id := area.get_instance_id()
+	var hurtbox := area as Hurtbox
+	var id := hurtbox.get_instance_id()
 	if id in _hit_targets:
 		return
 	_hit_targets.append(id)
+	hurtbox.apply_hit(self)
 
 
 func _find_combat_owner() -> Node:

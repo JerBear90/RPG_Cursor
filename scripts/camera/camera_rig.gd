@@ -35,6 +35,7 @@ func _ready() -> void:
 
 func _capture_mouse() -> void:
 	if get_tree().paused:
+		call_deferred("_capture_mouse")
 		return
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_mouse_captured = true

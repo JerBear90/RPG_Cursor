@@ -16,6 +16,7 @@ detection_range = 20.0
 attack_range = 3.0
 loot_table_id = "boss_warden"
 xp_reward = 500
+head_bar_offset = 3.8
 
 [node name="CharacterVisual" parent="MeshRoot" index="0"]
 gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Zombie_Chubby.gltf"

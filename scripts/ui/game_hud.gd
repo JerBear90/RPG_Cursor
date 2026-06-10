@@ -5,6 +5,9 @@ const InventoryPanelScene := preload("res://scripts/ui/inventory_panel.gd")
 const SkillTreePanelScene := preload("res://scripts/ui/skill_tree_panel.gd")
 const SpellWheelPanelScene := preload("res://scripts/ui/spell_wheel_panel.gd")
 const MerchantShopPanelScene := preload("res://scripts/ui/merchant_shop_panel.gd")
+const PetWheelPanelScene := preload("res://scripts/ui/pet_wheel_panel.gd")
+const _ItemUiTheme = preload("res://scripts/ui/item_ui_theme.gd")
+const MinimapControl = preload("res://scripts/ui/minimap_control.gd")
 
 @onready var health_bar: TextureProgressBar = %HealthBar
 @onready var stamina_bar: TextureProgressBar = %StaminaBar
@@ -21,6 +24,7 @@ const MerchantShopPanelScene := preload("res://scripts/ui/merchant_shop_panel.gd
 @onready var spell_label: Label = %SpellLabel
 @onready var execution_label: Label = %ExecutionLabel
 @onready var map_stub_label: Label = %MapStubLabel
+@onready var region_label: Label = %RegionLabel
 @onready var controls_hint_label: Label = %ControlsHintLabel
 @onready var adrenaline_row: HBoxContainer = %AdrenalineRow
 
@@ -48,10 +52,16 @@ var _inventory_panel: PanelContainer
 var _skill_tree_panel: PanelContainer
 var _spell_wheel_panel: Control
 var _merchant_panel: PanelContainer
+var _pet_wheel_panel: Control
+var _p2_vitals_label: Label
+var _player2: Node
+var _minimap: MinimapControl
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("game_hud")
+	_apply_hud_layout()
 	_setup_kenney_hud()
 	_build_overlay_ui()
 	_build_toast()
@@ -71,11 +81,25 @@ func _ready() -> void:
 	CraftingManager.craft_completed.connect(func(recipe_id): show_toast("Crafted %s" % recipe_id.replace("_", " ")))
 	CraftingManager.craft_failed.connect(func(reason): show_toast("Craft failed: %s" % reason))
 	call_deferred("_bind_player")
+	if not GameManager.player_spawned.is_connected(_on_player_spawned):
+		GameManager.player_spawned.connect(_on_player_spawned)
 	_update_quest("")
 	_update_currency()
 	_update_map_stub()
 	boss_bar.visible = false
 	execution_label.visible = false
+	call_deferred("_ensure_gameplay_ready")
+
+
+func _ensure_gameplay_ready() -> void:
+	_active_menu = ""
+	if _overlay:
+		_overlay.visible = false
+	if _menu_panel:
+		_menu_panel.visible = false
+	if get_tree().paused and not DialogueManager.is_active():
+		get_tree().paused = false
+		GameManager.is_paused = false
 
 
 func _process(delta: float) -> void:
@@ -84,6 +108,7 @@ func _process(delta: float) -> void:
 		_update_spell_label()
 		_update_quest_distance()
 	_update_boss_bar()
+	_update_p2_vitals()
 	if _toast_timer > 0.0:
 		_toast_timer -= delta
 		if _toast_timer <= 0.0 and _toast_label:
@@ -128,6 +153,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _active_menu == "":
 			_open_quest_journal_menu()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("open_pet_wheel"):
+		if _active_menu == "pet_wheel":
+			_close_pet_wheel()
+		elif _active_menu == "" and PetManager.has_pet("ash_hound"):
+			_open_pet_wheel()
+		get_viewport().set_input_as_handled()
+	elif _active_menu == "pet_wheel":
+		if event.is_action_pressed("cycle_quick_left"):
+			_pet_wheel_panel.cycle_selection(-1)
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("cycle_quick_right"):
+			_pet_wheel_panel.cycle_selection(1)
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("confirm"):
+			_pet_wheel_panel.confirm_selection()
+			get_viewport().set_input_as_handled()
 	elif DialogueManager.is_active() and event.is_action_pressed("confirm"):
 		DialogueManager.advance()
 		get_viewport().set_input_as_handled()
@@ -138,6 +179,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_skill_tree_panel()
 		elif _active_menu == "merchant":
 			_close_merchant_panel()
+		elif _active_menu == "pet_wheel":
+			_close_pet_wheel()
 		else:
 			_close_menu()
 		get_viewport().set_input_as_handled()
@@ -164,13 +207,13 @@ func track_boss(boss: Node) -> void:
 	_tracked_boss = boss
 	boss_bar.visible = true
 	var boss_name := "Boss"
-	if boss is EnemyBase:
-		boss_name = (boss as EnemyBase).display_name
+	if "display_name" in boss:
+		boss_name = str(boss.display_name)
 		boss_bar.tooltip_text = boss_name
 	if _boss_name_label:
 		_boss_name_label.text = boss_name
 		_boss_name_label.visible = true
-	if boss is BossController and not boss.phase_changed.is_connected(_on_boss_phase_changed):
+	if boss.has_signal("phase_changed") and not boss.phase_changed.is_connected(_on_boss_phase_changed):
 		boss.phase_changed.connect(_on_boss_phase_changed)
 	if boss.has_node("HealthComponent"):
 		var health := boss.get_node("HealthComponent") as HealthComponent
@@ -208,6 +251,62 @@ func close_spell_wheel_menu() -> void:
 		_active_menu = ""
 		_overlay.visible = false
 		_spell_wheel_panel.hide_wheel()
+
+
+func open_mask_menu(player: Node) -> void:
+	_player = player if player else _player
+	_populate_mask_list()
+	_show_menu("masks", "Memory Masks")
+
+
+func _open_pet_wheel() -> void:
+	_active_menu = "pet_wheel"
+	_overlay.visible = true
+	_pet_wheel_panel.show_wheel(0)
+
+
+func _close_pet_wheel() -> void:
+	if _active_menu == "pet_wheel":
+		_active_menu = ""
+		_overlay.visible = false
+		_pet_wheel_panel.hide_wheel()
+
+
+func _on_pet_command_selected(command_id: String) -> void:
+	var idx := 0
+	if _player and _player is PlayerController:
+		idx = (_player as PlayerController).player_index
+	PetManager.set_pet_command(idx, command_id)
+	show_toast("Ash Hound: %s" % command_id.capitalize())
+	_close_pet_wheel()
+
+
+func _populate_mask_list() -> void:
+	_menu_list.clear()
+	_menu_list.add_item("Close")
+	_menu_list.add_item("Unequip mask")
+	MaskManager.sync_unlocks_from_quests()
+	for mask_id in MaskManager.get_available_masks():
+		var prefix := "★ " if MaskManager.equipped_mask == mask_id else ""
+		var row := _menu_list.add_item(prefix + MaskManager.MASKS[mask_id].name)
+		_menu_list.set_item_metadata(row, mask_id)
+
+
+func _handle_mask_selection(index: int) -> void:
+	var text := _menu_list.get_item_text(index)
+	if text == "Close":
+		_close_menu()
+		return
+	if text == "Unequip mask":
+		MaskManager.equip_mask("", _player)
+		show_toast("Mask unequipped")
+		_close_menu()
+		return
+	var mask_id: Variant = _menu_list.get_item_metadata(index)
+	if mask_id != null and typeof(mask_id) == TYPE_STRING:
+		MaskManager.equip_mask(mask_id, _player)
+		show_toast("Equipped %s" % MaskManager.MASKS[mask_id].name)
+	_close_menu()
 
 
 func _open_inventory_panel() -> void:
@@ -279,13 +378,200 @@ func _cycle_spell_wheel(direction: int) -> void:
 
 
 func _setup_kenney_hud() -> void:
-	var ring := get_node_or_null("HudRoot/TopRight/VBox/MapFrame/Ring") as TextureRect
-	if ring:
-		var circle := KenneyUiPaths.load_tex(KenneyUiPaths.circle_frame())
-		if circle:
-			ring.texture = circle
+	_ensure_vitals_bars()
+	_setup_minimap()
+	var top_right := get_node_or_null("HudRoot/TopRight") as Control
+	if top_right:
+		top_right.visible = true
 	_build_adrenaline_pips()
-	controls_hint_label.text = "WASD Move  |  Shift Sprint  |  Mouse Look  |  E Interact"
+	_build_p2_vitals()
+	controls_hint_label.text = "WASD Move  |  LMB Light  |  RMB Heavy  |  Shift Sprint  |  E Interact"
+
+
+func _apply_hud_layout() -> void:
+	var hud_root := get_node_or_null("HudRoot") as Control
+	if hud_root:
+		var ui_scale := clampf(SettingsManager.ui_scale, 0.85, 1.2)
+		hud_root.scale = Vector2(ui_scale, ui_scale)
+		hud_root.pivot_offset = Vector2.ZERO
+	var top_left := get_node_or_null("HudRoot/TopLeft") as Control
+	if top_left:
+		top_left.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		top_left.offset_left = 8.0
+		top_left.offset_top = 8.0
+		top_left.offset_right = 248.0
+		top_left.offset_bottom = 188.0
+	var top_right_mc := get_node_or_null("HudRoot/TopRight") as Control
+	if top_right_mc:
+		top_right_mc.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		top_right_mc.offset_left = -188.0
+		top_right_mc.offset_top = 8.0
+		top_right_mc.offset_right = -8.0
+		top_right_mc.offset_bottom = 248.0
+	var quest_tracker := get_node_or_null("HudRoot/QuestTracker") as Control
+	if quest_tracker:
+		quest_tracker.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+		quest_tracker.offset_left = -300.0
+		quest_tracker.offset_top = -80.0
+		quest_tracker.offset_right = -8.0
+		quest_tracker.offset_bottom = 140.0
+	var vitals := get_node_or_null("HudRoot/TopLeft/VitalsPanel") as Control
+	if vitals:
+		vitals.custom_minimum_size = Vector2(228, 168)
+	for bar in [health_bar, stamina_bar, focus_bar]:
+		if bar:
+			bar.custom_minimum_size = Vector2(200, 16)
+
+
+func _setup_minimap() -> void:
+	var map_frame := get_node_or_null("HudRoot/TopRight/VBox/MapFrame") as Control
+	if map_frame == null:
+		return
+	map_frame.custom_minimum_size = Vector2(160, 160)
+	map_frame.clip_contents = true
+	_minimap = map_frame.get_node_or_null("Minimap") as MinimapControl
+	if _minimap == null:
+		_minimap = MinimapControl.new()
+		_minimap.name = "Minimap"
+		_minimap.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_minimap.anchor_right = 1.0
+		_minimap.anchor_bottom = 1.0
+		_minimap.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		_minimap.grow_vertical = Control.GROW_DIRECTION_BOTH
+		map_frame.add_child(_minimap)
+	var ring := map_frame.get_node_or_null("Ring") as TextureRect
+	if ring:
+		ring.visible = false
+	var overlay_label := map_frame.get_node_or_null("MapStubLabel") as Label
+	if overlay_label:
+		overlay_label.visible = false
+	if map_frame.get_node_or_null("MapRingBorder") == null:
+		var border := Panel.new()
+		border.name = "MapRingBorder"
+		border.set_anchors_preset(Control.PRESET_FULL_RECT)
+		border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0, 0, 0, 0)
+		style.border_color = Color(0.78, 0.62, 0.28, 0.95)
+		style.set_border_width_all(3)
+		style.set_corner_radius_all(80)
+		border.add_theme_stylebox_override("panel", style)
+		map_frame.add_child(border)
+		border.show_behind_parent = false
+		border.z_index = 2
+	if _player and _player is Node3D:
+		_minimap.bind_player(_player as Node3D)
+	_minimap.refresh_landmarks()
+
+
+func _ensure_vitals_bars() -> void:
+	var bar_specs: Array = [
+		[health_bar, Color(0.78, 0.18, 0.14)],
+		[stamina_bar, Color(0.85, 0.72, 0.18)],
+		[focus_bar, Color(0.22, 0.48, 0.82)],
+		[hunger_bar, Color(0.22, 0.62, 0.28)],
+		[thirst_bar, Color(0.22, 0.48, 0.82)],
+	]
+	for spec in bar_specs:
+		var bar := spec[0] as TextureProgressBar
+		if bar == null:
+			continue
+		if bar.has_method("_apply_textures"):
+			bar._apply_textures()
+		if bar.texture_under == null:
+			bar.texture_under = KenneyUiPaths.solid_tex(Color(0.12, 0.12, 0.16, 0.95), Vector2i(256, 24))
+		if bar.texture_progress == null:
+			bar.texture_progress = KenneyUiPaths.solid_tex(spec[1], Vector2i(256, 24))
+		bar.visible = true
+		bar.modulate = Color.WHITE
+		bar.custom_minimum_size.y = maxf(bar.custom_minimum_size.y, 16.0)
+	_add_vital_bar_labels()
+	var vitals := get_node_or_null("HudRoot/TopLeft/VitalsPanel") as Control
+	if vitals:
+		vitals.visible = true
+		vitals.modulate = Color.WHITE
+		if vitals is NinePatchRect and (vitals as NinePatchRect).texture == null:
+			(vitals as NinePatchRect).texture = KenneyUiPaths.solid_tex(
+				Color(0.08, 0.1, 0.14, 0.88), Vector2i(32, 32)
+			)
+
+
+func _add_vital_bar_labels() -> void:
+	var vbox := get_node_or_null("HudRoot/TopLeft/VitalsPanel/Margin/VBox") as VBoxContainer
+	if vbox == null:
+		return
+	var labels := {"HealthBar": "HP", "StaminaBar": "STA", "FocusBar": "FOC"}
+	for bar_name in ["HealthBar", "StaminaBar", "FocusBar"]:
+		var row_name := "%sRow" % bar_name
+		if vbox.get_node_or_null(row_name) != null:
+			continue
+		var bar := vbox.get_node_or_null(bar_name) as Control
+		if bar == null:
+			continue
+		var idx := bar.get_index()
+		var row := HBoxContainer.new()
+		row.name = row_name
+		row.add_theme_constant_override("separation", 6)
+		var tag := Label.new()
+		tag.name = "BarLabel"
+		tag.text = labels[bar_name]
+		tag.custom_minimum_size = Vector2(34, 0)
+		tag.add_theme_font_size_override("font_size", 12)
+		tag.add_theme_color_override("font_color", Color(0.82, 0.86, 0.92))
+		vbox.remove_child(bar)
+		vbox.add_child(row)
+		vbox.move_child(row, idx)
+		row.add_child(tag)
+		row.add_child(bar)
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar.custom_minimum_size = Vector2(160, 16)
+
+
+func _build_p2_vitals() -> void:
+	var top_left := get_node_or_null("HudRoot/TopLeft/VitalsPanel/Margin/VBox") as VBoxContainer
+	if top_left == null:
+		return
+	_p2_vitals_label = Label.new()
+	_p2_vitals_label.name = "P2VitalsLabel"
+	_p2_vitals_label.add_theme_font_size_override("font_size", 14)
+	_p2_vitals_label.text = ""
+	top_left.add_child(_p2_vitals_label)
+
+
+func _on_player_spawned(player: Node, index: int) -> void:
+	if index == 0:
+		_bind_player_node(player)
+	elif index == 1:
+		_player2 = player
+		if player.has_node("HealthComponent"):
+			var health := player.get_node("HealthComponent") as HealthComponent
+			if not health.health_changed.is_connected(_on_p2_health_changed):
+				health.health_changed.connect(_on_p2_health_changed)
+
+
+func _on_p2_health_changed(current: float, maximum: float) -> void:
+	_update_p2_vitals()
+
+
+func _update_p2_vitals() -> void:
+	if _p2_vitals_label == null:
+		return
+	if _player2 == null or not is_instance_valid(_player2):
+		_p2_vitals_label.text = ""
+		return
+	var hp := 0.0
+	var hp_max := 100.0
+	var st := 0.0
+	var st_max := 100.0
+	if _player2.has_node("HealthComponent"):
+		var health := _player2.get_node("HealthComponent") as HealthComponent
+		hp = health.current_health
+		hp_max = health.max_health
+	if _player2.has_node("StaminaComponent"):
+		var stamina := _player2.get_node("StaminaComponent") as StaminaComponent
+		st = stamina.current_stamina
+		st_max = stamina.max_stamina
+	_p2_vitals_label.text = "P2  HP %d/%d  ST %d/%d" % [int(hp), int(hp_max), int(st), int(st_max)]
 
 
 func _build_adrenaline_pips() -> void:
@@ -302,8 +588,14 @@ func _build_adrenaline_pips() -> void:
 		star.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		star.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		star.texture = empty if empty else filled
-		star.set_meta("filled_tex", filled)
-		star.set_meta("empty_tex", empty)
+		if filled:
+			star.set_meta("filled_tex", filled)
+		if empty:
+			star.set_meta("empty_tex", empty)
+		else:
+			star.set_meta("empty_tex", KenneyUiPaths.solid_tex(Color(0.35, 0.35, 0.4)))
+		if not filled:
+			star.set_meta("filled_tex", KenneyUiPaths.solid_tex(Color(0.95, 0.78, 0.2)))
 		adrenaline_row.add_child(star)
 		_adrenaline_stars.append(star)
 
@@ -318,9 +610,11 @@ func _update_adrenaline_pips(stamina_percent: float) -> void:
 		lit = 1
 	for i in _adrenaline_stars.size():
 		var star := _adrenaline_stars[i]
+		if not star.has_meta("filled_tex") or not star.has_meta("empty_tex"):
+			continue
 		var filled: Texture2D = star.get_meta("filled_tex")
 		var empty: Texture2D = star.get_meta("empty_tex")
-		star.texture = filled if i < lit and filled else empty
+		star.texture = filled if i < lit and filled else empty if empty else filled
 
 
 func _update_quest_distance() -> void:
@@ -328,8 +622,8 @@ func _update_quest_distance() -> void:
 		return
 	var best := INF
 	for node in get_tree().get_nodes_in_group("quest_destination"):
-		if node is Node3D:
-			var d := _player.global_position.distance_to((node as Node3D).global_position)
+		if _player is Node3D and node is Node3D:
+			var d: float = (_player as Node3D).global_position.distance_to((node as Node3D).global_position)
 			best = minf(best, d)
 	if best >= INF:
 		quest_distance_label.visible = false
@@ -343,7 +637,9 @@ func _build_overlay_ui() -> void:
 	_overlay.color = Color(0, 0, 0, 0.55)
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.visible = false
+	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_overlay)
+	move_child(_overlay, 0)
 
 	_dialogue_panel = PanelContainer.new()
 	_dialogue_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -416,6 +712,11 @@ func _build_overlay_ui() -> void:
 	_merchant_panel.closed.connect(_on_panel_closed)
 	add_child(_merchant_panel)
 
+	_pet_wheel_panel = PetWheelPanelScene.new()
+	_pet_wheel_panel.visible = false
+	_pet_wheel_panel.command_selected.connect(_on_pet_command_selected)
+	add_child(_pet_wheel_panel)
+
 
 func _build_toast() -> void:
 	_toast_label = Label.new()
@@ -428,7 +729,12 @@ func _build_toast() -> void:
 
 
 func _bind_player() -> void:
-	await get_tree().process_frame
+	for _attempt in 30:
+		await get_tree().process_frame
+		var player := GameManager.get_player(0)
+		if player:
+			_bind_player_node(player)
+			return
 	_bind_player_node(GameManager.get_player(0))
 
 
@@ -457,9 +763,23 @@ func _bind_player_node(player: Node) -> void:
 		var spellcaster := player.get_node("Spellcaster")
 		if spellcaster.has_signal("spell_changed") and not spellcaster.spell_changed.is_connected(_on_spell_changed):
 			spellcaster.spell_changed.connect(_on_spell_changed)
+	_update_bars()
+	if player.has_node("HealthComponent"):
+		var health := player.get_node("HealthComponent") as HealthComponent
+		_on_health_changed(health.current_health, health.max_health)
+	if player.has_node("StaminaComponent"):
+		var stamina := player.get_node("StaminaComponent") as StaminaComponent
+		_on_stamina_changed(stamina.current_stamina, stamina.max_stamina)
+	if player.has_node("FocusComponent"):
+		var focus := player.get_node("FocusComponent") as FocusComponent
+		_on_focus_changed(focus.current_focus, focus.max_focus)
+	if _minimap and player is Node3D:
+		_minimap.bind_player(player as Node3D)
 
 
 func _update_bars() -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
 	if _player.has_node("SurvivalNeedsComponent"):
 		var needs := _player.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent
 		hunger_bar.value = needs.hunger
@@ -514,6 +834,8 @@ func _on_health_changed(current: float, maximum: float) -> void:
 func _on_stamina_changed(current: float, maximum: float) -> void:
 	stamina_bar.max_value = maximum
 	stamina_bar.value = current
+	var pct := current / maximum if maximum > 0.0 else 0.0
+	_update_adrenaline_pips(pct)
 
 
 func _on_focus_changed(current: float, maximum: float) -> void:
@@ -557,18 +879,22 @@ func _on_achievement_unlocked(id: String) -> void:
 
 func _on_map_updated(_region_id: String) -> void:
 	_update_map_stub()
+	if _minimap:
+		_minimap.refresh_landmarks()
 
 
 func _update_map_stub() -> void:
-	if _player == null:
-		return
-	var floor_text := DungeonManager.get_floor_display()
-	if floor_text != "":
-		map_stub_label.text = floor_text
-		return
 	var region := GameManager.current_region_id.replace("_", " ").capitalize()
-	var pos_label := MapManager.get_map_position_label(_player.global_position)
-	map_stub_label.text = "%s\n%s" % [region, pos_label]
+	var floor_text := DungeonManager.get_floor_display()
+	var label_text := region
+	if floor_text != "":
+		label_text = floor_text
+	elif _player != null:
+		label_text = "%s — %s" % [region, MapManager.get_map_position_label(_player.global_position)]
+	if region_label:
+		region_label.text = label_text
+	if map_stub_label:
+		map_stub_label.text = label_text
 
 
 func _update_quest(_id: String) -> void:
@@ -760,6 +1086,8 @@ func _menu_confirm() -> void:
 			_handle_settings_selection(text)
 		"spell_wheel":
 			_handle_spell_wheel_selection(index)
+		"masks":
+			_handle_mask_selection(index)
 
 
 func _on_menu_item_selected(_index: int) -> void:

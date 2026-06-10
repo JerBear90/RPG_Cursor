@@ -68,10 +68,15 @@ func _build_tones() -> void:
 	_tones["eat"] = _make_tone(320.0, 80)
 	_tones["drink"] = _make_tone(520.0, 80)
 	_tones["hit"] = _make_tone(180.0, 50)
+	_tones["block"] = _make_tone(120.0, 70, 0.3)
+	_tones["death"] = _make_tone(90.0, 180, 0.22)
+	_tones["spell"] = _make_tone(520.0, 90, 0.28)
+	_tones["footstep"] = _make_tone(240.0, 30, 0.12)
 	_tones["quest"] = _make_tone(784.0, 150)
 	_tones["ambient"] = _make_tone(110.0, 400, 0.12)
 	_tones["camp"] = _make_tone(196.0, 300, 0.15)
 	_tones["combat"] = _make_tone(140.0, 250, 0.18)
+	_tones["explore"] = _make_tone(165.0, 350, 0.14)
 
 
 func _make_tone(freq: float, duration_ms: int, volume: float = 0.25) -> AudioStreamWAV:

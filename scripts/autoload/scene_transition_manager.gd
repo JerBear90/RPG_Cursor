@@ -21,6 +21,8 @@ func change_scene(path: String, spawn_point: String = "") -> void:
 	var err := tree.change_scene_to_file(path)
 	if err != OK:
 		push_error("SceneTransitionManager: failed to load %s (error %d)" % [path, err])
+	tree.paused = false
+	GameManager.is_paused = false
 	_changing = false
 	transition_finished.emit()
 	if spawn_point != "" and err == OK:

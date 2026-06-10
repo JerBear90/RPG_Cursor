@@ -1,18 +1,46 @@
 extends Node
 ## Fog-of-war map and region discovery.
 
+const _TownLayouts = preload("res://scripts/levels/town_layouts.gd")
+const _BUILDING_HINTS := ["tent", "platform", "statue", "fence_gate", "campfire"]
 signal map_updated(region_id: String)
 
 enum RegionState { UNDISCOVERED, DISCOVERED, EXPLORED, CLEARED, DANGEROUS }
 
 var regions: Dictionary = {}
 var region_layout: Dictionary = {
-	"darkpine_forest": {"kind": "island", "radius": 28.0, "water_extent": 52.0},
-	"hearthhold_camp": {"kind": "camp", "radius": 12.0},
-	"ruined_watchtower": {"kind": "island", "radius": 18.0, "water_extent": 30.0, "scatter_trees": 6, "scatter_rocks": 10},
-	"bandit_camp": {"kind": "island", "radius": 20.0, "water_extent": 34.0, "scatter_trees": 8, "scatter_rocks": 8},
-	"crystal_cave": {"kind": "island", "radius": 16.0, "water_extent": 0.0, "land_tile": "platform_stone.glb", "scatter_trees": 2, "scatter_rocks": 16},
-	"hollow_grove_shrine": {"kind": "island", "radius": 22.0, "water_extent": 38.0, "scatter_trees": 22, "scatter_rocks": 6},
+	"darkpine_forest": {
+		"kind": "island", "radius": 28.0, "water_extent": 52.0,
+		"scatter_trees": 32, "scatter_rocks": 20, "scatter_grass": 60, "scatter_bushes": 18,
+	},
+	"hearthhold_camp": {
+		"kind": "camp", "radius": 16.0,
+		"scatter_trees": 6, "scatter_rocks": 4, "scatter_grass": 20, "scatter_bushes": 8,
+	},
+	"ruined_watchtower": {
+		"kind": "island", "radius": 18.0, "water_extent": 30.0,
+		"scatter_trees": 10, "scatter_rocks": 12, "scatter_grass": 35, "scatter_bushes": 8,
+		"tree_pool": ["tree_pineDefaultA.glb", "tree_pineTallA.glb", "tree_simple.glb", "tree_tall.glb"],
+	},
+	"bandit_camp": {
+		"kind": "island", "radius": 20.0, "water_extent": 34.0,
+		"scatter_trees": 12, "scatter_rocks": 10, "scatter_grass": 40, "scatter_bushes": 10,
+	},
+	"crystal_cave": {
+		"kind": "island", "radius": 16.0, "water_extent": 0.0,
+		"land_tile": "platform_stone.glb",
+		"scatter_trees": 2, "scatter_rocks": 22, "scatter_grass": 8, "scatter_bushes": 4,
+		"rock_pool": ["rock_largeA.glb", "rock_largeB.glb", "rock_tallA.glb", "stone_largeA.glb", "cliff_block_stone.glb"],
+	},
+	"hollow_grove_shrine": {
+		"kind": "island", "radius": 22.0, "water_extent": 38.0,
+		"scatter_trees": 26, "scatter_rocks": 8, "scatter_grass": 45, "scatter_bushes": 20,
+		"tree_pool": [
+			"tree_oak.glb", "tree_detailed.glb", "tree_tall_dark.glb", "tree_simple_dark.glb",
+			"tree_pineRoundA.glb", "tree_pineTallA.glb",
+		],
+		"bush_pool": ["plant_bushDetailed.glb", "plant_bushLarge.glb", "mushroom_red.glb", "mushroom_tan.glb", "flower_purpleA.glb"],
+	},
 }
 var icons: Array[Dictionary] = []
 var player_positions: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
@@ -123,6 +151,31 @@ func get_fog_grid_lines(region_id: String, grid_radius: int = 4) -> PackedString
 				row += "?"
 		lines.append(row)
 	return lines
+
+
+func get_building_markers(region_id: String) -> Array[Vector3]:
+	var markers: Array[Vector3] = []
+	var layout := _TownLayouts.get_layout(region_id)
+	for entry in layout.get("props", []):
+		if not entry is Dictionary:
+			continue
+		var mesh: String = str(entry.get("m", ""))
+		if not _mesh_is_building(mesh):
+			continue
+		var pos: Vector3 = entry.get("p", Vector3.ZERO)
+		markers.append(pos)
+	return markers
+
+
+func _mesh_is_building(mesh_name: String) -> bool:
+	for hint in _BUILDING_HINTS:
+		if hint in mesh_name:
+			return true
+	return false
+
+
+func get_region_radius(region_id: String) -> float:
+	return float(get_region_layout(region_id).get("radius", 28.0))
 
 
 func serialize() -> Dictionary:

@@ -3,7 +3,8 @@ extends Node3D
 
 signal visual_ready
 
-const PLAYER1_MESH_PATH := "res://art/characters/player1/exiled_survivor_matt.gltf"
+const PLAYER1_MESH_PATH := "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Matt_SingleWeapon.gltf"
+const PLAYER1_FALLBACK_PATH := "res://art/characters/player1/exiled_survivor_matt.gltf"
 const PLAYER2_MESH_PATH := "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Sam_SingleWeapon.gltf"
 
 @export var player_index: int = 0
@@ -22,6 +23,8 @@ func _ready() -> void:
 func _setup_visual() -> void:
 	var path := PLAYER1_MESH_PATH if player_index == 0 else PLAYER2_MESH_PATH
 	var packed: PackedScene = MeshLoader.load_scene(path)
+	if packed == null and player_index == 0:
+		packed = MeshLoader.load_scene(PLAYER1_FALLBACK_PATH)
 	if packed == null:
 		push_warning("PlayerVisual: failed to load %s — using placeholder" % path)
 		_add_placeholder()

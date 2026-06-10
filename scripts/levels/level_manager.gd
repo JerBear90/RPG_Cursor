@@ -1,9 +1,13 @@
 extends Node3D
 ## Spawns players, camera, and manages level lifecycle.
 
+const _TownBuilder = preload("res://scripts/levels/town_builder.gd")
+
 @export var region_id: String = "darkpine_forest"
 @export var spawn_points: Array[NodePath] = []
 @export var enable_co_op: bool = false
+
+const _SpawnHelpers = preload("res://scripts/utilities/spawn_helpers.gd")
 
 @onready var players_container: Node3D = $Players
 @onready var camera_rig: Node3D = $CameraRig
@@ -12,6 +16,15 @@ func _ready() -> void:
 	GameManager.set_region(_get_region_id())
 	call_deferred("_spawn_players")
 	MapManager.discover_region(_get_region_id())
+	_TownBuilder.spawn(self, _get_region_id())
+	RegionContent.populate(self)
+	call_deferred("_finish_region_setup")
+
+
+func _finish_region_setup() -> void:
+	RegionContent.start_region_quests(_get_region_id())
+	MaskManager.sync_unlocks_from_quests()
+	_play_region_music(_get_region_id())
 	if not GameManager.player_died.is_connected(_on_player_died):
 		GameManager.player_died.connect(_on_player_died)
 	if region_id == "hearthhold_camp":
@@ -23,6 +36,7 @@ func _spawn_players() -> void:
 	if player_scene == null:
 		push_error("LevelManager: player scene missing")
 		return
+	await _await_world_ground()
 	var count := GameManager.active_player_count if GameManager.game_started else 1
 	for i in count:
 		var player := player_scene.instantiate() as PlayerController
@@ -40,10 +54,20 @@ func _spawn_players() -> void:
 			spawn_pos = (get_node(spawn_points[0]) as Node3D).global_position
 		if i == 1:
 			spawn_pos += Vector3(2, 0, 0)
+		spawn_pos.y = maxf(spawn_pos.y, 1.5)
 		player.global_position = spawn_pos
+		player.velocity = Vector3.ZERO
+		await get_tree().physics_frame
+		_SpawnHelpers.snap_character_to_ground(player)
+		await get_tree().physics_frame
+		if not player.is_on_floor():
+			_SpawnHelpers.snap_character_to_ground(player, 0.15)
+			await get_tree().physics_frame
+		player.move_and_slide()
 		if i == 0:
+			var saved_pos := player.global_position
 			if not SaveManager.has_respawn_point():
-				SaveManager.set_respawn_point(_get_region_id(), spawn_pos)
+				SaveManager.set_respawn_point(_get_region_id(), saved_pos)
 			if not GameManager.pending_player_progress.is_empty():
 				PlayerProgress.apply(player, GameManager.pending_player_progress)
 				GameManager.pending_player_progress = {}
@@ -51,6 +75,27 @@ func _spawn_players() -> void:
 				_finalize_respawn(player, GameManager.pending_death_message)
 				GameManager.pending_death_message = ""
 		PetManager.try_spawn_for_player(player)
+
+
+func _await_world_ground() -> void:
+	var terrain := _find_island_terrain()
+	if terrain and terrain.has_signal("ground_ready"):
+		if terrain.has_method("is_ground_ready") and terrain.is_ground_ready():
+			await get_tree().physics_frame
+			return
+		await terrain.ground_ready
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+
+
+func _find_island_terrain() -> Node:
+	for node in get_tree().get_nodes_in_group("island_terrain"):
+		return node
+	var env := get_node_or_null("Environment")
+	if env:
+		return env.get_node_or_null("IslandTerrain")
+	return null
 
 
 func _on_player_died(player: Node, _index: int) -> void:
@@ -97,12 +142,22 @@ func _finalize_respawn(
 	spawn_pos: Vector3 = Vector3.INF
 ) -> void:
 	if spawn_pos != Vector3.INF and is_instance_valid(player):
+		spawn_pos.y = maxf(spawn_pos.y, 1.5)
 		player.global_position = spawn_pos
+	if player is CharacterBody3D:
+		(player as CharacterBody3D).velocity = Vector3.ZERO
+	if player is PlayerController:
+		var pc := player as PlayerController
+		pc.refresh_spawn_protection()
+		pc.current_state = PlayerController.State.IDLE
+		_SpawnHelpers.snap_character_to_ground(pc)
+		pc.move_and_slide()
+		for hazard in get_tree().get_nodes_in_group("water_hazard"):
+			if hazard.has_method("reset_player"):
+				hazard.reset_player(pc)
 	if player.has_node("HealthComponent"):
 		var health := player.get_node("HealthComponent") as HealthComponent
 		health.reset_health()
-	if player is PlayerController:
-		(player as PlayerController).current_state = PlayerController.State.IDLE
 	if restore_needs and player.has_node("SurvivalNeedsComponent"):
 		var needs := player.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent
 		needs.hunger = minf(needs.hunger + 25.0, needs.max_hunger)
@@ -135,3 +190,13 @@ func _unlock_pet_shelter() -> void:
 
 func _get_region_id() -> String:
 	return region_id
+
+
+func _play_region_music(region: String) -> void:
+	match region:
+		"hearthhold_camp":
+			AudioManager.play_music("camp")
+		"crystal_cave", "hollow_grove_shrine":
+			AudioManager.play_music("explore")
+		_:
+			AudioManager.play_music("ambient")

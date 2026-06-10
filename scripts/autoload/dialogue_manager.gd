@@ -61,5 +61,11 @@ func get_npc_greeting(npc_id: String) -> Array[Dictionary]:
 			return [{"speaker": "Wounded Scout", "text": "The grove... something watches from the roots."}]
 		"old_blacksmith":
 			return [{"speaker": "Old Blacksmith", "text": "Bring me scrap and I'll make it bite."}]
+		"camp_vendor":
+			return [{"speaker": "Camp Vendor", "text": "Supplies for survivors — fair prices, no questions."}]
+		"herbalist":
+			return [{"speaker": "Herbalist", "text": "Roots and leaves keep you breathing out here."}]
+		"tool_vendor":
+			return [{"speaker": "Tool Vendor", "text": "Wood, stone, and patch kits — everything a builder needs."}]
 		_:
 			return [{"speaker": "Survivor", "text": "..."}]

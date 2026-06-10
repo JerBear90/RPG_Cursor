@@ -5,6 +5,7 @@ extends InteractableBase
 
 
 func _ready() -> void:
+	add_to_group("waystone")
 	super._ready()
 	prompt_text = "Use Waystone"
 

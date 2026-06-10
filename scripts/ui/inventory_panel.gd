@@ -3,6 +3,8 @@ extends PanelContainer
 
 signal closed
 
+const _ItemUiTheme = preload("res://scripts/ui/item_ui_theme.gd")
+
 const EQUIPMENT_SLOTS: Array[String] = [
 	"helmet", "chest", "gloves", "boots",
 	"main_weapon", "offhand", "ring_1", "ring_2", "charm", "mask",
@@ -117,10 +119,11 @@ func _rebuild_inventory() -> void:
 	for entry in InventoryManager.items:
 		var item_id: String = entry.id
 		var btn := Button.new()
-		btn.text = "%s\nx%d" % [item_id.replace("_", " "), entry.quantity]
+		btn.text = _ItemUiTheme.format_item_button(item_id, entry.quantity)
 		btn.toggle_mode = true
 		btn.button_pressed = item_id == _selected_item_id
-		btn.custom_minimum_size = Vector2(88, 64)
+		btn.custom_minimum_size = Vector2(96, 68)
+		_ItemUiTheme.style_item_button(btn, item_id, item_id == _selected_item_id)
 		btn.pressed.connect(_on_item_pressed.bind(item_id))
 		_item_grid.add_child(btn)
 

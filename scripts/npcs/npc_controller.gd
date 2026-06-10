@@ -16,16 +16,27 @@ var _attack_hitbox: Hitbox
 var _attack_cd: float = 0.0
 var _combat_target: Node3D
 var _gravity: float = 20.0
+var _character_anim: GltfCharacterAnim
 
 
 func _ready() -> void:
 	add_to_group("npc")
 	add_to_group("interactable")
 	_setup_friendly_fire_hurtbox()
+	_character_anim = GltfCharacterAnim.new()
+	_character_anim.name = "CharacterAnim"
+	add_child(_character_anim)
+	call_deferred("_setup_character_anim")
+
+
+func _setup_character_anim() -> void:
+	CharacterAnimBinder.bind(self, _character_anim)
 
 
 func _physics_process(delta: float) -> void:
 	if anger_state != "hostile":
+		if _character_anim.is_ready() and Vector2(velocity.x, velocity.z).length() <= 0.15:
+			_character_anim.play_idle()
 		velocity = Vector3.ZERO
 		return
 	PlanarFacing.apply_floor(self, delta, _gravity)
@@ -47,6 +58,9 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_dir.x * hostile_speed
 		velocity.z = move_dir.z * hostile_speed
 	move_and_slide()
+	if _character_anim.is_ready():
+		var speed := Vector2(velocity.x, velocity.z).length()
+		_character_anim.update_locomotion(speed, speed > hostile_speed * 0.75)
 
 
 func interact(player: Node) -> void:
@@ -136,12 +150,16 @@ func _try_hostile_attack() -> void:
 	if _attack_cd > 0.0 or _attack_hitbox == null:
 		return
 	_attack_cd = 1.4
+	if _character_anim.is_ready():
+		_character_anim.play_attack()
 	_attack_hitbox.base_damage = hostile_damage
 	_attack_hitbox.enable()
 	get_tree().create_timer(0.3).timeout.connect(_attack_hitbox.disable)
 
 
 func _on_hostile_died() -> void:
+	if _character_anim.is_ready():
+		_character_anim.play_death()
 	LootManager.drop_currency(randi_range(5, 15), global_position)
 	InventoryManager.add_item("cloth_scrap", 2)
 	for hud in get_tree().get_nodes_in_group("game_hud"):

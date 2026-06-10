@@ -63,13 +63,15 @@ func _handle_input(delta: float) -> void:
 	var idx := _player.player_index
 	if InputManager.is_action_just_pressed("dodge", idx) and _dodge.start_dodge():
 		_cancel_attack()
-		_player.current_state = PlayerController.State.DODGE
-	if InputManager.is_action_pressed("block", idx):
+		_player.set_state(PlayerController.State.DODGE)
+	if InputManager.is_action_pressed("block", idx) and _stamina.can_spend(1.0):
 		_block.start_block()
 		if _attack_phase == AttackPhase.NONE:
-			_player.current_state = PlayerController.State.BLOCK
+			_player.set_state(PlayerController.State.BLOCK)
 	elif _block.is_blocking:
 		_block.stop_block()
+		if _player.current_state == PlayerController.State.BLOCK:
+			_player.set_state(PlayerController.State.IDLE)
 	if InputManager.is_action_just_pressed("lock_on", idx):
 		_lock_on.toggle_lock()
 	if InputManager.is_action_just_pressed("light_attack", idx):
@@ -106,7 +108,7 @@ func _begin_attack(damage: float, timing: Dictionary, stamina_cost: float, heavy
 	_attack_phase = AttackPhase.WINDUP
 	_hitbox.disable()
 	_hitbox.base_damage = _get_final_physical_damage(damage)
-	_player.current_state = PlayerController.State.ATTACK
+	_player.set_state(PlayerController.State.ATTACK)
 	attack_phase_changed.emit("windup", heavy)
 	attack_started.emit(_combo_index, heavy)
 	if not heavy:
@@ -155,7 +157,7 @@ func _finish_attack(reset_combo: bool = true) -> void:
 	if reset_combo and _combo_window_timer <= 0.0:
 		_combo_index = 0
 	if _player.is_alive():
-		_player.current_state = PlayerController.State.IDLE
+		_player.set_state(PlayerController.State.IDLE)
 
 
 func _cancel_attack() -> void:
@@ -164,6 +166,8 @@ func _cancel_attack() -> void:
 
 
 func receive_damage(damage: DamageData) -> void:
+	if _player.has_spawn_protection():
+		return
 	if _dodge.iframes_active:
 		return
 	var amount := damage.amount
@@ -175,6 +179,8 @@ func receive_damage(damage: DamageData) -> void:
 func die_from_environment(_cause: String) -> void:
 	if not _player.is_alive():
 		return
+	if _player.has_spawn_protection():
+		return
 	_cancel_attack()
 	_health.take_damage(DamageData.create_physical(_health.current_health + 1.0, self))
 
@@ -182,7 +188,7 @@ func die_from_environment(_cause: String) -> void:
 func _on_damaged(_damage: DamageData, _remaining: float) -> void:
 	if _health.current_health <= 0:
 		_cancel_attack()
-		_player.current_state = PlayerController.State.DEAD
+		_player.set_state(PlayerController.State.DEAD)
 		GameManager.player_died.emit(_player, _player.player_index)
 
 

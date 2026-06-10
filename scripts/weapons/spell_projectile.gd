@@ -46,4 +46,6 @@ func _on_area_entered(area: Area3D) -> void:
 			return
 		var dmg := DamageData.create_physical(_damage, _source)
 		hurtbox.hit_received.emit(dmg, self)
+		CombatVfx.spawn_spell(global_position)
+		AudioManager.play_sfx("spell", randf_range(0.95, 1.05))
 		queue_free()

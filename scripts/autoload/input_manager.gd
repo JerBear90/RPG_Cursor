@@ -38,8 +38,25 @@ const P2_KEYBOARD: Dictionary = {
 
 func _ready() -> void:
 	Input.joy_connection_changed.connect(_on_joy_changed)
+	_setup_mouse_combat_bindings()
 	_setup_player2_inputs()
 	_detect_device()
+
+
+func _setup_mouse_combat_bindings() -> void:
+	_bind_mouse_button("light_attack", MOUSE_BUTTON_LEFT)
+	_bind_mouse_button("heavy_attack", MOUSE_BUTTON_RIGHT)
+
+
+func _bind_mouse_button(action: String, button: MouseButton) -> void:
+	if not InputMap.has_action(action):
+		return
+	for event in InputMap.action_get_events(action):
+		if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == button:
+			return
+	var ev := InputEventMouseButton.new()
+	ev.button_index = button
+	InputMap.action_add_event(action, ev)
 
 
 func _input(event: InputEvent) -> void:

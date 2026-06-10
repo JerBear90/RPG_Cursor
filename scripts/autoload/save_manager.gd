@@ -55,6 +55,24 @@ func has_save(slot: int) -> bool:
 	return FileAccess.file_exists(SAVE_DIR + "slot_%d.json" % slot)
 
 
+func get_save_preview(slot: int) -> Dictionary:
+	var path := SAVE_DIR + "slot_%d.json" % slot
+	if not FileAccess.file_exists(path):
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK:
+		return {}
+	var data: Dictionary = json.data
+	var region: String = str(data.get("region", "unknown")).replace("_", " ").capitalize()
+	var ts: int = int(data.get("timestamp", 0))
+	return {
+		"region": region,
+		"timestamp": ts,
+		"co_op": bool(data.get("co_op", false)),
+	}
+
+
 func set_respawn_point(region: String, position: Vector3) -> void:
 	respawn_region = region
 	respawn_position = position
@@ -103,6 +121,7 @@ func _collect_save_data() -> Dictionary:
 		"waystones": WaystoneManager.serialize(),
 		"achievements": AchievementManager.serialize(),
 		"pets": PetManager.serialize(),
+		"masks": MaskManager.serialize(),
 		"dungeon": DungeonManager.serialize(),
 		"co_op": GameManager.active_player_count > 1,
 		"settings": SettingsManager.serialize(),
@@ -134,6 +153,8 @@ func _apply_save_data(data: Dictionary) -> void:
 		AchievementManager.deserialize(data.achievements)
 	if data.has("pets"):
 		PetManager.deserialize(data.pets)
+	if data.has("masks"):
+		MaskManager.deserialize(data.masks)
 	if data.has("dungeon"):
 		DungeonManager.deserialize(data.dungeon)
 	if data.has("player_progress"):

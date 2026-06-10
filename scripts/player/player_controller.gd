@@ -11,8 +11,10 @@ enum State { IDLE, MOVE, SPRINT, DODGE, ATTACK, BLOCK, STAGGER, DEAD }
 @export var rotation_speed: float = 12.0
 @export var gravity: float = 20.0
 @export var player_index: int = 0
+@export var spawn_protection_sec: float = 8.0
 
 var current_state: State = State.IDLE
+var _spawn_protection_until: float = 0.0
 var _combat: Node
 var _dodge: DodgeComponent
 var _stamina: StaminaComponent
@@ -21,6 +23,7 @@ var _camera_rig: Node3D
 
 func _ready() -> void:
 	add_to_group("player")
+	_spawn_protection_until = Time.get_ticks_msec() / 1000.0 + spawn_protection_sec
 	GameManager.register_player(self, player_index)
 	_combat = get_node_or_null("Combat")
 	_dodge = get_node_or_null("DodgeComponent")
@@ -29,6 +32,8 @@ func _ready() -> void:
 	if needs:
 		needs.starving.connect(_on_starving)
 		needs.dehydrated.connect(_on_dehydrated)
+	if _stamina and not _stamina.stamina_changed.is_connected(_on_stamina_changed):
+		_stamina.stamina_changed.connect(_on_stamina_changed)
 	call_deferred("_bind_camera_rig")
 	if not GameManager.player_spawned.is_connected(_on_player_spawned):
 		GameManager.player_spawned.connect(_on_player_spawned)
@@ -52,8 +57,19 @@ func _on_starving() -> void:
 
 
 func _on_dehydrated() -> void:
-	if has_node("StaminaComponent"):
-		(get_node("StaminaComponent") as StaminaComponent).spend(2.0)
+	# Dehydration chips health — never drain stamina (that looked like "stamina kills you").
+	if has_node("HealthComponent") and is_alive():
+		(get_node("HealthComponent") as HealthComponent).take_damage(DamageData.create_physical(0.5, self))
+
+
+func _on_stamina_changed(current: float, _maximum: float) -> void:
+	if current > 1.0:
+		return
+	if current_state == State.SPRINT:
+		_set_state(State.MOVE)
+	var anim := get_node_or_null("AnimationController")
+	if anim and anim.has_method("sync_locomotion"):
+		anim.sync_locomotion()
 
 
 func _physics_process(delta: float) -> void:
@@ -80,10 +96,11 @@ func _apply_movement(delta: float) -> void:
 		return
 
 	var sprinting := InputManager.is_action_pressed("sprint", player_index)
-	var speed := sprint_speed if sprinting and _stamina and _stamina.current_stamina > 0 else move_speed
-	if sprinting and _stamina:
+	var can_sprint := _stamina != null and _stamina.current_stamina > 1.0
+	var speed := sprint_speed if sprinting and can_sprint else move_speed
+	if sprinting and can_sprint and _stamina:
 		_stamina.spend(10.0 * delta)
-	_set_state(State.SPRINT if sprinting else State.MOVE)
+	_set_state(State.SPRINT if sprinting and can_sprint else State.MOVE)
 
 	var forward: Vector3 = _get_planar_forward()
 	var right: Vector3 = _get_planar_right()
@@ -139,6 +156,20 @@ func is_alive() -> bool:
 	return health == null or health.is_alive()
 
 
+func has_spawn_protection() -> bool:
+	return Time.get_ticks_msec() / 1000.0 < _spawn_protection_until
+
+
+func clear_spawn_protection() -> void:
+	_spawn_protection_until = 0.0
+
+
+func refresh_spawn_protection(extra_sec: float = -1.0) -> void:
+	var duration := extra_sec if extra_sec > 0.0 else spawn_protection_sec
+	_spawn_protection_until = Time.get_ticks_msec() / 1000.0 + duration
+	velocity = Vector3.ZERO
+
+
 func get_level() -> int:
 	var stats := get_node_or_null("StatsComponent")
 	return stats.level if stats else 1
@@ -148,6 +179,10 @@ func receive_damage(damage: DamageData) -> void:
 	var combat := get_node_or_null("Combat")
 	if combat and combat.has_method("receive_damage"):
 		combat.receive_damage(damage)
+
+
+func set_state(state: State) -> void:
+	_set_state(state)
 
 
 func _set_state(state: State) -> void:

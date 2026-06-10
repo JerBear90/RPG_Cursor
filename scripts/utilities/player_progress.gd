@@ -63,6 +63,32 @@ static func apply(player: Node, data: Dictionary) -> void:
 		if spellcaster.has_method("deserialize"):
 			spellcaster.deserialize(data.spells)
 	_apply_equipment_stats(player)
+	apply_mask_bonuses(player)
+
+
+static func apply_mask_bonuses(player: Node) -> void:
+	if player == null:
+		return
+	var bonus := MaskManager.get_stat_bonuses()
+	if player.has_node("HealthComponent"):
+		var health := player.get_node("HealthComponent") as HealthComponent
+		var base_max := 100.0
+		if player.has_node("StatsComponent"):
+			base_max += (player.get_node("StatsComponent") as StatsComponent).get_max_health_bonus()
+		var chest_id: String = InventoryManager.equipment.get("chest", "")
+		base_max += ItemDatabase.get_armor_health_bonus(chest_id)
+		base_max += float(bonus.get("health", 0.0))
+		health.max_health = base_max
+		health.current_health = minf(health.current_health, health.max_health)
+		health.health_changed.emit(health.current_health, health.max_health)
+	if player.has_node("StaminaComponent"):
+		var stamina := player.get_node("StaminaComponent") as StaminaComponent
+		stamina.max_stamina = 100.0 + float(bonus.get("stamina", 0.0))
+		stamina.current_stamina = minf(stamina.current_stamina, stamina.max_stamina)
+	if player.has_node("FocusComponent"):
+		var focus := player.get_node("FocusComponent") as FocusComponent
+		focus.max_focus = 50.0 + float(bonus.get("focus", 0.0))
+		focus.current_focus = minf(focus.current_focus, focus.max_focus)
 
 
 static func _apply_equipment_stats(player: Node) -> void:
@@ -74,6 +100,8 @@ static func _apply_equipment_stats(player: Node) -> void:
 		base_max += (player.get_node("StatsComponent") as StatsComponent).get_max_health_bonus()
 	var chest_id: String = InventoryManager.equipment.get("chest", "")
 	base_max += ItemDatabase.get_armor_health_bonus(chest_id)
+	var mask_health := float(MaskManager.get_stat_bonuses().get("health", 0.0))
+	base_max += mask_health
 	health.max_health = base_max
 	health.current_health = minf(health.current_health, health.max_health)
 	health.health_changed.emit(health.current_health, health.max_health)
