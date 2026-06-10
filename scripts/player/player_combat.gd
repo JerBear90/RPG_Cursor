@@ -172,6 +172,13 @@ func receive_damage(damage: DamageData) -> void:
 	_health.take_damage(DamageData.create_physical(amount, damage.source))
 
 
+func die_from_environment(_cause: String) -> void:
+	if not _player.is_alive():
+		return
+	_cancel_attack()
+	_health.take_damage(DamageData.create_physical(_health.current_health + 1.0, self))
+
+
 func _on_damaged(_damage: DamageData, _remaining: float) -> void:
 	if _health.current_health <= 0:
 		_cancel_attack()

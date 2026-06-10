@@ -23,6 +23,9 @@ var player_data: Array[Dictionary] = [
 	{"name": "Exile Two", "class_id": "survivor", "body_preset": 1},
 ]
 var pending_player_progress: Dictionary = {}
+var pending_respawn_position: Vector3 = Vector3.ZERO
+var pending_respawn_active: bool = false
+var pending_death_message: String = ""
 
 
 func _ready() -> void:
@@ -42,6 +45,7 @@ func start_new_game(co_op: bool = false) -> void:
 	AchievementManager.reset_for_new_game()
 	PetManager.reset_for_new_game()
 	DungeonManager.reset_for_new_game()
+	SaveManager.reset_respawn_point()
 	SceneTransitionManager.change_scene("res://scenes/levels/darkpine_forest/darkpine_forest.tscn")
 	AudioManager.play_music("ambient")
 

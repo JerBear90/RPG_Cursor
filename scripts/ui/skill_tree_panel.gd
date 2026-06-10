@@ -88,7 +88,8 @@ func _add_node_button(tree: Node, node_id: String) -> void:
 	var layout: Dictionary = tree.get_node_layout(node_id)
 	var pos: Vector2 = layout.get("pos", Vector2.ZERO)
 	var btn := Button.new()
-	var unlocked := node_id in tree.unlocked_nodes
+	var unlocked_nodes: Array = tree.unlocked_nodes
+	var unlocked: bool = node_id in unlocked_nodes
 	var prefix := "[X] " if unlocked else "[ ] "
 	btn.text = prefix + str(tree.SKILL_NODES.get(node_id, {}).get("name", node_id))
 	btn.position = pos

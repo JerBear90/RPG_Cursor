@@ -32,6 +32,7 @@ func _ready() -> void:
 	_setup_world_environment()
 	_build_ground_base()
 	call_deferred("_build_details")
+	call_deferred("_ensure_boundary_hazard")
 
 
 func _build_details() -> void:
@@ -138,9 +139,19 @@ func _build_water_base() -> void:
 	_water.add_child(mi)
 
 
+func _ensure_boundary_hazard() -> void:
+	if get_tree().get_first_node_in_group("water_hazard") != null:
+		return
+	var hazard := WaterHazard.new()
+	hazard.name = "WorldBoundary"
+	hazard.island_radius = island_radius
+	hazard.use_horizontal_boundary = terrain_mode == "island"
+	add_child(hazard)
+
+
 func _add_mesh(parent: Node3D, glb_name: String, pos: Vector3, rot_y: float = 0.0, scale: Vector3 = Vector3.ONE, collision: bool = false) -> Node3D:
 	var path := _Kenney.nature(glb_name)
-	if not ResourceLoader.exists(path):
+	if not FileAccess.file_exists(path):
 		push_warning("IslandTerrain: missing %s" % path)
 		return null
 	var node := MeshLoader.instantiate(path, parent, rot_y, pos, scale)
@@ -203,30 +214,32 @@ func _build_shore() -> void:
 		var angle := TAU * float(i) / float(count)
 		var edge := island_radius - tile_step * 0.35
 		var pos := Vector3(cos(angle) * edge, 0.0, sin(angle) * edge)
-		var rock_names := ["rock_largeA.glb", "rock_largeB.glb", "rock_tallA.glb", "cliff_block_rock.glb"]
-		var rock := rock_names[i % rock_names.size()]
+		var rock_names: Array[String] = [
+			"rock_largeA.glb", "rock_largeB.glb", "rock_tallA.glb", "cliff_block_rock.glb",
+		]
+		var rock: String = rock_names[i % rock_names.size()]
 		var yaw := rad_to_deg(angle) + 90.0
 		_add_mesh(_props, rock, pos, yaw, Vector3.ONE * randf_range(1.2, 1.8))
 
 
 func _build_camp_fence() -> void:
 	var edge := island_radius - 1.0
-	var corners := [
+	var corners: Array[Vector3] = [
 		Vector3(-edge, 0, -edge), Vector3(edge, 0, -edge),
 		Vector3(edge, 0, edge), Vector3(-edge, 0, edge),
 	]
 	for i in corners.size():
-		var a := corners[i]
-		var b := corners[(i + 1) % corners.size()]
+		var a: Vector3 = corners[i]
+		var b: Vector3 = corners[(i + 1) % corners.size()]
 		var steps := int(a.distance_to(b) / 4.0)
 		for s in steps + 1:
 			var t := float(s) / float(max(steps, 1))
-			var pos := a.lerp(b, t)
+			var pos: Vector3 = a.lerp(b, t)
 			_add_mesh(_props, "fence_simple.glb", pos, 0.0, Vector3.ONE * 1.1)
 
 
 func _scatter_props() -> void:
-	var tree_names := [
+	var tree_names: Array[String] = [
 		"tree_pineDefaultA.glb", "tree_pineDefaultB.glb", "tree_oak.glb",
 		"tree_detailed.glb", "tree_pineRoundA.glb", "tree_pineTallA.glb",
 	]
@@ -234,13 +247,14 @@ func _scatter_props() -> void:
 		var pos := _random_land_point(island_radius * 0.75)
 		if pos == Vector3.ZERO:
 			continue
-		var tree := tree_names[i % tree_names.size()]
+		var tree: String = tree_names[i % tree_names.size()]
 		_add_mesh(_props, tree, pos, randf_range(0.0, 360.0), Vector3.ONE * randf_range(0.9, 1.3))
 	for i in scatter_rocks:
 		var pos := _random_land_point(island_radius * 0.85)
 		if pos == Vector3.ZERO:
 			continue
-		var rock := ["rock_smallA.glb", "rock_smallB.glb", "stone_smallA.glb"][i % 3]
+		var rock_names: Array[String] = ["rock_smallA.glb", "rock_smallB.glb", "stone_smallA.glb"]
+		var rock: String = rock_names[i % rock_names.size()]
 		_add_mesh(_props, rock, pos, randf_range(0.0, 360.0), Vector3.ONE * randf_range(0.8, 1.4))
 
 

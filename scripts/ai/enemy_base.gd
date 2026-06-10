@@ -43,8 +43,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if current_state == AIState.DEAD:
 		return
-	if not is_on_floor():
-		velocity.y -= _gravity * delta
+	PlanarFacing.apply_floor(self, delta, _gravity)
 	_attack_cooldown = maxf(_attack_cooldown - delta, 0.0)
 	if _staggered_timer > 0.0:
 		_staggered_timer -= delta
@@ -115,8 +114,7 @@ func _chase_target(delta: float) -> void:
 	var direction := (next - global_position).normalized()
 	velocity.x = direction.x * move_speed
 	velocity.z = direction.z * move_speed
-	if direction.length_squared() > 0.01:
-		look_at(global_position + direction, Vector3.UP)
+	PlanarFacing.face_direction(self, direction)
 
 
 func _perform_attack() -> void:
@@ -181,3 +179,4 @@ func _update_patrol(_delta: float) -> void:
 	var dir := (target - global_position).normalized()
 	velocity.x = dir.x * move_speed * 0.4
 	velocity.z = dir.z * move_speed * 0.4
+	PlanarFacing.face_direction(self, dir)

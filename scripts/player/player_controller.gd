@@ -16,6 +16,7 @@ var current_state: State = State.IDLE
 var _combat: Node
 var _dodge: DodgeComponent
 var _stamina: StaminaComponent
+var _camera_rig: Node3D
 
 
 func _ready() -> void:
@@ -28,6 +29,21 @@ func _ready() -> void:
 	if needs:
 		needs.starving.connect(_on_starving)
 		needs.dehydrated.connect(_on_dehydrated)
+	call_deferred("_bind_camera_rig")
+	if not GameManager.player_spawned.is_connected(_on_player_spawned):
+		GameManager.player_spawned.connect(_on_player_spawned)
+
+
+func _bind_camera_rig() -> void:
+	for node in get_tree().get_nodes_in_group("camera_rig"):
+		if node is Node3D:
+			_camera_rig = node
+			return
+
+
+func _on_player_spawned(_player: Node, _index: int) -> void:
+	if _camera_rig == null:
+		_bind_camera_rig()
 
 
 func _on_starving() -> void:
@@ -77,10 +93,6 @@ func _apply_movement(delta: float) -> void:
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 
-	if direction.length_squared() > 0.01:
-		var target_rot := atan2(direction.x, direction.z)
-		rotation.y = lerp_angle(rotation.y, target_rot, rotation_speed * delta)
-
 
 func _apply_dodge_movement() -> void:
 	var input_dir := InputManager.get_move_vector(player_index)
@@ -95,7 +107,16 @@ func _apply_dodge_movement() -> void:
 	velocity.z = dodge_dir.z * _dodge.dodge_speed
 
 
+func _get_camera_rig() -> Node3D:
+	if _camera_rig == null or not is_instance_valid(_camera_rig):
+		_bind_camera_rig()
+	return _camera_rig
+
+
 func _get_planar_forward() -> Vector3:
+	var rig := _get_camera_rig()
+	if rig and rig.has_method("get_planar_forward"):
+		return rig.get_planar_forward()
 	var cam := get_viewport().get_camera_3d()
 	if cam is SharedScreenCamera:
 		return cam.get_planar_forward()
@@ -103,6 +124,9 @@ func _get_planar_forward() -> Vector3:
 
 
 func _get_planar_right() -> Vector3:
+	var rig := _get_camera_rig()
+	if rig and rig.has_method("get_planar_right"):
+		return rig.get_planar_right()
 	var cam := get_viewport().get_camera_3d()
 	if cam is SharedScreenCamera:
 		return cam.get_planar_right()

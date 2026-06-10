@@ -26,9 +26,9 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if anger_state != "hostile":
+		velocity = Vector3.ZERO
 		return
-	if not is_on_floor():
-		velocity.y -= _gravity * delta
+	PlanarFacing.apply_floor(self, delta, _gravity)
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
 	_combat_target = GameManager.get_player(0)
 	if _combat_target == null or not is_instance_valid(_combat_target):
@@ -37,7 +37,7 @@ func _physics_process(delta: float) -> void:
 	var dir := (_combat_target.global_position - global_position)
 	dir.y = 0.0
 	if dir.length_squared() > 0.01:
-		look_at(global_position + dir.normalized(), Vector3.UP)
+		PlanarFacing.face_direction(self, dir)
 	if dist <= 2.0:
 		velocity.x = 0.0
 		velocity.z = 0.0

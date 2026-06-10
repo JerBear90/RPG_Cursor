@@ -7,6 +7,7 @@ extends InteractableBase
 
 
 func _ready() -> void:
+	add_to_group("quest_destination")
 	super._ready()
 	prompt_text = "Inspect Shrine"
 

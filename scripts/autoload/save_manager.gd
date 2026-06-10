@@ -8,6 +8,10 @@ const SAVE_DIR := "user://saves/"
 const MAX_SLOTS := 3
 
 var current_slot: int = -1
+var respawn_region: String = "darkpine_forest"
+var respawn_position: Vector3 = Vector3.ZERO
+var _respawn_initialized: bool = false
+var pending_water_respawn: bool = false
 
 
 func _ready() -> void:
@@ -17,6 +21,9 @@ func _ready() -> void:
 func save_game(slot: int) -> bool:
 	if slot < 0 or slot >= MAX_SLOTS:
 		return false
+	var player := GameManager.get_player(0)
+	if player:
+		set_respawn_point(GameManager.current_region_id, player.global_position)
 	var data := _collect_save_data()
 	var path := SAVE_DIR + "slot_%d.json" % slot
 	var file := FileAccess.open(path, FileAccess.WRITE)
@@ -48,6 +55,33 @@ func has_save(slot: int) -> bool:
 	return FileAccess.file_exists(SAVE_DIR + "slot_%d.json" % slot)
 
 
+func set_respawn_point(region: String, position: Vector3) -> void:
+	respawn_region = region
+	respawn_position = position
+	_respawn_initialized = true
+
+
+func has_respawn_point() -> bool:
+	return _respawn_initialized
+
+
+func mark_water_death() -> void:
+	pending_water_respawn = true
+
+
+func consume_water_respawn() -> bool:
+	var use_save := pending_water_respawn
+	pending_water_respawn = false
+	return use_save
+
+
+func reset_respawn_point() -> void:
+	respawn_region = "darkpine_forest"
+	respawn_position = Vector3.ZERO
+	_respawn_initialized = false
+	pending_water_respawn = false
+
+
 func _collect_save_data() -> Dictionary:
 	var player_progress := {}
 	var player := GameManager.get_player(0)
@@ -57,6 +91,8 @@ func _collect_save_data() -> Dictionary:
 		"version": 2,
 		"timestamp": Time.get_unix_time_from_system(),
 		"region": GameManager.current_region_id,
+		"respawn_region": respawn_region,
+		"respawn_position": [respawn_position.x, respawn_position.y, respawn_position.z],
 		"players": GameManager.player_data,
 		"player_progress": player_progress,
 		"inventory": InventoryManager.serialize(),
@@ -76,6 +112,10 @@ func _collect_save_data() -> Dictionary:
 func _apply_save_data(data: Dictionary) -> void:
 	if data.has("region"):
 		GameManager.current_region_id = data.region
+	if data.has("respawn_region") and data.has("respawn_position"):
+		var pos_arr: Array = data.respawn_position
+		if pos_arr.size() >= 3:
+			set_respawn_point(data.respawn_region, Vector3(pos_arr[0], pos_arr[1], pos_arr[2]))
 	if data.has("players"):
 		GameManager.player_data = data.players
 	if data.has("inventory"):

@@ -22,7 +22,11 @@ func _setup_visual() -> void:
 		return
 	for child in get_children():
 		child.queue_free()
-	var visual := MeshLoader.instantiate(gltf_path, self, mesh_yaw_degrees, mesh_offset, mesh_scale)
+	var yaw := mesh_yaw_degrees
+	if yaw == 0.0 and _needs_character_yaw(gltf_path):
+		yaw = 180.0
+	var resolved := MeshLoader.normalize_asset_path(gltf_path)
+	var visual := MeshLoader.instantiate(resolved, self, yaw, mesh_offset, mesh_scale)
 	if visual == null:
 		push_warning("GltfVisual: failed to load %s" % gltf_path)
 		return
@@ -35,3 +39,8 @@ func _setup_visual() -> void:
 
 func is_loaded() -> bool:
 	return _loaded
+
+
+func _needs_character_yaw(path: String) -> bool:
+	var lower := path.to_lower()
+	return lower.contains("/characters/") or lower.contains("player")

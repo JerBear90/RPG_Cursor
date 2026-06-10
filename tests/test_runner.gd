@@ -97,8 +97,8 @@ func _test_main_scene_exists() -> void:
 
 func _test_island_terrain() -> void:
 	_assert(ResourceLoader.exists("res://scenes/levels/darkpine_forest/island_terrain.tscn"), "island_terrain.tscn exists")
-	_assert(ResourceLoader.exists(_Kenney.nature("ground_grass.glb")), "kenney ground_grass asset")
-	_assert(ResourceLoader.exists(_Kenney.nature("platform_stone.glb")), "kenney dungeon floor asset")
+	_assert(FileAccess.file_exists(_Kenney.nature("ground_grass.glb")), "kenney ground_grass asset")
+	_assert(FileAccess.file_exists(_Kenney.nature("platform_stone.glb")), "kenney dungeon floor asset")
 	var layout := MapManager.get_region_layout("darkpine_forest")
 	_assert(layout.get("kind") == "island", "darkpine_forest is island region")
 	_assert(_KenneyManifest.all_exist(), "all referenced Kenney GLBs exist")

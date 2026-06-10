@@ -30,7 +30,10 @@ func _spawn_players() -> void:
 		player.name = "Player%d" % (i + 1)
 		players_container.add_child(player)
 		var spawn_pos := Vector3.ZERO
-		if i < spawn_points.size():
+		if GameManager.pending_respawn_active and i == 0:
+			spawn_pos = GameManager.pending_respawn_position
+			GameManager.pending_respawn_active = false
+		elif i < spawn_points.size():
 			var sp := get_node(spawn_points[i]) as Node3D
 			spawn_pos = sp.global_position
 		elif spawn_points.size() > 0:
@@ -38,42 +41,80 @@ func _spawn_players() -> void:
 		if i == 1:
 			spawn_pos += Vector3(2, 0, 0)
 		player.global_position = spawn_pos
-		if i == 0 and not GameManager.pending_player_progress.is_empty():
-			PlayerProgress.apply(player, GameManager.pending_player_progress)
-			GameManager.pending_player_progress = {}
+		if i == 0:
+			if not SaveManager.has_respawn_point():
+				SaveManager.set_respawn_point(_get_region_id(), spawn_pos)
+			if not GameManager.pending_player_progress.is_empty():
+				PlayerProgress.apply(player, GameManager.pending_player_progress)
+				GameManager.pending_player_progress = {}
+			if GameManager.pending_death_message != "":
+				_finalize_respawn(player, GameManager.pending_death_message)
+				GameManager.pending_death_message = ""
 		PetManager.try_spawn_for_player(player)
 
 
 func _on_player_died(player: Node, _index: int) -> void:
 	if not is_instance_valid(player):
 		return
-	var copper_drop := int(CurrencyManager.copper * 0.1)
-	if copper_drop > 0:
-		CurrencyManager.spend_copper(copper_drop)
+	var use_save_point := SaveManager.consume_water_respawn()
+	var copper_drop := 0
+	if not use_save_point:
+		copper_drop = int(CurrencyManager.copper * 0.1)
+		if copper_drop > 0:
+			CurrencyManager.spend_copper(copper_drop)
 	await get_tree().create_timer(GameManager.respawn_delay).timeout
+	if use_save_point:
+		var target_region: String = SaveManager.respawn_region
+		var target_pos: Vector3 = SaveManager.respawn_position
+		if target_region != _get_region_id():
+			GameManager.pending_respawn_position = target_pos
+			GameManager.pending_respawn_active = true
+			GameManager.pending_death_message = "Drowned — returned to your last save point"
+			var path := "res://scenes/levels/%s/%s.tscn" % [target_region, target_region]
+			SceneTransitionManager.change_scene(path)
+			return
+		if is_instance_valid(player):
+			_respawn_player(player, target_pos, "Drowned — returned to your last save point", false)
+		return
 	if not is_instance_valid(player):
 		return
-	_respawn_player(player)
+	_respawn_player(player, _get_respawn_position(), "Respawned — lost some coin, needs partially restored", true)
 
 
-func _respawn_player(player: Node) -> void:
-	var spawn_pos := _get_respawn_position()
-	player.global_position = spawn_pos
+func _respawn_player(
+	player: Node,
+	spawn_pos: Vector3,
+	toast: String,
+	restore_needs: bool
+) -> void:
+	_finalize_respawn(player, toast, restore_needs, spawn_pos)
+
+
+func _finalize_respawn(
+	player: Node,
+	toast: String,
+	restore_needs: bool = false,
+	spawn_pos: Vector3 = Vector3.INF
+) -> void:
+	if spawn_pos != Vector3.INF and is_instance_valid(player):
+		player.global_position = spawn_pos
 	if player.has_node("HealthComponent"):
 		var health := player.get_node("HealthComponent") as HealthComponent
 		health.reset_health()
 	if player is PlayerController:
 		(player as PlayerController).current_state = PlayerController.State.IDLE
-	if player.has_node("SurvivalNeedsComponent"):
+	if restore_needs and player.has_node("SurvivalNeedsComponent"):
 		var needs := player.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent
 		needs.hunger = minf(needs.hunger + 25.0, needs.max_hunger)
 		needs.thirst = minf(needs.thirst + 25.0, needs.max_thirst)
 	for hud in get_tree().get_nodes_in_group("game_hud"):
 		if hud.has_method("show_toast"):
-			hud.show_toast("Respawned — lost some coin, needs partially restored")
+			hud.show_toast(toast)
 
 
 func _get_respawn_position() -> Vector3:
+	if SaveManager.has_respawn_point():
+		return SaveManager.respawn_position
 	if WaystoneManager.discovered.has("hearthhold_camp"):
 		for node in get_tree().get_nodes_in_group("spawn_points"):
 			if node.has_method("get_spawn_id") and node.get_spawn_id() == "waystone_spawn":

@@ -23,7 +23,7 @@ const REFERENCED_GLBS: PackedStringArray = [
 
 static func all_exist() -> bool:
 	for name in REFERENCED_GLBS:
-		if not ResourceLoader.exists(_KenneyPaths.nature(name)):
+		if not FileAccess.file_exists(_KenneyPaths.nature(name)):
 			return false
 	return true
 
@@ -31,6 +31,6 @@ static func all_exist() -> bool:
 static func missing_files() -> PackedStringArray:
 	var missing: PackedStringArray = []
 	for name in REFERENCED_GLBS:
-		if not ResourceLoader.exists(_KenneyPaths.nature(name)):
+		if not FileAccess.file_exists(_KenneyPaths.nature(name)):
 			missing.append(name)
 	return missing

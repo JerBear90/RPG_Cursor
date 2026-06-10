@@ -6,19 +6,23 @@ const SkillTreePanelScene := preload("res://scripts/ui/skill_tree_panel.gd")
 const SpellWheelPanelScene := preload("res://scripts/ui/spell_wheel_panel.gd")
 const MerchantShopPanelScene := preload("res://scripts/ui/merchant_shop_panel.gd")
 
-@onready var health_bar: ProgressBar = %HealthBar
-@onready var stamina_bar: ProgressBar = %StaminaBar
-@onready var focus_bar: ProgressBar = %FocusBar
+@onready var health_bar: TextureProgressBar = %HealthBar
+@onready var stamina_bar: TextureProgressBar = %StaminaBar
+@onready var focus_bar: TextureProgressBar = %FocusBar
+@onready var hunger_bar: TextureProgressBar = %HungerBar
+@onready var thirst_bar: TextureProgressBar = %ThirstBar
 @onready var level_label: Label = %LevelLabel
-@onready var hunger_bar: ProgressBar = %HungerBar
-@onready var thirst_bar: ProgressBar = %ThirstBar
 @onready var quest_label: Label = %QuestLabel
+@onready var quest_title_label: Label = %QuestTitleLabel
+@onready var quest_distance_label: Label = %QuestDistanceLabel
 @onready var currency_label: Label = %CurrencyLabel
 @onready var interact_prompt: Label = %InteractPrompt
-@onready var boss_bar: ProgressBar = %BossHealthBar
+@onready var boss_bar: TextureProgressBar = %BossHealthBar
 @onready var spell_label: Label = %SpellLabel
 @onready var execution_label: Label = %ExecutionLabel
 @onready var map_stub_label: Label = %MapStubLabel
+@onready var controls_hint_label: Label = %ControlsHintLabel
+@onready var adrenaline_row: HBoxContainer = %AdrenalineRow
 
 var _player: Node
 var _tracked_boss: Node = null
@@ -30,6 +34,7 @@ var _spell_wheel_spells: Array[String] = []
 var _boss_name_label: Label
 var _toast_label: Label
 var _toast_timer: float = 0.0
+var _adrenaline_stars: Array[TextureRect] = []
 
 var _overlay: ColorRect
 var _dialogue_panel: PanelContainer
@@ -47,6 +52,7 @@ var _merchant_panel: PanelContainer
 
 func _ready() -> void:
 	add_to_group("game_hud")
+	_setup_kenney_hud()
 	_build_overlay_ui()
 	_build_toast()
 	QuestManager.tracked_quest_changed.connect(_update_quest)
@@ -76,6 +82,7 @@ func _process(delta: float) -> void:
 	if _player and is_instance_valid(_player):
 		_update_bars()
 		_update_spell_label()
+		_update_quest_distance()
 	_update_boss_bar()
 	if _toast_timer > 0.0:
 		_toast_timer -= delta
@@ -271,6 +278,66 @@ func _cycle_spell_wheel(direction: int) -> void:
 		_player.get_node("Spellcaster").select_spell_from_wheel(next)
 
 
+func _setup_kenney_hud() -> void:
+	var ring := get_node_or_null("HudRoot/TopRight/VBox/MapFrame/Ring") as TextureRect
+	if ring:
+		var circle := KenneyUiPaths.load_tex(KenneyUiPaths.circle_frame())
+		if circle:
+			ring.texture = circle
+	_build_adrenaline_pips()
+	controls_hint_label.text = "WASD Move  |  Shift Sprint  |  Mouse Look  |  E Interact"
+
+
+func _build_adrenaline_pips() -> void:
+	if adrenaline_row == null:
+		return
+	for child in adrenaline_row.get_children():
+		child.queue_free()
+	_adrenaline_stars.clear()
+	var filled := KenneyUiPaths.load_tex(KenneyUiPaths.star_filled())
+	var empty := KenneyUiPaths.load_tex(KenneyUiPaths.star_empty())
+	for i in 3:
+		var star := TextureRect.new()
+		star.custom_minimum_size = Vector2(20, 20)
+		star.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		star.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		star.texture = empty if empty else filled
+		star.set_meta("filled_tex", filled)
+		star.set_meta("empty_tex", empty)
+		adrenaline_row.add_child(star)
+		_adrenaline_stars.append(star)
+
+
+func _update_adrenaline_pips(stamina_percent: float) -> void:
+	var lit := 0
+	if stamina_percent > 0.66:
+		lit = 3
+	elif stamina_percent > 0.33:
+		lit = 2
+	elif stamina_percent > 0.05:
+		lit = 1
+	for i in _adrenaline_stars.size():
+		var star := _adrenaline_stars[i]
+		var filled: Texture2D = star.get_meta("filled_tex")
+		var empty: Texture2D = star.get_meta("empty_tex")
+		star.texture = filled if i < lit and filled else empty
+
+
+func _update_quest_distance() -> void:
+	if _player == null or quest_distance_label == null:
+		return
+	var best := INF
+	for node in get_tree().get_nodes_in_group("quest_destination"):
+		if node is Node3D:
+			var d := _player.global_position.distance_to((node as Node3D).global_position)
+			best = minf(best, d)
+	if best >= INF:
+		quest_distance_label.visible = false
+		return
+	quest_distance_label.visible = true
+	quest_distance_label.text = "Objective %d m" % int(best)
+
+
 func _build_overlay_ui() -> void:
 	_overlay = ColorRect.new()
 	_overlay.color = Color(0, 0, 0, 0.55)
@@ -401,6 +468,10 @@ func _update_bars() -> void:
 		var focus := _player.get_node("FocusComponent") as FocusComponent
 		focus_bar.max_value = focus.max_focus
 		focus_bar.value = focus.current_focus
+	if _player.has_node("StaminaComponent"):
+		var stamina := _player.get_node("StaminaComponent") as StaminaComponent
+		var pct := stamina.current_stamina / stamina.max_stamina if stamina.max_stamina > 0 else 0.0
+		_update_adrenaline_pips(pct)
 
 
 func _update_spell_label() -> void:
@@ -495,16 +566,25 @@ func _update_map_stub() -> void:
 	if floor_text != "":
 		map_stub_label.text = floor_text
 		return
+	var region := GameManager.current_region_id.replace("_", " ").capitalize()
 	var pos_label := MapManager.get_map_position_label(_player.global_position)
-	map_stub_label.text = "Map: %s  %s" % [
-		GameManager.current_region_id.replace("_", " ").capitalize(),
-		pos_label,
-	]
+	map_stub_label.text = "%s\n%s" % [region, pos_label]
 
 
 func _update_quest(_id: String) -> void:
-	var text := QuestManager.get_tracked_objective_text()
-	quest_label.text = "Tracked: %s" % text if text != "" else "Tracked: —"
+	if QuestManager.tracked_quest_id == "" or not QuestManager.active_quests.has(QuestManager.tracked_quest_id):
+		quest_title_label.text = "No active quest"
+		quest_label.text = "Explore the island and speak to survivors."
+		return
+	var qid: String = QuestManager.tracked_quest_id
+	quest_title_label.text = qid.replace("_", " ").to_upper()
+	var lines: PackedStringArray = []
+	var objectives: Array = QuestManager.active_quests[qid]
+	for obj in objectives:
+		var prefix := "• " if not obj.completed else "✓ "
+		var progress := "" if obj.completed else " (%d/%d)" % [obj.current, obj.target]
+		lines.append("%s%s%s" % [prefix, obj.description, progress])
+	quest_label.text = "\n".join(lines)
 
 
 func _update_currency() -> void:
