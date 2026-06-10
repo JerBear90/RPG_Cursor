@@ -34,6 +34,8 @@ All assets listed below are **CC0 (Public Domain)** unless noted. Free for perso
 | Workbench | `fence_planksDouble.glb` |
 | Forge | `campfire_bricks.glb` |
 | Memory altar | `statue_column.glb` |
+| Pet shelter | `tent_detailedClosed.glb`, `fence_simple.glb` |
+| Mask stand | `statue_column.glb`, `statue_head.glb` |
 | Dungeon entrance | `cliff_cave_stone.glb` |
 | Dungeon exit portal | `statue_ring.glb` |
 | Loot pickup | `mushroom_red.glb` |

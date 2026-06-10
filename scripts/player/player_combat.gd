@@ -1,9 +1,18 @@
 extends Node
 ## Player attack, block, dodge, lock-on, execution.
 
+signal attack_phase_changed(phase: String, heavy: bool)
+signal attack_started(combo_index: int, heavy: bool)
+
 @export var light_attack_damage: float = 12.0
 @export var heavy_attack_damage: float = 22.0
 @export var charged_attack_damage: float = 35.0
+
+const LIGHT_TIMING := {"windup": 0.08, "active": 0.14, "recovery": 0.20}
+const HEAVY_TIMING := {"windup": 0.18, "active": 0.16, "recovery": 0.38}
+const COMBO_WINDOW := 0.35
+
+enum AttackPhase { NONE, WINDUP, ACTIVE, RECOVERY }
 
 var _player: PlayerController
 var _health: HealthComponent
@@ -13,9 +22,14 @@ var _dodge: DodgeComponent
 var _lock_on: LockOnController
 var _execution: ExecutionController
 var _hitbox: Hitbox
-var _attack_timer: float = 0.0
+var _attack_phase: AttackPhase = AttackPhase.NONE
+var _phase_timer: float = 0.0
+var _timing: Dictionary = {}
 var _attack_active: bool = false
+var _attack_heavy: bool = false
 var _combo_index: int = 0
+var _combo_window_timer: float = 0.0
+var _queued_attack: String = ""
 var _staggered: bool = false
 
 
@@ -39,6 +53,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not _player.is_alive():
 		return
+	_combo_window_timer = maxf(_combo_window_timer - delta, 0.0)
 	_handle_input(delta)
 	_update_attack(delta)
 	_scan_executables()
@@ -47,44 +62,105 @@ func _process(delta: float) -> void:
 func _handle_input(delta: float) -> void:
 	var idx := _player.player_index
 	if InputManager.is_action_just_pressed("dodge", idx) and _dodge.start_dodge():
+		_cancel_attack()
 		_player.current_state = PlayerController.State.DODGE
 	if InputManager.is_action_pressed("block", idx):
 		_block.start_block()
-		_player.current_state = PlayerController.State.BLOCK
+		if _attack_phase == AttackPhase.NONE:
+			_player.current_state = PlayerController.State.BLOCK
 	elif _block.is_blocking:
 		_block.stop_block()
 	if InputManager.is_action_just_pressed("lock_on", idx):
 		_lock_on.toggle_lock()
 	if InputManager.is_action_just_pressed("light_attack", idx):
-		_start_attack(light_attack_damage, 0.35, 8.0)
+		_request_attack("light")
 	if InputManager.is_action_just_pressed("heavy_attack", idx):
-		_start_attack(heavy_attack_damage, 0.55, 15.0)
+		_request_attack("heavy")
 	if InputManager.is_action_pressed("charged_attack", idx):
 		_execution.process_hold(delta, true)
 	else:
 		_execution.process_hold(delta, false)
 
 
-func _start_attack(damage: float, duration: float, stamina_cost: float) -> void:
-	if _attack_active or _dodge.is_dodging or not _stamina.spend(stamina_cost):
+func _request_attack(kind: String) -> void:
+	if _dodge.is_dodging:
+		return
+	if _attack_phase == AttackPhase.RECOVERY and _combo_window_timer > 0.0 and kind == "light":
+		_queued_attack = kind
+		return
+	if _attack_active:
+		return
+	if kind == "light":
+		_begin_attack(light_attack_damage, LIGHT_TIMING, 8.0, false)
+	else:
+		_begin_attack(heavy_attack_damage, HEAVY_TIMING, 15.0, true)
+
+
+func _begin_attack(damage: float, timing: Dictionary, stamina_cost: float, heavy: bool) -> void:
+	if not _stamina.spend(stamina_cost):
 		return
 	_attack_active = true
-	_attack_timer = duration
+	_attack_heavy = heavy
+	_timing = timing
+	_phase_timer = timing.windup
+	_attack_phase = AttackPhase.WINDUP
+	_hitbox.disable()
 	_hitbox.base_damage = _get_final_physical_damage(damage)
-	_hitbox.enable()
 	_player.current_state = PlayerController.State.ATTACK
-	AudioManager.play_sfx("hit", randf_range(0.9, 1.1))
-	_combo_index = (_combo_index + 1) % 3
+	attack_phase_changed.emit("windup", heavy)
+	attack_started.emit(_combo_index, heavy)
+	if not heavy:
+		_combo_index = (_combo_index + 1) % 3
 
 
 func _update_attack(delta: float) -> void:
-	if not _attack_active:
+	if _attack_phase == AttackPhase.NONE:
 		return
-	_attack_timer -= delta
-	if _attack_timer <= 0.0:
-		_hitbox.disable()
-		_attack_active = false
+	_phase_timer -= delta
+	match _attack_phase:
+		AttackPhase.WINDUP:
+			if _phase_timer <= 0.0:
+				_attack_phase = AttackPhase.ACTIVE
+				_phase_timer = _timing.active
+				_hitbox.enable()
+				attack_phase_changed.emit("active", _attack_heavy)
+				AudioManager.play_sfx("hit", randf_range(0.9, 1.1))
+		AttackPhase.ACTIVE:
+			if _phase_timer <= 0.0:
+				_hitbox.disable()
+				_attack_phase = AttackPhase.RECOVERY
+				_phase_timer = _timing.recovery
+				attack_phase_changed.emit("recovery", _attack_heavy)
+				_combo_window_timer = COMBO_WINDOW
+		AttackPhase.RECOVERY:
+			if _phase_timer <= 0.0:
+				_finish_attack()
+			elif _queued_attack != "" and _phase_timer <= _timing.recovery * 0.5:
+				var next := _queued_attack
+				_queued_attack = ""
+				_finish_attack(false)
+				if next == "light":
+					_begin_attack(light_attack_damage, LIGHT_TIMING, 8.0, false)
+				else:
+					_begin_attack(heavy_attack_damage, HEAVY_TIMING, 15.0, true)
+
+
+func _finish_attack(reset_combo: bool = true) -> void:
+	_hitbox.disable()
+	_attack_active = false
+	_attack_phase = AttackPhase.NONE
+	_phase_timer = 0.0
+	_timing = {}
+	attack_phase_changed.emit("none", _attack_heavy)
+	if reset_combo and _combo_window_timer <= 0.0:
+		_combo_index = 0
+	if _player.is_alive():
 		_player.current_state = PlayerController.State.IDLE
+
+
+func _cancel_attack() -> void:
+	_queued_attack = ""
+	_finish_attack()
 
 
 func receive_damage(damage: DamageData) -> void:
@@ -98,6 +174,7 @@ func receive_damage(damage: DamageData) -> void:
 
 func _on_damaged(_damage: DamageData, _remaining: float) -> void:
 	if _health.current_health <= 0:
+		_cancel_attack()
 		_player.current_state = PlayerController.State.DEAD
 		GameManager.player_died.emit(_player, _player.player_index)
 
@@ -130,4 +207,5 @@ func _get_final_physical_damage(base: float) -> float:
 	total += ItemDatabase.get_weapon_damage(weapon_id)
 	if _player.has_node("SkillTree"):
 		total *= (_player.get_node("SkillTree") as Node).get_physical_damage_multiplier()
-	return total
+	var combo_bonus := 1.0 + (_combo_index * 0.05)
+	return total * combo_bonus

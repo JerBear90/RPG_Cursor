@@ -1,10 +1,12 @@
 # Exiled Survivors — quick launch (runs main menu directly, no editor)
 # Usage: .\start` game.ps1
 #        .\start` game.ps1 -Editor    # open Godot editor instead
+#        .\start` game.ps1 -Test      # run .\scripts\run_tests.ps1 first, then launch
 
 param(
     [string]$GodotPath = "",
-    [switch]$Editor
+    [switch]$Editor,
+    [switch]$Test
 )
 
 $ProjectRoot = $PSScriptRoot
@@ -36,6 +38,27 @@ function Find-Godot {
         if ($found) { return $found.FullName }
     }
     return $null
+}
+
+# Close stray Godot processes (stale editor/F5 sessions block imports and hide script changes).
+$stale = Get-Process -Name "Godot*" -ErrorAction SilentlyContinue
+if ($stale) {
+    Write-Host "Closing $($stale.Count) existing Godot process(es)..."
+    $stale | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+}
+
+if ($Test) {
+    Write-Host "Running tests via .\scripts\run_tests.ps1 ..."
+    $testScript = Join-Path $ProjectRoot "scripts\run_tests.ps1"
+    $testArgs = @()
+    if ($GodotPath) { $testArgs += "-GodotPath"; $testArgs += $GodotPath }
+    & $testScript @testArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Tests failed (exit $LASTEXITCODE). Fix before playing, or launch without -Test."
+        exit $LASTEXITCODE
+    }
+    Write-Host ""
 }
 
 $godot = Find-Godot -Override $GodotPath

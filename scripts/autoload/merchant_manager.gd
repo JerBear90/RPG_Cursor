@@ -16,6 +16,9 @@ const CATALOGS: Dictionary = {
 			{"item_id": "wood", "price": 2},
 			{"item_id": "cloth_scrap", "price": 3},
 			{"item_id": "iron_scrap", "price": 5},
+			{"item_id": "bandage", "price": 18},
+			{"item_id": "purified_water", "price": 14},
+			{"item_id": "repair_kit", "price": 30},
 		],
 	},
 	"camp_vendor": {
@@ -29,6 +32,9 @@ const CATALOGS: Dictionary = {
 			{"item_id": "wood", "price": 2},
 			{"item_id": "stone", "price": 2},
 			{"item_id": "herb_bundle", "price": 4},
+			{"item_id": "dried_rations", "price": 6},
+			{"item_id": "waterskin", "price": 5},
+			{"item_id": "bandage", "price": 12},
 		],
 	},
 }

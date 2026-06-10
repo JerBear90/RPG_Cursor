@@ -56,6 +56,10 @@ func continue_game(slot: int = 0) -> bool:
 	return true
 
 
+func clear_players() -> void:
+	players.clear()
+
+
 func register_player(player: Node, index: int) -> void:
 	while players.size() <= index:
 		players.append(null)

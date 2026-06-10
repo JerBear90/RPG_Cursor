@@ -6,9 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://waystone001" path="res://scenes/interactables/waystone.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://forestbandit001" path="res://scenes/enemies/forest_bandit.tscn" id="5"]
 [ext_resource type="Script" path="res://scripts/spawn_point.gd" id="6"]
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
-size = Vector3(60, 0.5, 60)
+[ext_resource type="PackedScene" uid="uid://islandterrain001" path="res://scenes/levels/darkpine_forest/island_terrain.tscn" id="7"]
 
 [node name="RegionStub" type="Node3D"]
 
@@ -21,15 +19,17 @@ spawn_points = Array[NodePath]([NodePath("SpawnPoints/Spawn1")])
 
 [node name="CameraRig" parent="Level" instance=ExtResource("2")]
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Level"]
+[node name="Environment" type="Node3D" parent="Level"]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Level/Environment"]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+shadow_enabled = true
 
-[node name="Floor" type="StaticBody3D" parent="Level"]
-collision_layer = 1
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Floor"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
-shape = SubResource("BoxShape3D_floor")
+[node name="IslandTerrain" parent="Level/Environment" instance=ExtResource("7")]
+island_radius = 16.0
+water_extent = 28.0
+scatter_trees = 6
+scatter_rocks = 6
 
 [node name="SpawnPoints" type="Node3D" parent="Level"]
 

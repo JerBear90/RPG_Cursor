@@ -12,9 +12,10 @@ Dark post-apocalyptic fantasy **shared-screen co-op survival Action RPG** protot
 
 ```powershell
 cd C:\Users\shawn\Projects\exiled-survivors
-.\start` game.ps1                # quickest — launches main menu (no editor)
+.\scripts\run_tests.ps1          # headless checks — use this before play (expect exit 0)
+.\start` game.ps1 -Test          # run tests, then launch main menu
+.\start` game.ps1                # quickest — launches main menu (kills stale Godot first)
 .\start` game.ps1 -Editor        # open Godot editor instead
-.\scripts\run_tests.ps1          # headless checks — expect exit 0
 .\scripts\run_preview.ps1        # opens game window (main menu)
 .\scripts\capture_screenshot.ps1   # saves docs/screenshots/preview.png
 ```
@@ -30,7 +31,7 @@ Characters use the [Quaternius Zombie Apocalypse Kit](https://quaternius.com/pac
 - **P1:** Matt (`art/characters/player1/exiled_survivor_matt.gltf`)
 - **P2:** Sam (kit GLTF via `player_visual.gd`)
 - **Enemies / NPCs / pet:** Quaternius GLTF via `gltf_visual.gd` with capsule fallback
-- **Props / ground:** placeholders until Kenney environment pass (deferred)
+- **Props / ground:** Kenney Nature Kit GLBs (island terrain, props, dungeons); Quaternius characters
 
 After pulling art changes, use **Project → Reload Current Project** in Godot.
 

@@ -2,7 +2,8 @@ class_name CameraCollision
 extends Node
 ## Raycast-based camera wall collision.
 
-@export var collision_mask: int = 1
+## Layer 0 = disabled. Terrain uses layer 1; camera must not collide with ground.
+@export var collision_mask: int = 0
 @export var sphere_radius: float = 0.3
 
 var _camera: Camera3D

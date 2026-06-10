@@ -4,6 +4,7 @@ extends Node
 const LOG_PATH := "res://tests/last_run.log"
 const DUNGEON_ROOM := preload("res://scripts/dungeons/dungeon_room.gd")
 const _Kenney = preload("res://scripts/utilities/kenney_paths.gd")
+const _KenneyManifest = preload("res://scripts/utilities/kenney_manifest.gd")
 var _log: PackedStringArray = []
 var _passed := 0
 var _failed := 0
@@ -100,6 +101,7 @@ func _test_island_terrain() -> void:
 	_assert(ResourceLoader.exists(_Kenney.nature("platform_stone.glb")), "kenney dungeon floor asset")
 	var layout := MapManager.get_region_layout("darkpine_forest")
 	_assert(layout.get("kind") == "island", "darkpine_forest is island region")
+	_assert(_KenneyManifest.all_exist(), "all referenced Kenney GLBs exist")
 
 
 func _get_autoload(name: String) -> Node:

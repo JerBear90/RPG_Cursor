@@ -17,6 +17,7 @@ func change_scene(path: String, spawn_point: String = "") -> void:
 		_changing = false
 		push_error("SceneTransitionManager: no scene tree")
 		return
+	GameManager.clear_players()
 	var err := tree.change_scene_to_file(path)
 	if err != OK:
 		push_error("SceneTransitionManager: failed to load %s (error %d)" % [path, err])

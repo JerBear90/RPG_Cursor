@@ -1,6 +1,11 @@
 extends CanvasLayer
 ## In-game HUD plus controller-navigable overlay menus.
 
+const InventoryPanelScene := preload("res://scripts/ui/inventory_panel.gd")
+const SkillTreePanelScene := preload("res://scripts/ui/skill_tree_panel.gd")
+const SpellWheelPanelScene := preload("res://scripts/ui/spell_wheel_panel.gd")
+const MerchantShopPanelScene := preload("res://scripts/ui/merchant_shop_panel.gd")
+
 @onready var health_bar: ProgressBar = %HealthBar
 @onready var stamina_bar: ProgressBar = %StaminaBar
 @onready var focus_bar: ProgressBar = %FocusBar
@@ -34,6 +39,10 @@ var _menu_panel: PanelContainer
 var _menu_title: Label
 var _menu_list: ItemList
 var _menu_hint: Label
+var _inventory_panel: PanelContainer
+var _skill_tree_panel: PanelContainer
+var _spell_wheel_panel: Control
+var _merchant_panel: PanelContainer
 
 
 func _ready() -> void:
@@ -83,9 +92,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("open_inventory"):
 		if _active_menu == "inventory":
-			_close_menu()
+			_close_inventory_panel()
 		elif _active_menu == "":
-			_open_inventory_menu()
+			_open_inventory_panel()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("open_map"):
 		if _active_menu == "map":
@@ -95,10 +104,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("open_skill_tree"):
 		if _active_menu == "skill_tree":
-			_close_menu()
+			_close_skill_tree_panel()
 		elif _active_menu == "":
-			_open_skill_tree_menu()
+			_open_skill_tree_panel()
 		get_viewport().set_input_as_handled()
+	elif _active_menu == "spell_wheel":
+		if event.is_action_pressed("cycle_quick_left"):
+			_cycle_spell_wheel(-1)
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("cycle_quick_right"):
+			_cycle_spell_wheel(1)
+			get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("open_quest_tracker"):
 		if _active_menu == "quests":
 			_close_menu()
@@ -109,7 +125,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		DialogueManager.advance()
 		get_viewport().set_input_as_handled()
 	elif _active_menu != "" and event.is_action_pressed("cancel"):
-		_close_menu()
+		if _active_menu == "inventory":
+			_close_inventory_panel()
+		elif _active_menu == "skill_tree":
+			_close_skill_tree_panel()
+		elif _active_menu == "merchant":
+			_close_merchant_panel()
+		else:
+			_close_menu()
 		get_viewport().set_input_as_handled()
 	elif _active_menu != "" and event.is_action_pressed("confirm"):
 		_menu_confirm()
@@ -163,24 +186,89 @@ func open_crafting_menu(station_id: String) -> void:
 func open_merchant_menu(npc_id: String = "silent_merchant", anger_state: String = "calm") -> void:
 	_merchant_npc_id = npc_id
 	_merchant_anger_state = anger_state
-	MerchantManager.set_active_npc(npc_id)
-	_populate_merchant_list()
-	_show_menu("merchant", MerchantManager.get_display_name(npc_id))
+	_open_merchant_panel()
 
 
 func open_spell_wheel_menu(spells: Array[String], selected_index: int) -> void:
 	_spell_wheel_spells = spells
-	_menu_list.clear()
-	for i in spells.size():
-		var prefix := "> " if i == selected_index else "  "
-		_menu_list.add_item("%s%s" % [prefix, spells[i].replace("_", " ").capitalize()])
-		_menu_list.set_item_metadata(i, i)
-	_show_menu("spell_wheel", "Spell Wheel")
+	_active_menu = "spell_wheel"
+	_overlay.visible = true
+	_spell_wheel_panel.show_wheel(spells, selected_index)
 
 
 func close_spell_wheel_menu() -> void:
 	if _active_menu == "spell_wheel":
-		_close_menu()
+		_active_menu = ""
+		_overlay.visible = false
+		_spell_wheel_panel.hide_wheel()
+
+
+func _open_inventory_panel() -> void:
+	if _player == null:
+		return
+	_active_menu = "inventory"
+	_overlay.visible = true
+	_menu_panel.visible = false
+	get_tree().paused = true
+	_inventory_panel.open(_player)
+
+
+func _close_inventory_panel() -> void:
+	_inventory_panel.close()
+	_on_panel_closed()
+
+
+func _open_skill_tree_panel() -> void:
+	if _player == null:
+		return
+	_active_menu = "skill_tree"
+	_overlay.visible = true
+	_menu_panel.visible = false
+	get_tree().paused = true
+	_skill_tree_panel.open(_player)
+
+
+func _close_skill_tree_panel() -> void:
+	_skill_tree_panel.close()
+	_on_panel_closed()
+
+
+func _open_merchant_panel() -> void:
+	_active_menu = "merchant"
+	_overlay.visible = true
+	_menu_panel.visible = false
+	get_tree().paused = true
+	_merchant_panel.open(_merchant_npc_id, _merchant_anger_state)
+
+
+func _close_merchant_panel() -> void:
+	_merchant_panel.close()
+	_on_panel_closed()
+
+
+func _on_panel_closed() -> void:
+	if _active_menu in ["inventory", "skill_tree", "merchant"]:
+		_active_menu = ""
+		_overlay.visible = false
+		get_tree().paused = false
+
+
+func _on_spell_wheel_selected(index: int) -> void:
+	_handle_spell_wheel_selection(index)
+
+
+func _cycle_spell_wheel(direction: int) -> void:
+	if _spell_wheel_spells.is_empty():
+		return
+	var current := 0
+	if _player and _player.has_node("Spellcaster"):
+		current = _player.get_node("Spellcaster").quick_spell_index
+	var next := (current + direction) % _spell_wheel_spells.size()
+	if next < 0:
+		next += _spell_wheel_spells.size()
+	_spell_wheel_panel.update_selection(next)
+	if _player and _player.has_node("Spellcaster"):
+		_player.get_node("Spellcaster").select_spell_from_wheel(next)
 
 
 func _build_overlay_ui() -> void:
@@ -237,6 +325,29 @@ func _build_overlay_ui() -> void:
 	_boss_name_label.add_theme_font_size_override("font_size", 20)
 	_boss_name_label.visible = false
 	add_child(_boss_name_label)
+
+	_inventory_panel = InventoryPanelScene.new()
+	_inventory_panel.visible = false
+	_inventory_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_inventory_panel.closed.connect(_on_panel_closed)
+	add_child(_inventory_panel)
+
+	_skill_tree_panel = SkillTreePanelScene.new()
+	_skill_tree_panel.visible = false
+	_skill_tree_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_skill_tree_panel.closed.connect(_on_panel_closed)
+	add_child(_skill_tree_panel)
+
+	_spell_wheel_panel = SpellWheelPanelScene.new()
+	_spell_wheel_panel.visible = false
+	_spell_wheel_panel.spell_selected.connect(_on_spell_wheel_selected)
+	add_child(_spell_wheel_panel)
+
+	_merchant_panel = MerchantShopPanelScene.new()
+	_merchant_panel.visible = false
+	_merchant_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_merchant_panel.closed.connect(_on_panel_closed)
+	add_child(_merchant_panel)
 
 
 func _build_toast() -> void:
@@ -401,8 +512,8 @@ func _update_currency() -> void:
 
 
 func _on_inventory_changed() -> void:
-	if _active_menu == "inventory":
-		_populate_inventory_list()
+	if _active_menu == "inventory" and _inventory_panel.visible:
+		_inventory_panel.open(_player)
 
 
 func _on_dialogue_line(speaker: String, text: String) -> void:
@@ -462,11 +573,6 @@ func _open_settings_menu() -> void:
 	_show_menu("settings", "Settings")
 
 
-func _open_inventory_menu() -> void:
-	_populate_inventory_list()
-	_show_menu("inventory", "Inventory")
-
-
 func _open_waystone_menu() -> void:
 	_menu_list.clear()
 	_menu_list.add_item("Close")
@@ -517,56 +623,6 @@ func _open_map_menu() -> void:
 	_show_menu("map", "World Map")
 
 
-func _open_skill_tree_menu() -> void:
-	_menu_list.clear()
-	if _player == null or not _player.has_node("SkillTree"):
-		_menu_list.add_item("(No skill tree)")
-		_show_menu("skill_tree", "Skill Tree")
-		return
-	var tree := _player.get_node("SkillTree")
-	var stats := _player.get_node("StatsComponent") as StatsComponent
-	var points := stats.unspent_skill_points
-	_menu_list.add_item("Skill Points: %d" % points)
-	if stats.unspent_stat_points > 0:
-		_menu_list.add_item("--- Spend Stat Points ---")
-		for stat_name in ["strength", "vitality", "dexterity", "intelligence", "endurance", "spirit"]:
-			var sidx := _menu_list.add_item("+1 %s" % stat_name.capitalize())
-			_menu_list.set_item_metadata(sidx, "stat_%s" % stat_name)
-	for node_id in tree.get_all_node_ids():
-		var prefix := "[X] " if node_id in tree.unlocked_nodes else "[ ] "
-		_menu_list.add_item("%s%s" % [prefix, tree.get_node_display(node_id)])
-		_menu_list.set_item_metadata(_menu_list.item_count - 1, node_id)
-	_show_menu("skill_tree", "Skill Tree")
-
-
-func _populate_inventory_list() -> void:
-	_menu_list.clear()
-	for entry in InventoryManager.items:
-		var item_id: String = entry.id
-		var actions: PackedStringArray = []
-		if ItemDatabase.can_use(item_id):
-			actions.append(ItemDatabase.get_item(item_id).get("label", "Use"))
-		if ItemDatabase.can_equip(item_id):
-			actions.append("Equip")
-		var suffix := ""
-		if not actions.is_empty():
-			suffix = " — " + "/".join(actions)
-		var idx := _menu_list.add_item("%s x%d%s" % [item_id.replace("_", " "), entry.quantity, suffix])
-		_menu_list.set_item_metadata(idx, item_id)
-	if InventoryManager.equipment.size() > 0:
-		_menu_list.add_item("--- Equipped ---")
-		for slot in InventoryManager.equipment.keys():
-			var item_id: String = InventoryManager.equipment[slot]
-			var bonus := ""
-			if slot == "main_weapon":
-				bonus = " (+%d dmg)" % int(ItemDatabase.get_weapon_damage(item_id))
-			elif slot == "chest":
-				bonus = " (+%d HP)" % int(ItemDatabase.get_armor_health_bonus(item_id))
-			_menu_list.add_item("%s: %s%s" % [slot, item_id, bonus])
-	if _menu_list.item_count == 0:
-		_menu_list.add_item("(Empty)")
-
-
 func _populate_crafting_list() -> void:
 	_menu_list.clear()
 	for recipe_id in CraftingManager.known_recipes:
@@ -578,26 +634,6 @@ func _populate_crafting_list() -> void:
 	if BaseManager.can_upgrade(_crafting_station_id):
 		var uidx := _menu_list.add_item("Upgrade station")
 		_menu_list.set_item_metadata(uidx, _crafting_station_id)
-
-
-func _populate_merchant_list() -> void:
-	_menu_list.clear()
-	var multiplier := MerchantManager.get_price_multiplier_for_anger(_merchant_anger_state)
-	for entry in MerchantManager.get_buy_list(_merchant_npc_id, multiplier):
-		var item_id: String = entry.item_id
-		var label: String = item_id.replace("_", " ").capitalize()
-		var idx := _menu_list.add_item("Buy %s (%d copper)" % [label, entry.price])
-		_menu_list.set_item_metadata(idx, {"action": "buy", "item_id": item_id, "price": entry.price})
-	for entry in MerchantManager.get_sell_list(_merchant_npc_id, multiplier):
-		var item_id: String = entry.item_id
-		var label: String = item_id.replace("_", " ").capitalize()
-		var qty := InventoryManager.get_item_count(item_id)
-		if qty <= 0:
-			continue
-		var sidx := _menu_list.add_item("Sell %s x1 (%d copper)" % [label, entry.price])
-		_menu_list.set_item_metadata(sidx, {"action": "sell", "item_id": item_id, "price": entry.price})
-	if _menu_list.item_count == 0:
-		_menu_list.add_item("(Nothing to trade)")
 
 
 func _show_menu(menu_id: String, title: String) -> void:
@@ -628,8 +664,6 @@ func _menu_confirm() -> void:
 	match _active_menu:
 		"pause":
 			_handle_pause_selection(text)
-		"inventory":
-			_handle_inventory_selection(index)
 		"storage":
 			_handle_storage_selection(index)
 		"upgrade":
@@ -638,16 +672,12 @@ func _menu_confirm() -> void:
 			_handle_waystone_selection(text)
 		"crafting":
 			_handle_crafting_selection(text)
-		"merchant":
-			_handle_merchant_selection(text)
 		"map":
 			_close_menu()
 		"quests":
 			_handle_quest_journal_selection(index)
 		"settings":
 			_handle_settings_selection(text)
-		"skill_tree":
-			_handle_skill_tree_selection(index)
 		"spell_wheel":
 			_handle_spell_wheel_selection(index)
 
@@ -745,42 +775,6 @@ func _handle_settings_selection(text: String) -> void:
 	_open_settings_menu()
 
 
-func _handle_skill_tree_selection(index: int) -> void:
-	var text := _menu_list.get_item_text(index)
-	if text.begins_with("Skill Points") or text.begins_with("[X]") or text.begins_with("---"):
-		return
-	if _player == null or not _player.has_node("SkillTree"):
-		return
-	var meta: Variant = _menu_list.get_item_metadata(index)
-	if meta != null and str(meta).begins_with("stat_"):
-		var stat_name: String = str(meta).substr(5)
-		var stats := _player.get_node("StatsComponent") as StatsComponent
-		if stats.unspent_stat_points <= 0:
-			return
-		stats.unspent_stat_points -= 1
-		match stat_name:
-			"strength":
-				stats.strength += 1
-			"vitality":
-				stats.vitality += 1
-			"dexterity":
-				stats.dexterity += 1
-			"intelligence":
-				stats.intelligence += 1
-			"endurance":
-				stats.endurance += 1
-			"spirit":
-				stats.spirit += 1
-		if _player.has_node("SkillTree"):
-			(_player.get_node("SkillTree")).refresh_derived_stats()
-		_open_skill_tree_menu()
-		return
-	var node_id: String = meta
-	var tree := _player.get_node("SkillTree")
-	if tree.unlock_node(node_id):
-		_open_skill_tree_menu()
-
-
 func _handle_spell_wheel_selection(index: int) -> void:
 	if _player and _player.has_node("Spellcaster"):
 		var sc := _player.get_node("Spellcaster")
@@ -832,19 +826,6 @@ func open_storage_menu() -> void:
 	_show_menu("storage", "Item Box")
 
 
-func _handle_inventory_selection(index: int) -> void:
-	if _player == null:
-		return
-	var item_id: Variant = _menu_list.get_item_metadata(index)
-	if item_id == null or typeof(item_id) != TYPE_STRING:
-		return
-	var id: String = item_id
-	if ItemDatabase.can_use(id) and InventoryManager.use_item(id, _player):
-		_populate_inventory_list()
-	elif ItemDatabase.can_equip(id) and InventoryManager.equip_item(id, _player):
-		_populate_inventory_list()
-
-
 func _handle_upgrade_selection(index: int) -> void:
 	var station_id: Variant = _menu_list.get_item_metadata(index)
 	if station_id == null or typeof(station_id) != TYPE_STRING:
@@ -866,22 +847,3 @@ func _handle_storage_selection(index: int) -> void:
 	open_storage_menu()
 
 
-func _handle_merchant_selection(text: String) -> void:
-	if text.begins_with("("):
-		return
-	var sel := _menu_list.get_selected_items()
-	var index := sel[0] if sel.size() > 0 else -1
-	var meta: Variant = _menu_list.get_item_metadata(index) if index >= 0 else null
-	if meta == null or typeof(meta) != TYPE_DICTIONARY:
-		return
-	var data: Dictionary = meta
-	match data.get("action"):
-		"buy":
-			if CurrencyManager.spend_copper(int(data.price)):
-				InventoryManager.add_item(data.item_id, 1)
-				show_toast("Bought %s" % str(data.item_id).replace("_", " "))
-		"sell":
-			if InventoryManager.remove_item(data.item_id, 1):
-				CurrencyManager.add_copper(int(data.price))
-				show_toast("Sold %s" % str(data.item_id).replace("_", " "))
-	_populate_merchant_list()

@@ -2,17 +2,25 @@ extends Node
 ## Skill tree progression with unlockable nodes.
 
 const SKILL_NODES: Dictionary = {
-	"survivor_vitality": {"name": "Survivor Vitality", "desc": "+10 max health"},
-	"blade_training": {"name": "Blade Training", "desc": "+5% physical damage"},
-	"arcane_focus": {"name": "Arcane Focus", "desc": "+10 max focus"},
-	"enduring_spirit": {"name": "Enduring Spirit", "desc": "+15 max stamina"},
-	"quick_recovery": {"name": "Quick Recovery", "desc": "Faster stamina regen"},
-	"ember_mastery": {"name": "Ember Mastery", "desc": "Ember Bolt +20% damage"},
-	"mist_weaver": {"name": "Mist Weaver", "desc": "Unlock Healing Mist"},
-	"venom_study": {"name": "Venom Study", "desc": "Unlock Venom Dart"},
-	"iron_skin": {"name": "Iron Skin", "desc": "+5% block efficiency"},
-	"wolf_bond": {"name": "Wolf Bond", "desc": "Unlock Ash Hound at camp"},
+	"survivor_vitality": {"name": "Survivor Vitality", "desc": "+10 max health", "pos": Vector2(300, 20), "requires": []},
+	"blade_training": {"name": "Blade Training", "desc": "+5% physical damage", "pos": Vector2(120, 100), "requires": ["survivor_vitality"]},
+	"iron_skin": {"name": "Iron Skin", "desc": "+5% block efficiency", "pos": Vector2(480, 100), "requires": ["survivor_vitality"]},
+	"enduring_spirit": {"name": "Enduring Spirit", "desc": "+15 max stamina", "pos": Vector2(120, 200), "requires": ["blade_training"]},
+	"quick_recovery": {"name": "Quick Recovery", "desc": "Faster stamina regen", "pos": Vector2(300, 200), "requires": ["enduring_spirit"]},
+	"arcane_focus": {"name": "Arcane Focus", "desc": "+10 max focus", "pos": Vector2(480, 200), "requires": ["iron_skin"]},
+	"ember_mastery": {"name": "Ember Mastery", "desc": "Ember Bolt +20% damage", "pos": Vector2(120, 280), "requires": ["arcane_focus"]},
+	"mist_weaver": {"name": "Mist Weaver", "desc": "Unlock Healing Mist", "pos": Vector2(300, 280), "requires": ["ember_mastery"]},
+	"venom_study": {"name": "Venom Study", "desc": "Unlock Venom Dart", "pos": Vector2(480, 280), "requires": ["arcane_focus"]},
+	"wolf_bond": {"name": "Wolf Bond", "desc": "Unlock Ash Hound at camp", "pos": Vector2(300, 120), "requires": ["quick_recovery", "mist_weaver"]},
 }
+
+
+func get_node_layout(node_id: String) -> Dictionary:
+	var data: Dictionary = SKILL_NODES.get(node_id, {})
+	return {
+		"pos": data.get("pos", Vector2.ZERO),
+		"requires": data.get("requires", []),
+	}
 
 var unlocked_nodes: Array[String] = []
 
@@ -35,7 +43,12 @@ func can_unlock(node_id: String) -> bool:
 	if node_id not in SKILL_NODES:
 		return false
 	var stats := get_parent().get_node("StatsComponent") as StatsComponent
-	return stats.unspent_skill_points > 0 and node_id not in unlocked_nodes
+	if stats.unspent_skill_points <= 0 or node_id in unlocked_nodes:
+		return false
+	for req in get_node_layout(node_id).get("requires", []):
+		if str(req) not in unlocked_nodes:
+			return false
+	return true
 
 
 func unlock_node(node_id: String) -> bool:

@@ -1,9 +1,10 @@
-[gd_scene load_steps=4 format=3 uid="uid://petshelter001"]
+[gd_scene load_steps=6 format=3 uid="uid://petshelter001"]
 
 [ext_resource type="Script" path="res://scripts/base/base_station.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="2"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_1"]
-size = Vector3(2.0, 1.0, 2.0)
+size = Vector3(2.5, 1.2, 2.5)
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
 radius = 2.5
@@ -14,8 +15,19 @@ script = ExtResource("1")
 station_id = "pet_shelter"
 display_name = "Pet Shelter"
 
+[node name="KenneyVisual" type="Node3D" parent="."]
+script = ExtResource("2")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/tent_detailedClosed.glb"
+mesh_scale = Vector3(1.2, 1.2, 1.2)
+
+[node name="FenceVisual" type="Node3D" parent="."]
+script = ExtResource("2")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/fence_simple.glb"
+mesh_offset = Vector3(1.8, 0, 0)
+mesh_scale = Vector3(1.1, 1.1, 1.1)
+
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
 shape = SubResource("BoxShape3D_1")
 
 [node name="InteractionArea" type="Area3D" parent="."]

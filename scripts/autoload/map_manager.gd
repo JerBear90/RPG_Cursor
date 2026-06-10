@@ -9,10 +9,10 @@ var regions: Dictionary = {}
 var region_layout: Dictionary = {
 	"darkpine_forest": {"kind": "island", "radius": 28.0, "water_extent": 52.0},
 	"hearthhold_camp": {"kind": "camp", "radius": 12.0},
-	"ruined_watchtower": {"kind": "stub", "radius": 20.0},
-	"bandit_camp": {"kind": "stub", "radius": 20.0},
-	"crystal_cave": {"kind": "stub", "radius": 20.0},
-	"hollow_grove_shrine": {"kind": "stub", "radius": 20.0},
+	"ruined_watchtower": {"kind": "island", "radius": 18.0, "water_extent": 30.0, "scatter_trees": 6, "scatter_rocks": 10},
+	"bandit_camp": {"kind": "island", "radius": 20.0, "water_extent": 34.0, "scatter_trees": 8, "scatter_rocks": 8},
+	"crystal_cave": {"kind": "island", "radius": 16.0, "water_extent": 0.0, "land_tile": "platform_stone.glb", "scatter_trees": 2, "scatter_rocks": 16},
+	"hollow_grove_shrine": {"kind": "island", "radius": 22.0, "water_extent": 38.0, "scatter_trees": 22, "scatter_rocks": 6},
 }
 var icons: Array[Dictionary] = []
 var player_positions: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
