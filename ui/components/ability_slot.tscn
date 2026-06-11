@@ -1,0 +1,124 @@
+[gd_scene load_steps=2 format=3 uid="uid://ability_slot001"]
+
+[ext_resource type="Script" path="res://ui/components/ability_slot.gd" id="1"]
+
+[node name="AbilitySlot" type="Control"]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 3
+script = ExtResource("1")
+
+[node name="SlotFrame" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Center" type="CenterContainer" parent="SlotFrame"]
+layout_mode = 2
+
+[node name="AbilityIcon" type="TextureRect" parent="SlotFrame/Center"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="EmptyLabel" type="Label" parent="SlotFrame"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -8.0
+offset_top = -10.0
+offset_right = 8.0
+offset_bottom = 10.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+visible = false
+
+[node name="LockOverlay" type="ColorRect" parent="SlotFrame"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.04, 0.05, 0.06, 0.55)
+
+[node name="CooldownSweep" type="TextureProgressBar" parent="SlotFrame"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+max_value = 1.0
+
+[node name="CooldownText" type="Label" parent="SlotFrame"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -18.0
+offset_top = -10.0
+offset_right = 18.0
+offset_bottom = 10.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+visible = false
+
+[node name="KeyBadge" type="PanelContainer" parent="SlotFrame"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = -16.0
+offset_right = 24.0
+offset_bottom = -2.0
+grow_vertical = 0
+
+[node name="KeyLabel" type="Label" parent="SlotFrame/KeyBadge"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ManaCost" type="Label" parent="SlotFrame"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -26.0
+offset_top = 2.0
+offset_right = -4.0
+offset_bottom = 14.0
+grow_horizontal = 0
+text = "10"
+visible = false

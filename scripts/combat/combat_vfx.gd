@@ -5,6 +5,8 @@ const _HIT_COLOR := Color(1.0, 0.55, 0.2)
 const _DEATH_COLOR := Color(0.35, 0.35, 0.4, 0.9)
 const _SPELL_COLOR := Color(0.45, 0.75, 1.0)
 const _HEAL_COLOR := Color(0.35, 0.95, 0.45)
+const _PLAYER_DAMAGE_COLOR := Color(1.0, 0.32, 0.28)
+const _ENEMY_DAMAGE_COLOR := Color(1.0, 0.82, 0.45)
 
 
 func spawn_hit(world_pos: Vector3, color: Color = _HIT_COLOR) -> void:
@@ -57,6 +59,32 @@ func spawn_spell(world_pos: Vector3) -> void:
 
 func spawn_heal(world_pos: Vector3) -> void:
 	_spawn_burst(world_pos + Vector3(0, 1.0, 0), _HEAL_COLOR, 0.3, 0.35)
+
+
+func spawn_damage_number(world_pos: Vector3, amount: float, on_player: bool = false) -> void:
+	if amount <= 0.0:
+		return
+	var root := get_tree().current_scene
+	if root == null:
+		return
+	var label := Label3D.new()
+	label.text = "-%d" % int(round(amount))
+	label.font_size = 42 if on_player else 36
+	label.outline_size = 10
+	label.modulate = _PLAYER_DAMAGE_COLOR if on_player else _ENEMY_DAMAGE_COLOR
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.fixed_size = true
+	label.position = world_pos + Vector3(randf_range(-0.15, 0.15), 0.0, randf_range(-0.15, 0.15))
+	root.add_child(label)
+	var rise := Vector3(0, 1.35 if on_player else 1.0, 0)
+	var tween := label.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "position", label.position + rise, 0.9).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(label, "modulate:a", 0.0, 0.9).set_delay(0.15)
+	var cleanup := label.create_tween()
+	cleanup.tween_interval(0.95)
+	cleanup.tween_callback(label.queue_free)
 
 
 func _spawn_burst(world_pos: Vector3, color: Color, start_scale: float, duration: float) -> void:

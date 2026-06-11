@@ -12,7 +12,7 @@ func _ready() -> void:
 
 func _on_interact(_player: Node) -> void:
 	if waystone_id not in WaystoneManager.discovered:
-		WaystoneManager.discover(waystone_id)
+		WaystoneManager.discover(waystone_id, global_position)
 		DialogueManager.start_dialogue(waystone_id, [
 			{"speaker": "Waystone", "text": "Cold blue fire ignites along the runes. A path opens in your mind."},
 		])

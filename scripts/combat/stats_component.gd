@@ -4,6 +4,8 @@ extends Node
 
 signal level_changed(level: int)
 signal stat_changed
+signal experience_changed(current: int, required: int)
+signal experience_gained(amount: int, source: StringName)
 
 const MAX_LEVEL := 50
 
@@ -24,8 +26,12 @@ func get_exp_to_next_level() -> int:
 	return level * 100
 
 
-func add_experience(amount: int) -> void:
+func add_experience(amount: int, source: StringName = &"") -> void:
+	if amount <= 0:
+		return
 	experience += amount
+	experience_gained.emit(amount, source)
+	experience_changed.emit(experience, get_exp_to_next_level())
 	while experience >= get_exp_to_next_level() and level < MAX_LEVEL:
 		experience -= get_exp_to_next_level()
 		_level_up()
@@ -37,6 +43,7 @@ func _level_up() -> void:
 	unspent_skill_points += 1
 	level_changed.emit(level)
 	stat_changed.emit()
+	experience_changed.emit(experience, get_exp_to_next_level())
 
 
 func get_max_health_bonus() -> float:

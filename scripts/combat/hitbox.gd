@@ -10,9 +10,11 @@ extends Area3D
 var damage: DamageData
 var _hit_targets: Array[int] = []
 var _source: Node
+var _attack_serial: int = 0
 
 
 func _ready() -> void:
+	add_to_group("combat_hitbox")
 	collision_layer = 8   # hitbox
 	collision_mask = 16   # hurtbox
 	monitoring = false
@@ -23,19 +25,44 @@ func _ready() -> void:
 
 func enable() -> void:
 	active = true
+	_attack_serial += 1
+	set_meta("attack_serial", _attack_serial)
 	monitoring = true
+	monitorable = true
 	_hit_targets.clear()
 	damage = DamageData.create_physical(base_damage, _source)
 	damage.stagger = stagger
+	call_deferred("_flush_overlaps")
+	if is_inside_tree():
+		_flush_overlaps_after_physics()
 
 
 func disable() -> void:
 	active = false
 	monitoring = false
+	monitorable = false
+
+
+func landed_any_hit() -> bool:
+	return not _hit_targets.is_empty()
 
 
 func get_source() -> Node:
 	return _source
+
+
+func _flush_overlaps_after_physics() -> void:
+	await get_tree().physics_frame
+	_flush_overlaps()
+	await get_tree().physics_frame
+	_flush_overlaps()
+
+
+func _flush_overlaps() -> void:
+	if not active:
+		return
+	for area in get_overlapping_areas():
+		_on_area_entered(area)
 
 
 func _on_area_entered(area: Area3D) -> void:

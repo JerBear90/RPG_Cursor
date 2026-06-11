@@ -22,6 +22,8 @@ var _character_anim: GltfCharacterAnim
 func _ready() -> void:
 	add_to_group("npc")
 	add_to_group("interactable")
+	if is_merchant:
+		add_to_group("map_merchant")
 	_setup_friendly_fire_hurtbox()
 	_character_anim = GltfCharacterAnim.new()
 	_character_anim.name = "CharacterAnim"
@@ -72,6 +74,8 @@ func interact(player: Node) -> void:
 		var lines := DialogueManager.get_npc_greeting(npc_id)
 		DialogueManager.start_dialogue(npc_id, lines)
 		await DialogueManager.dialogue_ended
+		if DialogueManager.ended_by_cancel:
+			return
 		for hud in get_tree().get_nodes_in_group("game_hud"):
 			hud.open_merchant_menu(npc_id, anger_state)
 		return
@@ -150,11 +154,40 @@ func _try_hostile_attack() -> void:
 	if _attack_cd > 0.0 or _attack_hitbox == null:
 		return
 	_attack_cd = 1.4
+	for p in GameManager.get_alive_players():
+		var to_player := p.global_position - global_position
+		to_player.y = 0.0
+		if to_player.length_squared() > 0.01:
+			PlanarFacing.face_direction(self, to_player)
+			break
 	if _character_anim.is_ready():
 		_character_anim.play_attack()
-	_attack_hitbox.base_damage = hostile_damage
+	var strike_damage := hostile_damage
+	_attack_hitbox.base_damage = strike_damage
 	_attack_hitbox.enable()
-	get_tree().create_timer(0.3).timeout.connect(_attack_hitbox.disable)
+	var hitbox := _attack_hitbox
+	get_tree().create_timer(0.3).timeout.connect(hitbox.disable)
+	get_tree().create_timer(0.14).timeout.connect(
+		func() -> void:
+			_resolve_hostile_strike(hitbox, strike_damage),
+		CONNECT_ONE_SHOT
+	)
+
+
+func _resolve_hostile_strike(hitbox: Hitbox, strike_damage: float) -> void:
+	if hitbox and hitbox.landed_any_hit():
+		return
+	var target: Node3D = null
+	var best := 2.5
+	for p in GameManager.get_alive_players():
+		var dist := global_position.distance_to(p.global_position)
+		if dist < best:
+			best = dist
+			target = p
+	if target == null or best > 2.5:
+		return
+	if target.has_method("receive_damage"):
+		target.receive_damage(DamageData.create_physical(strike_damage, self))
 
 
 func _on_hostile_died() -> void:

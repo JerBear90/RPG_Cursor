@@ -140,6 +140,10 @@ if (-not $godot) {
 }
 
 Write-Host "Using Godot: $godot"
+Write-Host "Project root: $((Resolve-Path -LiteralPath $ProjectRoot).Path)"
+Write-Host "Project file: $((Resolve-Path -LiteralPath (Join-Path $ProjectRoot 'project.godot')).Path)"
+Write-Host "Main scene: $MainScene"
+Write-Host "Launch mode: editor project (not exported build)"
 
 if (-not (Ensure-ProjectImported -GodotExe $godot -Root $ProjectRoot)) {
     exit 1

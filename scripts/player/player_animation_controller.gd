@@ -10,6 +10,7 @@ const STATE_ATTACK_LIGHT := "attack_light"
 const STATE_ATTACK_HEAVY := "attack_heavy"
 const STATE_BLOCK := "block"
 const STATE_DODGE := "dodge"
+const STATE_AIRBORNE := "airborne"
 const STATE_STAGGER := "stagger"
 const STATE_DEAD := "dead"
 
@@ -30,12 +31,17 @@ const GLTF_ALIASES := {
 	"move": ["Walk", "Walk_Gun"],
 	"sprint": ["Run", "Run_Gun", "Run_Slash", "Run_Stab"],
 	"attack_light": ["Slash", "Punch", "Idle_Attack", "Run_Slash", "Run_Attack"],
-	"attack_heavy": ["Stab", "Run_Stab"],
-	"block": ["Duck"],
-	"dodge": ["Jump", "Jump_Land"],
-	"stagger": ["HitReact"],
+	"attack_heavy": ["Slash", "Run_Slash", "Stab", "Run_Stab"],
+	"block": ["Idle", "Duck"],
+	"dodge": ["Run", "Jump", "Jump_Land"],
+	"airborne": ["Jump", "Jump_Land", "Idle"],
+	"stagger": ["Idle", "HitReact"],
 	"dead": ["Death"],
 }
+
+const LOCOMOTION_STATES := [STATE_IDLE, STATE_MOVE, STATE_SPRINT]
+const PLAYER_ACTION_STATES := [STATE_ATTACK_LIGHT, STATE_ATTACK_HEAVY, STATE_DODGE]
+const DISABLED_PLAYER_STATES := [STATE_BLOCK, STATE_STAGGER, STATE_DEAD]
 
 const ONE_SHOT_STATES := [
 	STATE_ATTACK_LIGHT, STATE_ATTACK_HEAVY, STATE_DODGE, STATE_STAGGER,
@@ -73,6 +79,20 @@ func _ready() -> void:
 	var dodge := _player.get_node_or_null("DodgeComponent") as DodgeComponent
 	if dodge:
 		dodge.dodge_ended.connect(_sync_locomotion_from_player)
+	if not _player.is_on_floor():
+		set_process(true)
+
+
+func _process(_delta: float) -> void:
+	if _player == null or not _built:
+		return
+	if _player.current_state in [PlayerController.State.DEAD, PlayerController.State.ATTACK, PlayerController.State.DODGE]:
+		return
+	var airborne := not _player.is_on_floor() or _player.velocity.y > 0.05
+	if airborne:
+		_travel(STATE_AIRBORNE)
+	else:
+		_sync_locomotion_from_player()
 
 
 func _on_visual_ready() -> void:
@@ -148,19 +168,29 @@ func _build_state_machine() -> void:
 	var locomotion_states: Array[String] = [STATE_IDLE, STATE_MOVE, STATE_SPRINT]
 	if _using_skeletal:
 		var one_shot_states: Array[String] = []
-		for one_shot_state in ONE_SHOT_STATES + [STATE_DEAD]:
+		for one_shot_state in PLAYER_ACTION_STATES:
 			if _resolved_gltf.has(one_shot_state):
 				one_shot_states.append(one_shot_state)
 		for logical_state in _resolved_gltf.keys():
+			if logical_state in DISABLED_PLAYER_STATES:
+				continue
 			var gltf_name: String = _resolved_gltf[logical_state]
 			var node := AnimationNodeAnimation.new()
 			node.animation = gltf_name
 			state_machine.add_node(StringName(gltf_name), node)
 		for from_logical in _resolved_gltf.keys():
+			if from_logical in DISABLED_PLAYER_STATES:
+				continue
 			var from_name: String = _resolved_gltf[from_logical]
 			for to_logical in _resolved_gltf.keys():
+				if to_logical in DISABLED_PLAYER_STATES:
+					continue
 				var to_name: String = _resolved_gltf[to_logical]
 				if from_name == to_name:
+					continue
+				if from_logical in one_shot_states and to_logical not in LOCOMOTION_STATES:
+					continue
+				if to_logical in one_shot_states and from_logical not in LOCOMOTION_STATES:
 					continue
 				var tr := AnimationNodeStateMachineTransition.new()
 				if from_logical in one_shot_states:
@@ -237,9 +267,13 @@ func _create_procedural_animations() -> void:
 		{"t": 0.12, "y": 0.18, "pitch": 0.4, "roll": 0.15},
 		{"t": 0.35, "y": 0.0, "pitch": 0.0, "roll": 0.0},
 	], false)
+	_add_anim(STATE_AIRBORNE, 0.6, _anim_target, [
+		{"t": 0.0, "y": 0.0, "pitch": 0.0, "roll": 0.0},
+		{"t": 0.3, "y": 0.14, "pitch": -0.08, "roll": 0.0},
+		{"t": 0.6, "y": 0.0, "pitch": 0.0, "roll": 0.0},
+	], true)
 	_add_anim(STATE_STAGGER, 0.4, _anim_target, [
 		{"t": 0.0, "y": 0.0, "pitch": 0.0, "roll": 0.0},
-		{"t": 0.1, "y": -0.1, "pitch": -0.22, "roll": -0.08},
 		{"t": 0.4, "y": 0.0, "pitch": 0.0, "roll": 0.0},
 	], false)
 
@@ -298,26 +332,39 @@ func _on_player_state_changed(state_name: String) -> void:
 		"ATTACK":
 			pass
 		"BLOCK":
-			_travel(STATE_BLOCK)
+			_sync_locomotion_from_player()
 		"DODGE":
 			_travel(STATE_DODGE)
 		"STAGGER":
-			_travel(STATE_STAGGER)
+			_sync_locomotion_from_player()
 		"DEAD":
-			_travel(STATE_DEAD)
-			if _anim_tree:
-				pass
+			_sync_locomotion_from_player()
 
 
 func _on_attack_phase_changed(phase: String, heavy: bool) -> void:
 	if phase == "windup" or phase == "active":
 		_travel(STATE_ATTACK_HEAVY if heavy else STATE_ATTACK_LIGHT)
 	elif phase == "none":
-		call_deferred("_sync_locomotion_from_player")
+		call_deferred("_reset_after_attack")
 
 
 func sync_locomotion() -> void:
 	_sync_locomotion_from_player()
+
+
+func _reset_after_attack() -> void:
+	_force_idle_pose()
+	_sync_locomotion_from_player()
+
+
+func _force_idle_pose() -> void:
+	if _anim_target:
+		_anim_target.position = Vector3.ZERO
+		_anim_target.rotation = Vector3.ZERO
+	if _using_skeletal and _state_playback and _resolved_gltf.has(STATE_IDLE):
+		var idle_name: String = _resolved_gltf[STATE_IDLE]
+		_state_playback.start(idle_name)
+		_current_anim_state = idle_name
 
 
 func _sync_locomotion_from_player() -> void:

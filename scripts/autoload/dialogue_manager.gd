@@ -1,50 +1,144 @@
 extends Node
-## Dialogue presentation and NPC conversation flow.
+## Dialogue presentation with explicit state machine and input debounce.
+
+enum DialogueState {
+	CLOSED,
+	OPENING,
+	DISPLAYING_LINE,
+	WAITING_FOR_INPUT,
+	DISPLAYING_CHOICES,
+	CLOSING,
+}
 
 signal dialogue_started(npc_id: String)
 signal dialogue_line_shown(speaker: String, text: String)
+signal dialogue_choices_shown(options: Array[String])
 signal dialogue_ended
+signal dialogue_choice_selected(index: int)
 
-var _active: bool = false
+const OPEN_DEBOUNCE_SEC := 0.25
+
+var state: DialogueState = DialogueState.CLOSED
+var _npc_id: String = ""
 var _lines: Array[Dictionary] = []
+var _choices: Array[String] = []
 var _index: int = 0
+var _opened_at: float = 0.0
+var _consume_next_confirm: bool = false
+var _pending_choice_callback: Callable = Callable()
+var ended_by_cancel: bool = false
 
 
-func start_dialogue(npc_id: String, lines: Array[Dictionary]) -> void:
-	if _active:
+func start_dialogue(npc_id: String, lines: Array[Dictionary], choices: Array[String] = []) -> void:
+	if state != DialogueState.CLOSED:
 		return
-	_active = true
+	ended_by_cancel = false
+	state = DialogueState.OPENING
+	_npc_id = npc_id
 	_lines = lines
+	_choices = choices
 	_index = 0
+	_opened_at = Time.get_ticks_msec() / 1000.0
+	_consume_next_confirm = true
 	dialogue_started.emit(npc_id)
+	state = DialogueState.DISPLAYING_LINE
 	_show_current()
 
 
+func start_confirmation(title: String, body: String, confirm_label: String = "Enter", cancel_label: String = "Cancel") -> void:
+	start_dialogue("confirmation", [
+		{"speaker": title, "text": body, "confirm": confirm_label, "cancel": cancel_label},
+	], [confirm_label, cancel_label])
+
+
 func advance() -> void:
-	if not _active:
+	if state == DialogueState.CLOSED or state == DialogueState.CLOSING:
 		return
-	_index += 1
-	if _index >= _lines.size():
-		end_dialogue()
-	else:
-		_show_current()
+	if _consume_next_confirm:
+		return
+	if state == DialogueState.DISPLAYING_CHOICES:
+		select_choice(0)
+		return
+	if state == DialogueState.DISPLAYING_LINE or state == DialogueState.WAITING_FOR_INPUT:
+		_index += 1
+		if _index >= _lines.size():
+			if _choices.size() > 0:
+				_show_choices()
+			else:
+				end_dialogue()
+		else:
+			state = DialogueState.DISPLAYING_LINE
+			_show_current()
+
+
+func cancel() -> void:
+	if state == DialogueState.CLOSED:
+		return
+	if state == DialogueState.DISPLAYING_CHOICES and _choices.size() > 1:
+		select_choice(1)
+		return
+	ended_by_cancel = true
+	end_dialogue()
+
+
+func select_choice(index: int) -> void:
+	if state != DialogueState.DISPLAYING_CHOICES and _choices.is_empty():
+		return
+	dialogue_choice_selected.emit(index)
+	end_dialogue()
 
 
 func end_dialogue() -> void:
-	_active = false
+	if state == DialogueState.CLOSED:
+		return
+	state = DialogueState.CLOSING
 	_lines.clear()
+	_choices.clear()
 	_index = 0
+	_npc_id = ""
+	_consume_next_confirm = false
+	state = DialogueState.CLOSED
 	dialogue_ended.emit()
 
 
 func is_active() -> bool:
-	return _active
+	return state != DialogueState.CLOSED
+
+
+func blocks_gameplay() -> bool:
+	return is_active()
+
+
+func get_current_npc_id() -> String:
+	return _npc_id
+
+
+func can_accept_advance() -> bool:
+	return is_active() and not _consume_next_confirm and (
+		state == DialogueState.WAITING_FOR_INPUT
+		or state == DialogueState.DISPLAYING_LINE
+		or state == DialogueState.DISPLAYING_CHOICES
+	)
+
+
+func _process(_delta: float) -> void:
+	if not is_active():
+		return
+	var elapsed := Time.get_ticks_msec() / 1000.0 - _opened_at
+	if _consume_next_confirm and elapsed >= OPEN_DEBOUNCE_SEC:
+		_consume_next_confirm = false
+		state = DialogueState.WAITING_FOR_INPUT
 
 
 func _show_current() -> void:
 	if _index < _lines.size():
 		var line := _lines[_index]
 		dialogue_line_shown.emit(line.get("speaker", ""), line.get("text", ""))
+
+
+func _show_choices() -> void:
+	state = DialogueState.DISPLAYING_CHOICES
+	dialogue_choices_shown.emit(_choices)
 
 
 func get_npc_greeting(npc_id: String) -> Array[Dictionary]:

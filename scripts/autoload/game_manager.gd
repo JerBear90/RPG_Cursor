@@ -37,6 +37,10 @@ func start_new_game(co_op: bool = false) -> void:
 	game_started = true
 	is_paused = false
 	pending_player_progress = {}
+	pending_respawn_position = Vector3.ZERO
+	pending_respawn_active = false
+	pending_death_message = ""
+	SaveManager.current_slot = -1
 	InventoryManager.reset_for_new_game()
 	CurrencyManager.reset_for_new_game()
 	QuestManager.reset_for_new_game()
@@ -64,6 +68,9 @@ func continue_game(slot: int = 0) -> bool:
 		return false
 	game_started = true
 	is_paused = false
+	pending_respawn_position = Vector3.ZERO
+	pending_respawn_active = false
+	pending_death_message = ""
 	var region := current_region_id
 	var path := "res://scenes/levels/%s/%s.tscn" % [region, region]
 	SceneTransitionManager.change_scene(path)

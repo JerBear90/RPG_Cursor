@@ -1,6 +1,8 @@
 extends Node
 ## Save/load with 3 slots via JSON.
 
+const _SpawnHelpers = preload("res://scripts/utilities/spawn_helpers.gd")
+
 signal save_completed(slot: int)
 signal load_completed(slot: int)
 
@@ -75,8 +77,25 @@ func get_save_preview(slot: int) -> Dictionary:
 
 func set_respawn_point(region: String, position: Vector3) -> void:
 	respawn_region = region
+	var world := _get_active_world()
+	var ground_y := _SpawnHelpers.query_ground_at_xz(world, position)
+	if not _SpawnHelpers.is_saved_position_plausible(position, ground_y):
+		position = Vector3(position.x, ground_y, position.z)
 	respawn_position = position
 	_respawn_initialized = true
+
+
+func _get_active_world() -> World3D:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+	for node in tree.get_nodes_in_group("player"):
+		if node is Node3D:
+			return (node as Node3D).get_world_3d()
+	var root := tree.current_scene
+	if root is Node3D:
+		return (root as Node3D).get_world_3d()
+	return null
 
 
 func has_respawn_point() -> bool:
@@ -134,7 +153,8 @@ func _apply_save_data(data: Dictionary) -> void:
 	if data.has("respawn_region") and data.has("respawn_position"):
 		var pos_arr: Array = data.respawn_position
 		if pos_arr.size() >= 3:
-			set_respawn_point(data.respawn_region, Vector3(pos_arr[0], pos_arr[1], pos_arr[2]))
+			var loaded := Vector3(pos_arr[0], pos_arr[1], pos_arr[2])
+			set_respawn_point(data.respawn_region, loaded)
 	if data.has("players"):
 		GameManager.player_data = data.players
 	if data.has("inventory"):

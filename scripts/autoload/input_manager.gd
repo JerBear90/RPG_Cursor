@@ -15,7 +15,7 @@ const DEVICE_GAMEPAD := 1
 const CO_OP_ACTIONS: Array[String] = [
 	"move_left", "move_right", "move_forward", "move_back",
 	"look_left", "look_right", "look_up", "look_down",
-	"light_attack", "heavy_attack", "dodge", "block", "sprint",
+	"light_attack", "heavy_attack", "dodge", "jump", "block", "sprint",
 	"lock_on", "interact", "quick_spell", "use_quick_item", "quick_heal",
 	"cycle_quick_left", "cycle_quick_right", "open_spell_wheel",
 ]

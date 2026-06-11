@@ -15,6 +15,7 @@ func _ready() -> void:
 	super._ready()
 	add_to_group("boss")
 	respawns = false
+	experience_reward = 250
 	enemy_level = 12
 	max_health = 800.0
 	damage = 25.0

@@ -2,6 +2,8 @@ extends Node
 ## Headless test runner — validates core systems without a display.
 
 const LOG_PATH := "res://tests/last_run.log"
+const _CombatTests = preload("res://tests/combat_damage_xp_test.gd")
+const _HudHealthTests = preload("res://tests/hud_health_signal_test.gd")
 const DUNGEON_ROOM := preload("res://scripts/dungeons/dungeon_room.gd")
 const _Kenney = preload("res://scripts/utilities/kenney_paths.gd")
 const _KenneyManifest = preload("res://scripts/utilities/kenney_manifest.gd")
@@ -123,6 +125,16 @@ func _run_all() -> void:
 	_test_dungeon_scene_exists()
 	_test_main_scene_exists()
 	_test_island_terrain()
+	_test_combat_damage_xp()
+	_test_hud_health_signals()
+
+
+func _test_hud_health_signals() -> void:
+	_HudHealthTests.run(self)
+
+
+func _test_combat_damage_xp() -> void:
+	_CombatTests.run(self)
 
 
 func _assert(condition: bool, label: String) -> void:

@@ -8,6 +8,10 @@ const _YAW := "y"
 const _SCALE := "s"
 const _COLLIDE := "c"
 
+const TENT_LARGE := Vector3(2.05, 2.05, 2.05)
+const TENT_SMALL := Vector3(1.75, 1.75, 1.75)
+const CAMPFIRE_SCALE := Vector3(1.25, 1.25, 1.25)
+
 
 static func get_layout(region_id: String) -> Dictionary:
 	match region_id:
@@ -65,23 +69,23 @@ static func _hearthhold() -> Dictionary:
 		props.append(_prop("fence_planksDouble.glb", Vector3(11, 0, z), -90.0, Vector3(1.1, 1.0, 1.0), true))
 		props.append(_prop("log_stack.glb", Vector3(12.2, 0, z + 0.6), 0.0, Vector3(0.85, 0.85, 0.85)))
 	if true:
-		props.append(_prop("tent_detailedOpen.glb", Vector3(10.5, 0, 2), -90.0, Vector3(1.15, 1.15, 1.15), true))
-		props.append(_prop("tent_detailedOpen.glb", Vector3(10.5, 0, -2), -90.0, Vector3(1.1, 1.1, 1.1), true))
-		props.append(_prop("tent_smallOpen.glb", Vector3(9.5, 0, 6), -90.0, Vector3(1.05, 1.05, 1.05), true))
+		props.append(_prop("tent_detailedOpen.glb", Vector3(10.5, 0, 2), -90.0, TENT_LARGE, true))
+		props.append(_prop("tent_detailedOpen.glb", Vector3(10.5, 0, -2), -90.0, TENT_LARGE, true))
+		props.append(_prop("tent_smallOpen.glb", Vector3(9.5, 0, 6), -90.0, TENT_SMALL, true))
 	# West housing — closed tents + yards
 	var house_spots := [Vector3(-10, 0, -5), Vector3(-12, 0, -1), Vector3(-10, 0, 3), Vector3(-12, 0, 7)]
 	for i in house_spots.size():
 		var pos: Vector3 = house_spots[i]
 		var mesh := "tent_detailedClosed.glb" if i % 2 == 0 else "tent_smallClosed.glb"
-		props.append(_prop(mesh, pos, 90.0, Vector3(1.1, 1.1, 1.1), true))
+		props.append(_prop(mesh, pos, 90.0, TENT_LARGE if i % 2 == 0 else TENT_SMALL, true))
 		props.append(_prop("fence_simpleLow.glb", Vector3(pos.x + 1.8, 0, pos.z), 90.0))
 	# Chapel (north-west)
 	props.append(_prop("statue_obelisk.glb", Vector3(-4, 0, -11), 15.0, Vector3(1.25, 1.25, 1.25), true))
 	props.append(_prop("statue_ring.glb", Vector3(-2, 0, -10), -20.0, Vector3(1.1, 1.1, 1.1)))
 	props.append(_prop("statue_column.glb", Vector3(-6, 0, -9), 40.0, Vector3(1.15, 1.15, 1.15), true))
 	# Tavern (south-east)
-	props.append(_prop("tent_detailedOpen.glb", Vector3(7, 0, 9), 180.0, Vector3(1.2, 1.2, 1.2), true))
-	props.append(_prop("campfire_planks.glb", Vector3(5.5, 0, 10.5), 0.0, Vector3(1.1, 1.1, 1.1)))
+	props.append(_prop("tent_detailedOpen.glb", Vector3(7, 0, 9), 180.0, TENT_LARGE, true))
+	props.append(_prop("campfire_planks.glb", Vector3(5.5, 0, 10.5), 0.0, CAMPFIRE_SCALE))
 	props.append(_prop("log_stackLarge.glb", Vector3(8.5, 0, 10), -30.0))
 	props.append(_prop("log_stack.glb", Vector3(6, 0, 11.5), 60.0))
 	# Workshop props near stations
@@ -111,18 +115,18 @@ static func _darkpine_outpost() -> Dictionary:
 	props.append(_prop("ground_pathCorner.glb", Vector3(-5, 0.01, 0), 0.0, Vector3(1.05, 1.0, 1.05)))
 	_path_strip(props, "ground_pathStraight.glb", Vector3(-5, 0.01, 0), "x", 6, 2.0, 90.0)
 	# Merchant row tents
-	props.append(_prop("tent_detailedOpen.glb", Vector3(-7, 0, 8), 180.0, Vector3(1.15, 1.15, 1.15), true))
-	props.append(_prop("tent_smallOpen.glb", Vector3(-2, 0, 9), 200.0, Vector3(1.05, 1.05, 1.05), true))
+	props.append(_prop("tent_detailedOpen.glb", Vector3(-7, 0, 8), 180.0, TENT_LARGE, true))
+	props.append(_prop("tent_smallOpen.glb", Vector3(-2, 0, 9), 200.0, TENT_SMALL, true))
 	props.append(_prop("fence_planksDouble.glb", Vector3(-4.5, 0, 7), 0.0, Vector3(1.0, 1.0, 1.0), true))
 	props.append(_prop("log_stack.glb", Vector3(-3, 0, 7.5), -20.0))
 	# Scout medic tent
-	props.append(_prop("tent_detailedClosed.glb", Vector3(4, 0, 7), 190.0, Vector3(1.1, 1.1, 1.1), true))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(4, 0, 7), 190.0, TENT_LARGE, true))
 	props.append(_prop("plant_bush.glb", Vector3(5, 0, 6.5), 0.0))
 	props.append(_prop("flower_redA.glb", Vector3(3.5, 0, 8), 0.0))
 	# Camp cluster (south)
-	props.append(_prop("campfire_logs.glb", Vector3(5, 0, -8), 0.0, Vector3(1.2, 1.2, 1.2)))
-	props.append(_prop("tent_smallClosed.glb", Vector3(7, 0, -9), -40.0, Vector3(1.05, 1.05, 1.05), true))
-	props.append(_prop("tent_detailedClosed.glb", Vector3(3, 0, -10), 25.0, Vector3(1.1, 1.1, 1.1), true))
+	props.append(_prop("campfire_logs.glb", Vector3(5, 0, -8), 0.0, CAMPFIRE_SCALE))
+	props.append(_prop("tent_smallClosed.glb", Vector3(7, 0, -9), -40.0, TENT_SMALL, true))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(3, 0, -10), 25.0, TENT_LARGE, true))
 	props.append(_prop("log_stack.glb", Vector3(6, 0, -7), 15.0))
 	props.append(_prop("fence_simple.glb", Vector3(4, 0, -6.5), 70.0))
 	# Waystone plaza
@@ -141,17 +145,17 @@ static func _bandit_camp() -> Dictionary:
 	_fence_line(props, "fence_simpleHigh.glb", Vector3(-12, 0, 12), Vector3(-12, 0, -12), 3.0, 270.0)
 	props.append(_prop("fence_gate.glb", Vector3(0, 0, -12), 0.0, Vector3(1.15, 1.15, 1.15), true))
 	# Command tent + lieutenant tent
-	props.append(_prop("tent_detailedClosed.glb", Vector3(-9, 0, -8), 25.0, Vector3(1.2, 1.2, 1.2), true))
-	props.append(_prop("tent_detailedClosed.glb", Vector3(8, 0, -10), -35.0, Vector3(1.15, 1.15, 1.15), true))
-	props.append(_prop("tent_smallClosed.glb", Vector3(6, 0, -5), -10.0, Vector3(1.05, 1.05, 1.05), true))
-	props.append(_prop("tent_smallClosed.glb", Vector3(-6, 0, -4), 20.0, Vector3(1.0, 1.0, 1.0), true))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(-9, 0, -8), 25.0, TENT_LARGE, true))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(8, 0, -10), -35.0, TENT_LARGE, true))
+	props.append(_prop("tent_smallClosed.glb", Vector3(6, 0, -5), -10.0, TENT_SMALL, true))
+	props.append(_prop("tent_smallClosed.glb", Vector3(-6, 0, -4), 20.0, TENT_SMALL, true))
 	# War camp center
-	props.append(_prop("campfire_logs.glb", Vector3(2, 0, -6), 0.0, Vector3(1.2, 1.2, 1.2)))
+	props.append(_prop("campfire_logs.glb", Vector3(2, 0, -6), 0.0, CAMPFIRE_SCALE))
 	props.append(_prop("log_stackLarge.glb", Vector3(-7, 0, -5), 70.0))
 	props.append(_prop("log_stack.glb", Vector3(5, 0, -4), 15.0, Vector3(1.1, 1.1, 1.1)))
 	props.append(_prop("rock_smallA.glb", Vector3(5, 0, -4), 15.0, Vector3(1.3, 1.3, 1.3), true))
 	# Loot / supply corner
-	props.append(_prop("tent_smallOpen.glb", Vector3(9, 0, 4), -90.0, Vector3(1.05, 1.05, 1.05), true))
+	props.append(_prop("tent_smallOpen.glb", Vector3(9, 0, 4), -90.0, TENT_SMALL, true))
 	props.append(_prop("log_stack.glb", Vector3(8, 0, 5), 0.0))
 	props.append(_prop("fence_planks.glb", Vector3(10, 0, 3), -90.0))
 	# Guard posts
@@ -171,9 +175,9 @@ static func _ruined_settlement() -> Dictionary:
 	props.append(_prop("stump_oldTall.glb", Vector3(6, 0, -8), 45.0, Vector3(1.1, 1.1, 1.1), true))
 	props.append(_prop("stump_old.glb", Vector3(-5, 0, -10), -30.0))
 	# Abandoned homes
-	props.append(_prop("tent_detailedClosed.glb", Vector3(-8, 0, 2), 110.0, Vector3(1.0, 1.0, 1.0), true))
-	props.append(_prop("tent_smallClosed.glb", Vector3(7, 0, 1), -70.0, Vector3(0.95, 0.95, 0.95), true))
-	props.append(_prop("tent_smallClosed.glb", Vector3(-6, 0, 6), 40.0, Vector3(0.9, 0.9, 0.9), true))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(-8, 0, 2), 110.0, TENT_LARGE, true))
+	props.append(_prop("tent_smallClosed.glb", Vector3(7, 0, 1), -70.0, TENT_SMALL, true))
+	props.append(_prop("tent_smallClosed.glb", Vector3(-6, 0, 6), 40.0, TENT_SMALL, true))
 	# Overgrown market ruins
 	_path_strip(props, "ground_pathRocks.glb", Vector3(-4, 0.01, 0), "x", 5, 2.0, 90.0)
 	props.append(_prop("ground_pathEndClosed.glb", Vector3(6, 0.01, 0), -90.0))

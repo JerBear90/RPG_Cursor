@@ -37,36 +37,23 @@ func _spawn_players() -> void:
 		push_error("LevelManager: player scene missing")
 		return
 	await _await_world_ground()
+	var default_spawn := _get_default_spawn_position()
 	var count := GameManager.active_player_count if GameManager.game_started else 1
 	for i in count:
 		var player := player_scene.instantiate() as PlayerController
 		player.player_index = i
 		player.name = "Player%d" % (i + 1)
 		players_container.add_child(player)
-		var spawn_pos := Vector3.ZERO
-		if GameManager.pending_respawn_active and i == 0:
-			spawn_pos = GameManager.pending_respawn_position
-			GameManager.pending_respawn_active = false
-		elif i < spawn_points.size():
-			var sp := get_node(spawn_points[i]) as Node3D
-			spawn_pos = sp.global_position
-		elif spawn_points.size() > 0:
-			spawn_pos = (get_node(spawn_points[0]) as Node3D).global_position
+		var spawn_pos := _resolve_player_spawn_position(i, default_spawn)
 		if i == 1:
-			spawn_pos += Vector3(2, 0, 0)
-		spawn_pos.y = maxf(spawn_pos.y, 1.5)
-		player.global_position = spawn_pos
-		player.velocity = Vector3.ZERO
-		await get_tree().physics_frame
-		_SpawnHelpers.snap_character_to_ground(player)
-		await get_tree().physics_frame
-		if not player.is_on_floor():
-			_SpawnHelpers.snap_character_to_ground(player, 0.15)
-			await get_tree().physics_frame
-		player.move_and_slide()
+			spawn_pos.x += 2.0
+		spawn_pos = _SpawnHelpers.sanitize_spawn_position(spawn_pos, default_spawn)
+		await _SpawnHelpers.place_player_on_ground(player, spawn_pos, get_tree())
 		if i == 0:
 			var saved_pos := player.global_position
 			if not SaveManager.has_respawn_point():
+				SaveManager.set_respawn_point(_get_region_id(), saved_pos)
+			elif SaveManager.current_slot >= 0 and SaveManager.respawn_region == _get_region_id():
 				SaveManager.set_respawn_point(_get_region_id(), saved_pos)
 			if not GameManager.pending_player_progress.is_empty():
 				PlayerProgress.apply(player, GameManager.pending_player_progress)
@@ -75,6 +62,37 @@ func _spawn_players() -> void:
 				_finalize_respawn(player, GameManager.pending_death_message)
 				GameManager.pending_death_message = ""
 		PetManager.try_spawn_for_player(player)
+		if i == 0:
+			call_deferred("_bind_hud_to_player", player)
+
+
+func _bind_hud_to_player(player: Node) -> void:
+	for hud in get_tree().get_nodes_in_group("game_hud"):
+		if hud.has_method("bind_production_player"):
+			hud.bind_production_player(player)
+
+
+func _resolve_player_spawn_position(index: int, default_spawn: Vector3) -> Vector3:
+	if GameManager.pending_respawn_active and index == 0:
+		GameManager.pending_respawn_active = false
+		return GameManager.pending_respawn_position
+	if index == 0 and SaveManager.has_respawn_point() and SaveManager.respawn_region == _get_region_id():
+		if SaveManager.current_slot >= 0:
+			return SaveManager.respawn_position
+	if index < spawn_points.size():
+		var sp := get_node(spawn_points[index]) as Node3D
+		return sp.global_position
+	if spawn_points.size() > 0:
+		return (get_node(spawn_points[0]) as Node3D).global_position
+	return default_spawn
+
+
+func _get_default_spawn_position() -> Vector3:
+	if spawn_points.size() > 0:
+		var sp := get_node_or_null(spawn_points[0]) as Node3D
+		if sp:
+			return sp.global_position
+	return Vector3(0.0, 0.1, 0.0)
 
 
 func _await_world_ground() -> void:
@@ -107,7 +125,9 @@ func _on_player_died(player: Node, _index: int) -> void:
 		copper_drop = int(CurrencyManager.copper * 0.1)
 		if copper_drop > 0:
 			CurrencyManager.spend_copper(copper_drop)
-	await get_tree().create_timer(GameManager.respawn_delay).timeout
+	for hud in get_tree().get_nodes_in_group("game_hud"):
+		if hud.has_method("begin_death_sequence"):
+			await hud.begin_death_sequence()
 	if use_save_point:
 		var target_region: String = SaveManager.respawn_region
 		var target_pos: Vector3 = SaveManager.respawn_position
@@ -142,22 +162,31 @@ func _finalize_respawn(
 	spawn_pos: Vector3 = Vector3.INF
 ) -> void:
 	if spawn_pos != Vector3.INF and is_instance_valid(player):
-		spawn_pos.y = maxf(spawn_pos.y, 1.5)
-		player.global_position = spawn_pos
-	if player is CharacterBody3D:
-		(player as CharacterBody3D).velocity = Vector3.ZERO
+		var fallback := _get_default_spawn_position()
+		spawn_pos = _SpawnHelpers.sanitize_spawn_position(spawn_pos, fallback)
+		if player is CharacterBody3D:
+			await _SpawnHelpers.place_player_on_ground(player as CharacterBody3D, spawn_pos, get_tree())
 	if player is PlayerController:
 		var pc := player as PlayerController
 		pc.refresh_spawn_protection()
 		pc.current_state = PlayerController.State.IDLE
-		_SpawnHelpers.snap_character_to_ground(pc)
-		pc.move_and_slide()
+		pc.velocity = Vector3.ZERO
+		var lock_on := pc.get_node_or_null("LockOnController")
+		if lock_on and lock_on.has_method("release_lock"):
+			lock_on.release_lock()
+		var combat := pc.get_node_or_null("Combat")
+		if combat and combat.has_method("_cancel_attack"):
+			combat._cancel_attack()
+		for rig in get_tree().get_nodes_in_group("camera_rig"):
+			if rig.has_method("snap_to_player"):
+				rig.snap_to_player(pc)
 		for hazard in get_tree().get_nodes_in_group("water_hazard"):
 			if hazard.has_method("reset_player"):
 				hazard.reset_player(pc)
 	if player.has_node("HealthComponent"):
 		var health := player.get_node("HealthComponent") as HealthComponent
 		health.reset_health()
+	call_deferred("_bind_hud_to_player", player)
 	if restore_needs and player.has_node("SurvivalNeedsComponent"):
 		var needs := player.get_node("SurvivalNeedsComponent") as SurvivalNeedsComponent
 		needs.hunger = minf(needs.hunger + 25.0, needs.max_hunger)
@@ -165,6 +194,9 @@ func _finalize_respawn(
 	for hud in get_tree().get_nodes_in_group("game_hud"):
 		if hud.has_method("show_toast"):
 			hud.show_toast(toast)
+	for hud in get_tree().get_nodes_in_group("game_hud"):
+		if hud.has_method("finish_death_sequence"):
+			await hud.finish_death_sequence()
 
 
 func _get_respawn_position() -> Vector3:

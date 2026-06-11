@@ -3,6 +3,7 @@ extends RefCounted
 ## Spawns Kenney town props from TownLayouts into a level scene.
 
 const _Kenney = preload("res://scripts/utilities/kenney_paths.gd")
+const _DestructibleFactory = preload("res://scripts/destructibles/destructible_prop_factory.gd")
 const _Layouts = preload("res://scripts/levels/town_layouts.gd")
 const MESHES_PER_FRAME := 40
 
@@ -65,7 +66,8 @@ class TownBuildRunner extends Node:
 		if node == null:
 			return
 		_enable_shadows(node)
-		if collision:
+		var destructible := _DestructibleFactory.attach_if_destructible(node, mesh_name)
+		if destructible == node and collision:
 			_add_collision(pos, scale)
 
 

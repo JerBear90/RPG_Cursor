@@ -5,6 +5,7 @@ signal camp_rest_started
 
 
 func _ready() -> void:
+	add_to_group("map_camp")
 	super._ready()
 	prompt_text = "Make Camp"
 

@@ -20,6 +20,7 @@ signal enemy_died(enemy: EnemyBase)
 @export var attack_range: float = 2.0
 @export var loot_table_id: String = "forest_bandit"
 @export var xp_reward: int = 25
+@export var experience_reward: int = 15
 @export var respawns: bool = true
 @export var respawn_delay_sec: float = 300.0
 @export var corpse_linger_sec: float = 5.0
@@ -38,6 +39,8 @@ var _character_anim: GltfCharacterAnim
 var _health_bar: Node3D
 var _spawn_transform: Transform3D
 var _death_sequence_running: bool = false
+var _death_reward_granted: bool = false
+var _last_player_killer: Node = null
 
 
 func _ready() -> void:
@@ -133,8 +136,13 @@ func _update_character_anim() -> void:
 func receive_damage(dmg: DamageData) -> void:
 	if current_state == AIState.DEAD:
 		return
+	var killer := CombatExperienceManager.resolve_player_owner(dmg.source)
+	if killer:
+		_last_player_killer = killer
 	_aggro_from_damage(dmg)
-	_health.take_damage(dmg)
+	var result: RefCounted = _health.apply_damage(dmg)
+	if result.accepted and result.final_damage > 0.0 and killer:
+		CombatExperienceManager.try_award_hit_xp(killer, result.final_damage, self)
 	if dmg.stagger >= 15.0:
 		_stagger(1.0)
 	elif _character_anim.is_ready():
@@ -227,15 +235,40 @@ func _perform_attack() -> void:
 	if _attack_cooldown > 0.0:
 		return
 	_attack_cooldown = 1.5
+	var to_target := _target.global_position - global_position
+	to_target.y = 0.0
+	if to_target.length_squared() > 0.01:
+		PlanarFacing.face_direction(self, to_target)
 	if _character_anim.is_ready():
 		_character_anim.play_attack()
 	var hitbox := get_node_or_null("AttackHitbox") as Hitbox
+	var target := _target
+	var strike_damage := damage
 	if hitbox:
-		hitbox.base_damage = damage
+		hitbox.base_damage = strike_damage
 		hitbox.enable()
 		get_tree().create_timer(0.3).timeout.connect(hitbox.disable)
+		get_tree().create_timer(0.14).timeout.connect(
+			func() -> void:
+				_resolve_melee_strike(hitbox, target, strike_damage),
+			CONNECT_ONE_SHOT
+		)
+	elif is_instance_valid(target) and target.has_method("receive_damage"):
+		if global_position.distance_to(target.global_position) <= attack_range * 1.35:
+			target.receive_damage(DamageData.create_physical(strike_damage, self))
 	if global_position.distance_to(_target.global_position) > attack_range * 1.5:
 		_set_state(AIState.CHASE)
+
+
+func _resolve_melee_strike(hitbox: Hitbox, target: Node3D, strike_damage: float) -> void:
+	if not is_instance_valid(target) or current_state == AIState.DEAD:
+		return
+	if hitbox and hitbox.landed_any_hit():
+		return
+	if global_position.distance_to(target.global_position) > attack_range * 1.35:
+		return
+	if target.has_method("receive_damage"):
+		target.receive_damage(DamageData.create_physical(strike_damage, self))
 
 
 func _stagger(duration: float) -> void:
@@ -264,9 +297,7 @@ func _on_died() -> void:
 	AudioManager.play_sfx("death", randf_range(0.85, 1.0))
 	LootManager.drop_loot_table(loot_table_id, global_position)
 	LootManager.drop_currency(randi_range(2, 10), global_position)
-	var killer := GameManager.get_player(0)
-	if killer and killer.has_node("StatsComponent"):
-		killer.get_node("StatsComponent").add_experience(xp_reward)
+	_award_kill_experience()
 	if "first_blood" not in QuestManager.completed_quests:
 		if not QuestManager.active_quests.has("first_blood"):
 			QuestManager.start_quest("first_blood")
@@ -283,6 +314,17 @@ func _on_died() -> void:
 		fade.tween_property(mesh_root, "scale", Vector3.ZERO, 0.45)
 		await fade.finished
 	queue_free()
+
+
+func _award_kill_experience() -> void:
+	if _death_reward_granted:
+		return
+	_death_reward_granted = true
+	var reward := experience_reward if experience_reward > 0 else xp_reward
+	var killer := _last_player_killer
+	if killer == null or not is_instance_valid(killer):
+		return
+	CombatExperienceManager.try_award_kill_xp(killer, reward, display_name)
 
 
 func _disable_combat() -> void:

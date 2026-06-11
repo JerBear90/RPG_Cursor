@@ -2,6 +2,7 @@ extends Node
 ## Fog-of-war map and region discovery.
 
 const _TownLayouts = preload("res://scripts/levels/town_layouts.gd")
+const _MinimapSettings = preload("res://ui/map/minimap_settings.gd")
 const _BUILDING_HINTS := ["tent", "platform", "statue", "fence_gate", "campfire"]
 signal map_updated(region_id: String)
 
@@ -45,6 +46,8 @@ var region_layout: Dictionary = {
 var icons: Array[Dictionary] = []
 var player_positions: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
 var explored_cells: Dictionary = {}
+var discovered_locations: Dictionary = {}
+var waypoint: Dictionary = {}
 const CELL_SIZE: float = 8.0
 
 
@@ -59,6 +62,8 @@ func reset_for_new_game() -> void:
 		"procedural_dungeon": RegionState.UNDISCOVERED,
 	}
 	icons.clear()
+	discovered_locations.clear()
+	waypoint.clear()
 	map_updated.emit("darkpine_forest")
 
 
@@ -93,6 +98,87 @@ func add_icon(icon_type: String, position: Vector2, label: String = "") -> void:
 	map_updated.emit(GameManager.current_region_id)
 
 
+func set_waypoint(world_position: Vector3, label: String = "") -> void:
+	waypoint = {"position": world_position, "label": label}
+	map_updated.emit(GameManager.current_region_id)
+
+
+func clear_waypoint() -> void:
+	if waypoint.is_empty():
+		return
+	waypoint.clear()
+	map_updated.emit(GameManager.current_region_id)
+
+
+func has_waypoint() -> bool:
+	return not waypoint.is_empty()
+
+
+func get_waypoint_position() -> Vector3:
+	return waypoint.get("position", Vector3.ZERO) as Vector3
+
+
+func get_waypoint_label() -> String:
+	return str(waypoint.get("label", ""))
+
+
+func get_waypoint_distance(from: Vector3) -> float:
+	if waypoint.is_empty():
+		return -1.0
+	return from.distance_to(get_waypoint_position())
+
+
+func discover_location(
+	location_id: String,
+	display_name: String,
+	world_position: Vector3,
+	category: String,
+	region_id: String = "",
+	fast_travel: bool = false
+) -> void:
+	if discovered_locations.has(location_id):
+		return
+	discovered_locations[location_id] = {
+		"id": location_id,
+		"name": display_name,
+		"position": world_position,
+		"category": category,
+		"region_id": region_id if region_id != "" else GameManager.current_region_id,
+		"discovered": true,
+		"fast_travel": fast_travel,
+	}
+	map_updated.emit(GameManager.current_region_id)
+	_notify_location_discovered(display_name)
+
+
+func _notify_location_discovered(display_name: String) -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	for hud in tree.get_nodes_in_group("game_hud"):
+		if hud.has_method("show_toast"):
+			hud.show_toast("Location Discovered", 3.5, display_name, "notification")
+
+
+func is_location_discovered(location_id: String) -> bool:
+	return discovered_locations.has(location_id)
+
+
+func get_discovered_locations_for_region(region_id: String) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for key in discovered_locations.keys():
+		var entry: Dictionary = discovered_locations[key]
+		if str(entry.get("region_id", "")) == region_id:
+			out.append(entry)
+	return out
+
+
+func is_cell_explored(world_pos: Vector3, region_id: String) -> bool:
+	var cells: Array = explored_cells.get(region_id, [])
+	var cell_key := "%d,%d" % [int(floor(world_pos.x / CELL_SIZE)), int(floor(world_pos.z / CELL_SIZE))]
+	return cell_key in cells
+
+
 func update_player_position(index: int, world_pos: Vector3) -> void:
 	while player_positions.size() <= index:
 		player_positions.append(Vector2.ZERO)
@@ -109,6 +195,8 @@ func update_player_position(index: int, world_pos: Vector3) -> void:
 		explored_cells[region_id] = cells
 		explore_region(region_id)
 		map_updated.emit(region_id)
+	if has_waypoint() and world_pos.distance_to(get_waypoint_position()) <= _MinimapSettings.waypoint_reach_distance:
+		clear_waypoint()
 
 
 func get_region_state(region_id: String) -> RegionState:
@@ -167,6 +255,19 @@ func get_building_markers(region_id: String) -> Array[Vector3]:
 	return markers
 
 
+func get_trail_markers(region_id: String) -> Array[Vector3]:
+	var markers: Array[Vector3] = []
+	var layout := _TownLayouts.get_layout(region_id)
+	for entry in layout.get("props", []):
+		if not entry is Dictionary:
+			continue
+		var mesh: String = str(entry.get("m", ""))
+		if "ground_path" not in mesh:
+			continue
+		markers.append(entry.get("p", Vector3.ZERO))
+	return markers
+
+
 func _mesh_is_building(mesh_name: String) -> bool:
 	for hint in _BUILDING_HINTS:
 		if hint in mesh_name:
@@ -183,6 +284,8 @@ func serialize() -> Dictionary:
 		"regions": regions.duplicate(),
 		"icons": icons.duplicate(true),
 		"explored_cells": explored_cells.duplicate(true),
+		"discovered_locations": discovered_locations.duplicate(true),
+		"waypoint": waypoint.duplicate(true),
 	}
 
 
@@ -193,3 +296,7 @@ func deserialize(data: Dictionary) -> void:
 		icons = data.icons
 	if data.has("explored_cells"):
 		explored_cells = data.explored_cells
+	if data.has("discovered_locations"):
+		discovered_locations = data.discovered_locations
+	if data.has("waypoint"):
+		waypoint = data.waypoint

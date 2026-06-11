@@ -3,6 +3,7 @@ extends Node3D
 
 const _Kenney = preload("res://scripts/utilities/kenney_paths.gd")
 const _Tint = preload("res://scripts/utilities/kenney_material_tint.gd")
+const _DestructibleFactory = preload("res://scripts/destructibles/destructible_prop_factory.gd")
 
 const DEFAULT_TREE_POOL: Array[String] = [
 	"tree_pineDefaultA.glb", "tree_pineDefaultB.glb", "tree_oak.glb",
@@ -23,6 +24,7 @@ const SHORE_ROCK_POOL: Array[String] = [
 	"rock_largeA.glb", "rock_largeB.glb", "rock_tallA.glb", "cliff_block_rock.glb",
 ]
 const WORLD_COLLISION_LAYER := 1
+const PROP_COLLISION_LAYER := 8
 const WORLD_COLLISION_MASK := 6  # player (layer 2) + enemies (layer 4)
 
 @export var region_id: String = ""
@@ -140,11 +142,20 @@ func _boost_level_lighting() -> void:
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 		env.ambient_light_energy = maxf(env.ambient_light_energy, 1.15)
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
-		env.tonemap_exposure = 1.05
+		env.tonemap_exposure = 0.98
+		env.fog_enabled = true
+		env.fog_light_color = Color(0.38, 0.42, 0.48)
+		env.fog_density = 0.006
+		env.fog_aerial_perspective = 0.35
+		env.sdfgi_enabled = false
 	var light := parent.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if light:
-		light.light_energy = maxf(light.light_energy, 1.5)
-		light.shadow_opacity = 0.42
+		light.light_energy = maxf(light.light_energy, 1.35)
+		light.light_color = Color(0.92, 0.88, 0.82)
+		light.shadow_enabled = true
+		light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		light.shadow_opacity = 0.55
+		light.shadow_blur = 1.2
 
 
 func _setup_world_environment() -> void:
@@ -166,8 +177,13 @@ func _setup_world_environment() -> void:
 	sky.sky_material = sky_mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.8
+	env.ambient_light_energy = 0.72
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_exposure = 0.95
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.32, 0.36, 0.42)
+	env.fog_density = 0.005
+	env.fog_aerial_perspective = 0.28
 	we.environment = env
 	add_child(we)
 
@@ -183,7 +199,7 @@ func _build_ground_base() -> void:
 	if _land.get_node_or_null("GroundCollider") != null:
 		if not _ground_ready:
 			_ground_ready = true
-			ground_ready.emit()
+			call_deferred("_emit_ground_ready")
 		return
 	var body := StaticBody3D.new()
 	body.name = "GroundCollider"
@@ -207,7 +223,12 @@ func _build_ground_base() -> void:
 	_add_ground_fill_mesh()
 	if not _ground_ready:
 		_ground_ready = true
-		ground_ready.emit()
+		call_deferred("_emit_ground_ready")
+
+
+func _emit_ground_ready() -> void:
+	await get_tree().physics_frame
+	ground_ready.emit()
 
 
 func _add_ground_fill_mesh() -> void:
@@ -307,10 +328,15 @@ func _build_water_base() -> void:
 	cyl.bottom_radius = water_extent
 	cyl.height = 0.25
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.08, 0.18, 0.32, 0.92)
+	mat.albedo_color = Color(0.08, 0.16, 0.28, 0.88)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.roughness = 0.08
-	mat.metallic = 0.02
+	mat.roughness = 0.06
+	mat.metallic = 0.04
+	mat.rim_enabled = true
+	mat.rim = 0.18
+	mat.rim_tint = 0.35
+	mat.clearcoat_enabled = true
+	mat.clearcoat = 0.12
 	mi.mesh = cyl
 	mi.material_override = mat
 	mi.position = Vector3(0.0, -0.55, 0.0)
@@ -396,6 +422,8 @@ func _add_mesh(
 				_Tint.apply_water_material(child as MeshInstance3D)
 	if collision:
 		_add_prop_collision(parent, pos, scale)
+	if not _is_land_tile(glb_name):
+		return _DestructibleFactory.attach_if_destructible(node, glb_name)
 	return node
 
 
@@ -408,7 +436,7 @@ func _enable_shadows(node: Node) -> void:
 
 func _add_prop_collision(parent: Node3D, pos: Vector3, scale: Vector3) -> void:
 	var body := StaticBody3D.new()
-	body.collision_layer = WORLD_COLLISION_LAYER
+	body.collision_layer = PROP_COLLISION_LAYER
 	body.collision_mask = WORLD_COLLISION_MASK
 	body.position = pos
 	var shape := CollisionShape3D.new()
@@ -528,6 +556,11 @@ func _scatter_props_now() -> void:
 
 func _build_region_landmarks() -> void:
 	match region_id:
+		"darkpine_forest":
+			_build_trail(Vector3(0, 0, island_radius - 4.0), Vector3(0, 0, 4.0), 6)
+			_add_prop_cluster(Vector3(-10, 0, -6), ["rock_largeA.glb", "rock_smallA.glb", "stone_smallB.glb"], 1.2)
+			_add_prop_cluster(Vector3(11, 0, 8), ["tree_pineTallA.glb", "plant_bushDetailed.glb", "log_stack.glb"], 1.0)
+			_add_mesh(_props, "rock_tallA.glb", Vector3(0, 0, -16), 0.0, Vector3.ONE * 1.8, true)
 		"crystal_cave":
 			for i in 6:
 				var angle := TAU * float(i) / 6.0
@@ -539,6 +572,28 @@ func _build_region_landmarks() -> void:
 			for i in 5:
 				var offset := Vector3(randf_range(-8, 8), 0, randf_range(-16, -8))
 				_add_mesh(_props, "hanging_moss.glb", offset, randf_range(0, 360), Vector3.ONE * randf_range(0.9, 1.3))
+
+
+func _build_trail(from: Vector3, to: Vector3, steps: int) -> void:
+	var tile := "ground_path.glb" if FileAccess.file_exists(_Kenney.nature("ground_path.glb")) else land_tile
+	for i in steps + 1:
+		var t := float(i) / float(steps)
+		var pos := from.lerp(to, t)
+		pos.y = 0.05
+		_add_mesh(_land, tile, pos, 0.0, Vector3(tile_scale * 0.95, 1.0, tile_scale * 0.95))
+
+
+func _add_prop_cluster(center: Vector3, assets: Array, spread: float) -> void:
+	for i in assets.size():
+		var offset := Vector3(randf_range(-spread, spread), 0.0, randf_range(-spread, spread))
+		var pos := center + offset
+		if terrain_mode == "island" and Vector2(pos.x, pos.z).length() > island_radius - 2.5:
+			continue
+		var glb: String = assets[i]
+		var scale := Vector3.ONE * randf_range(0.9, 1.35)
+		if glb.contains("tree"):
+			scale *= randf_range(tree_scale_min, tree_scale_max) * 0.35
+		_add_mesh(_props, glb, pos, randf_range(0.0, 360.0), scale, glb.contains("tree") or glb.contains("rock_large"))
 
 
 func _random_land_point(max_radius: float) -> Vector3:
@@ -628,8 +683,18 @@ func _is_land_tile(glb_name: String) -> bool:
 
 
 func _apply_land_tile_material(node: Node3D) -> void:
+	var pos := node.global_position
+	var dist_norm := Vector2(pos.x, pos.z).length() / maxf(island_radius, 1.0)
+	var patch := sin(pos.x * 0.19) * cos(pos.z * 0.17)
+	var grass := Color(0.20, 0.36, 0.18)
+	var dirt := Color(0.30, 0.24, 0.16)
+	var rock_tint := Color(0.24, 0.26, 0.22)
+	var corruption := Color(0.14, 0.18, 0.12)
+	var col := grass.lerp(dirt, clampf(patch * 0.35 + 0.15, 0.0, 0.55))
+	col = col.lerp(rock_tint, clampf(absf(sin(pos.x * 0.41 + pos.z * 0.33)), 0.0, 0.22))
+	col = col.lerp(corruption, clampf(dist_norm * 0.35, 0.0, 0.3))
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.28, 0.52, 0.24)
+	mat.albedo_color = col
 	mat.roughness = 0.94
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	for mi in _collect_mesh_instances(node):

@@ -6,6 +6,8 @@ signal transition_finished
 
 var _changing: bool = false
 
+const _SpawnHelpers = preload("res://scripts/utilities/spawn_helpers.gd")
+
 
 func change_scene(path: String, spawn_point: String = "") -> void:
 	if _changing:
@@ -33,5 +35,7 @@ func _apply_spawn(spawn_id: String) -> void:
 	for node in get_tree().get_nodes_in_group("spawn_points"):
 		if node.has_method("get_spawn_id") and node.get_spawn_id() == spawn_id:
 			for p in GameManager.get_alive_players():
-				p.global_position = node.global_position
+				if p is CharacterBody3D:
+					var pos: Vector3 = node.global_position
+					await _SpawnHelpers.place_player_on_ground(p as CharacterBody3D, pos, get_tree())
 			return

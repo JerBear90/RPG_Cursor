@@ -1,0 +1,77 @@
+[gd_scene load_steps=3 format=3 uid="uid://minimap_widget001"]
+
+[ext_resource type="Script" path="res://ui/map/minimap.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/minimap_control.gd" id="2"]
+
+[node name="Minimap" type="Control"]
+custom_minimum_size = Vector2(140, 156)
+layout_mode = 2
+size_flags_horizontal = 8
+script = ExtResource("1")
+
+[node name="MinimapFrame" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="MinimapFrame"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="MinimapViewport" type="Control" parent="MinimapFrame/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+size_flags_horizontal = 4
+clip_contents = true
+
+[node name="MinimapCanvas" type="Control" parent="MinimapFrame/VBox/MinimapViewport"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2")
+
+[node name="MaskOverlay" type="ColorRect" parent="MinimapFrame/VBox/MinimapViewport"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.03)
+
+[node name="CompassOverlay" type="Control" parent="MinimapFrame/VBox/MinimapViewport"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="MarkerLayer" type="Control" parent="MinimapFrame/VBox/MinimapViewport"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="DistanceReadout" type="Label" parent="MinimapFrame/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+text = "148 m"
+visible = false

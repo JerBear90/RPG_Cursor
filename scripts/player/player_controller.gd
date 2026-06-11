@@ -1,6 +1,6 @@
 class_name PlayerController
 extends CharacterBody3D
-## Third-person movement, sprint, dodge integration.
+## Third-person movement, sprint, dodge, and jump integration.
 
 signal state_changed(state: String)
 
@@ -10,20 +10,27 @@ enum State { IDLE, MOVE, SPRINT, DODGE, ATTACK, BLOCK, STAGGER, DEAD }
 @export var sprint_speed: float = 8.0
 @export var rotation_speed: float = 12.0
 @export var gravity: float = 20.0
+@export var jump_velocity: float = 7.5
+@export var air_control: float = 0.45
 @export var player_index: int = 0
-@export var spawn_protection_sec: float = 8.0
+@export var spawn_protection_sec: float = 2.0
+@export var respawn_protection_sec: float = 1.5
 
 var current_state: State = State.IDLE
 var _spawn_protection_until: float = 0.0
+var _combat_invuln_until: float = 0.0
 var _combat: Node
 var _dodge: DodgeComponent
 var _stamina: StaminaComponent
 var _camera_rig: Node3D
+var _was_on_floor: bool = true
 
 
 func _ready() -> void:
 	add_to_group("player")
+	floor_snap_length = 0.25
 	_spawn_protection_until = Time.get_ticks_msec() / 1000.0 + spawn_protection_sec
+	_combat_invuln_until = 0.0
 	GameManager.register_player(self, player_index)
 	_combat = get_node_or_null("Combat")
 	_dodge = get_node_or_null("DodgeComponent")
@@ -57,7 +64,6 @@ func _on_starving() -> void:
 
 
 func _on_dehydrated() -> void:
-	# Dehydration chips health — never drain stamina (that looked like "stamina kills you").
 	if has_node("HealthComponent") and is_alive():
 		(get_node("HealthComponent") as HealthComponent).take_damage(DamageData.create_physical(0.5, self))
 
@@ -67,46 +73,64 @@ func _on_stamina_changed(current: float, _maximum: float) -> void:
 		return
 	if current_state == State.SPRINT:
 		_set_state(State.MOVE)
-	var anim := get_node_or_null("AnimationController")
-	if anim and anim.has_method("sync_locomotion"):
-		anim.sync_locomotion()
+
+
+func is_input_locked() -> bool:
+	return current_state == State.DEAD or DialogueManager.blocks_gameplay() or GameManager.is_paused
 
 
 func _physics_process(delta: float) -> void:
 	if current_state == State.DEAD:
 		return
-	if not is_on_floor():
-		velocity.y -= gravity * delta
+	var on_floor_now := is_on_floor()
+	if on_floor_now:
+		floor_snap_length = 0.25
+	elif velocity.y > 0.05:
+		floor_snap_length = 0.0
 	else:
+		floor_snap_length = 0.15
+	if not on_floor_now:
+		velocity.y -= gravity * delta
+	elif velocity.y < 0.0:
 		velocity.y = 0.0
 	if _dodge and _dodge.is_dodging:
 		_apply_dodge_movement()
-	elif current_state not in [State.ATTACK, State.STAGGER]:
-		_apply_movement(delta)
+	elif not is_input_locked() and current_state not in [State.ATTACK, State.STAGGER]:
+		_try_jump()
+		_apply_movement(delta, on_floor_now)
 	move_and_slide()
+	_was_on_floor = on_floor_now
 	MapManager.update_player_position(player_index, global_position)
 
 
-func _apply_movement(delta: float) -> void:
-	var input_dir := InputManager.get_move_vector(player_index)
-	if input_dir.length_squared() < 0.01:
-		_set_state(State.IDLE)
-		velocity.x = move_toward(velocity.x, 0.0, move_speed)
-		velocity.z = move_toward(velocity.z, 0.0, move_speed)
+func _try_jump() -> void:
+	if not is_on_floor():
 		return
+	if DialogueManager.blocks_gameplay():
+		return
+	if InputManager.is_action_just_pressed("jump", player_index):
+		velocity.y = jump_velocity
 
-	var sprinting := InputManager.is_action_pressed("sprint", player_index)
+
+func _apply_movement(delta: float, on_floor_now: bool) -> void:
+	var input_dir := InputManager.get_move_vector(player_index)
+	var control := 1.0 if on_floor_now else air_control
+	if input_dir.length_squared() < 0.01:
+		_set_state(State.IDLE if on_floor_now else current_state)
+		var friction := move_speed * (1.0 if on_floor_now else 0.35)
+		velocity.x = move_toward(velocity.x, 0.0, friction)
+		velocity.z = move_toward(velocity.z, 0.0, friction)
+		return
+	var sprinting := on_floor_now and InputManager.is_action_pressed("sprint", player_index)
 	var can_sprint := _stamina != null and _stamina.current_stamina > 1.0
 	var speed := sprint_speed if sprinting and can_sprint else move_speed
-	if sprinting and can_sprint and _stamina:
+	speed *= control
+	if sprinting and can_sprint and _stamina and on_floor_now:
 		_stamina.spend(10.0 * delta)
-	_set_state(State.SPRINT if sprinting and can_sprint else State.MOVE)
-
+	_set_state(State.SPRINT if sprinting and can_sprint and on_floor_now else State.MOVE)
 	var forward: Vector3 = _get_planar_forward()
 	var right: Vector3 = _get_planar_right()
-	# input_dir.y: +1 = move_back action, -1 = move_forward (W)
 	var direction: Vector3 = (right * input_dir.x + forward * -input_dir.y).normalized()
-
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 
@@ -160,13 +184,18 @@ func has_spawn_protection() -> bool:
 	return Time.get_ticks_msec() / 1000.0 < _spawn_protection_until
 
 
+func has_combat_invulnerability() -> bool:
+	return Time.get_ticks_msec() / 1000.0 < _combat_invuln_until
+
+
 func clear_spawn_protection() -> void:
 	_spawn_protection_until = 0.0
+	_combat_invuln_until = 0.0
 
 
 func refresh_spawn_protection(extra_sec: float = -1.0) -> void:
-	var duration := extra_sec if extra_sec > 0.0 else spawn_protection_sec
-	_spawn_protection_until = Time.get_ticks_msec() / 1000.0 + duration
+	var duration := extra_sec if extra_sec > 0.0 else respawn_protection_sec
+	_combat_invuln_until = Time.get_ticks_msec() / 1000.0 + duration
 	velocity = Vector3.ZERO
 
 
