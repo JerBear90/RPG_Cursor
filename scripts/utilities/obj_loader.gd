@@ -18,11 +18,32 @@ static func load_packed_scene(path: String) -> PackedScene:
 		if group.material:
 			mi.material_override = group.material
 		root.add_child(mi)
+		mi.owner = root
 	var packed := PackedScene.new()
 	if packed.pack(root) != OK:
 		root.queue_free()
 		return null
+	root.queue_free()
 	return packed
+
+
+static func instantiate(path: String, parent: Node3D) -> Node3D:
+	if not FileAccess.file_exists(path):
+		return null
+	var parsed := _parse_obj(path)
+	if parsed.is_empty():
+		return null
+	var root := Node3D.new()
+	root.name = path.get_file().get_basename()
+	for group in parsed:
+		var mi := MeshInstance3D.new()
+		mi.mesh = group.mesh
+		mi.name = group.name if group.name != "" else "Mesh"
+		if group.material:
+			mi.material_override = group.material
+		root.add_child(mi)
+	parent.add_child(root)
+	return root
 
 
 static func _parse_obj(path: String) -> Array:

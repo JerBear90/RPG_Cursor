@@ -1,33 +1,35 @@
 [gd_scene load_steps=5 format=3 uid="uid://resourceherb001"]
 
-[ext_resource type="Script" path="res://scripts/resources/resource_node.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/destructibles/destructible_object.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/combat/hurtbox.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="3"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_body"]
-radius = 0.5
-
-[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
-radius = 2.0
+radius = 0.55
 
 [node name="ResourceHerb" type="StaticBody3D"]
-collision_layer = 1
+collision_layer = 0
 script = ExtResource("1")
+health = 18.0
 resource_id = "herb_bundle"
-yield_amount = 2
-prompt_text = "Gather Herbs"
+resource_yield = 1
 
 [node name="KenneyVisual" type="Node3D" parent="."]
-script = ExtResource("2")
+script = ExtResource("3")
 gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/plant_bush.glb"
 mesh_scale = Vector3(0.8, 0.8, 0.8)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
 shape = SubResource("SphereShape3D_body")
 
-[node name="InteractionArea" type="Area3D" parent="."]
-collision_layer = 32
-collision_mask = 0
+[node name="Hurtbox" type="Area3D" parent="."]
+collision_layer = 16
+collision_mask = 8
+script = ExtResource("2")
+team = "prop"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea"]
-shape = SubResource("SphereShape3D_interact")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+shape = SubResource("SphereShape3D_body")

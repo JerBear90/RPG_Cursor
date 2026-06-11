@@ -8,6 +8,9 @@ extends Control
 
 var _settings_panel: PanelContainer
 var _settings_list: ItemList
+var _load_panel: PanelContainer
+var _load_list: ItemList
+var _new_game_slot: int = 0
 
 
 func _ready() -> void:
@@ -17,12 +20,47 @@ func _ready() -> void:
 	settings_button.pressed.connect(_on_settings)
 	quit_button.pressed.connect(_on_quit)
 	_build_settings_panel()
-	if SaveManager.has_save(0):
-		continue_button.visible = true
-		continue_button.grab_focus()
-	else:
-		continue_button.visible = false
-		solo_button.grab_focus()
+	_build_load_panel()
+	_refresh_continue_button()
+	solo_button.grab_focus()
+
+
+func _refresh_continue_button() -> void:
+	var any_save := false
+	for slot in SaveManager.MAX_SLOTS:
+		if SaveManager.has_save(slot):
+			any_save = true
+			break
+	continue_button.visible = any_save
+	continue_button.text = "Load Game" if any_save else "Continue"
+
+
+func _build_load_panel() -> void:
+	_load_panel = PanelContainer.new()
+	_load_panel.visible = false
+	_load_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_load_panel.offset_left = -240
+	_load_panel.offset_top = -200
+	_load_panel.offset_right = 240
+	_load_panel.offset_bottom = 200
+	add_child(_load_panel)
+	_load_list = ItemList.new()
+	_load_list.custom_minimum_size = Vector2(460, 360)
+	_load_list.item_selected.connect(_on_load_slot_selected)
+	_load_panel.add_child(_load_list)
+
+
+func _populate_load_slots() -> void:
+	_load_list.clear()
+	_load_list.add_item("Close")
+	for slot in SaveManager.MAX_SLOTS:
+		if SaveManager.has_save(slot):
+			var preview := SaveManager.get_save_preview(slot)
+			var region: String = preview.get("region", "Unknown")
+			var coop := "Co-op" if preview.get("co_op", false) else "Solo"
+			_load_list.add_item("Slot %d — %s (%s)" % [slot + 1, region, coop])
+		else:
+			_load_list.add_item("Slot %d — Empty" % [slot + 1])
 
 
 func _build_settings_panel() -> void:
@@ -64,16 +102,37 @@ func _populate_settings() -> void:
 
 
 func _on_solo() -> void:
+	_new_game_slot = 0
 	GameManager.start_new_game(false)
 
 
 func _on_coop() -> void:
+	_new_game_slot = 0
 	GameManager.start_new_game(true)
 	AchievementManager.unlock("two_exiles_one_fate")
 
 
 func _on_continue() -> void:
-	GameManager.continue_game(0)
+	_populate_load_slots()
+	_load_panel.visible = true
+	_load_list.grab_focus()
+
+
+func _on_load_slot_selected(index: int) -> void:
+	var text := _load_list.get_item_text(index)
+	if text == "Close":
+		_load_panel.visible = false
+		continue_button.grab_focus()
+		return
+	if text.contains("Empty"):
+		var slot := index - 1
+		_new_game_slot = slot
+		GameManager.start_new_game(false)
+		_load_panel.visible = false
+		return
+	var slot_num := int(text.split(" ")[1]) - 1
+	if GameManager.continue_game(slot_num):
+		_load_panel.visible = false
 
 
 func _on_settings() -> void:

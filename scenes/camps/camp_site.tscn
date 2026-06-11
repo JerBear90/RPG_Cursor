@@ -18,6 +18,7 @@ script = ExtResource("1")
 script = ExtResource("2")
 gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/campfire_logs.glb"
 mesh_scale = Vector3(1.2, 1.2, 1.2)
+fallback_kind = "prop"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)

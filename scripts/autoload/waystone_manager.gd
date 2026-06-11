@@ -14,12 +14,16 @@ func reset_for_new_game() -> void:
 		discovered.append("hearthhold_camp")
 
 
-func discover(waystone_id: String) -> void:
+func discover(waystone_id: String, world_position: Vector3 = Vector3.ZERO) -> void:
 	if waystone_id in discovered:
 		return
 	discovered.append(waystone_id)
 	waystone_discovered.emit(waystone_id)
-	MapManager.add_icon("waystone", Vector2.ZERO, waystone_id)
+	if world_position != Vector3.ZERO:
+		MapManager.add_icon("waystone", Vector2(world_position.x, world_position.z), waystone_id)
+		MapManager.discover_location(waystone_id, waystone_id.replace("_", " ").capitalize(), world_position, "fast_travel", GameManager.current_region_id, true)
+	else:
+		MapManager.add_icon("waystone", Vector2.ZERO, waystone_id)
 	AchievementManager.unlock("waystone_awakened")
 
 

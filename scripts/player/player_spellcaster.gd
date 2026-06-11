@@ -5,6 +5,7 @@ const SPELL_PROJECTILE := preload("res://scenes/weapons/spell_projectile.tscn")
 const ALL_SPELLS: Array[String] = ["ember_bolt", "healing_mist", "venom_dart", "shadow_lash"]
 
 signal spell_changed(spell_id: String)
+signal cast_failed(reason: String)
 
 var _player: PlayerController
 var _focus: FocusComponent
@@ -86,6 +87,22 @@ func get_active_spell_label() -> String:
 	return equipped_spells[quick_spell_index].replace("_", " ").capitalize()
 
 
+func get_cooldown_remaining(spell_id: String) -> float:
+	return float(_cooldowns.get(spell_id, 0.0))
+
+
+func get_cooldown_ratio(spell_id: String) -> float:
+	var remaining := get_cooldown_remaining(spell_id)
+	if remaining <= 0.0:
+		return 0.0
+	var cooldown := float(_get_spell_data(spell_id).get("cooldown", 1.0))
+	return remaining / cooldown if cooldown > 0.0 else 0.0
+
+
+func get_spell_focus_cost(spell_id: String) -> int:
+	return int(_get_spell_data(spell_id).get("focus_cost", 0.0))
+
+
 func cast_spell(spell_id: String) -> bool:
 	if spell_id not in unlocked_spells:
 		return false
@@ -93,6 +110,7 @@ func cast_spell(spell_id: String) -> bool:
 		return false
 	var data := _get_spell_data(spell_id)
 	if not _focus.spend(data.focus_cost):
+		cast_failed.emit("focus")
 		return false
 	_spawn_spell(data)
 	_cooldowns[spell_id] = data.cooldown

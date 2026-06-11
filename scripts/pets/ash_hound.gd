@@ -15,6 +15,8 @@ var _anchor: Node3D
 var _attack_cd: float = 0.0
 var _hitbox: Hitbox
 var _attack_target: Node3D
+var _command: String = "follow"
+var _guard_position: Vector3 = Vector3.ZERO
 
 
 func setup(owner_player: Node3D) -> void:
@@ -22,6 +24,14 @@ func setup(owner_player: Node3D) -> void:
 	_anchor = owner_player.get_node_or_null("PetAnchor")
 	_setup_hitbox()
 	call_deferred("_spawn_mesh")
+	if owner_player is PlayerController:
+		set_command(PetManager.get_pet_command((owner_player as PlayerController).player_index))
+
+
+func set_command(command_id: String) -> void:
+	_command = command_id
+	if _command == "guard":
+		_guard_position = global_position
 
 
 func _setup_hitbox() -> void:
@@ -46,15 +56,21 @@ func _physics_process(delta: float) -> void:
 	if _owner == null or not is_instance_valid(_owner):
 		return
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
-	_attack_target = _find_nearest_enemy()
+	match _command:
+		"guard":
+			return
+		"hunt":
+			_attack_target = _find_nearest_enemy(18.0)
+		_:
+			_attack_target = _find_nearest_enemy(scan_range)
 	if _attack_target and _try_attack():
 		return
 	_follow_owner(delta)
 
 
-func _find_nearest_enemy() -> Node3D:
+func _find_nearest_enemy(range_limit: float) -> Node3D:
 	var nearest: Node3D = null
-	var nearest_dist := scan_range
+	var nearest_dist := range_limit
 	for node in get_tree().get_nodes_in_group("lockable_enemy"):
 		if not is_instance_valid(node) or node == self:
 			continue

@@ -35,7 +35,12 @@ func _ready() -> void:
 func start_new_game(co_op: bool = false) -> void:
 	active_player_count = 2 if co_op else 1
 	game_started = true
+	is_paused = false
 	pending_player_progress = {}
+	pending_respawn_position = Vector3.ZERO
+	pending_respawn_active = false
+	pending_death_message = ""
+	SaveManager.current_slot = -1
 	InventoryManager.reset_for_new_game()
 	CurrencyManager.reset_for_new_game()
 	QuestManager.reset_for_new_game()
@@ -44,19 +49,32 @@ func start_new_game(co_op: bool = false) -> void:
 	WaystoneManager.reset_for_new_game()
 	AchievementManager.reset_for_new_game()
 	PetManager.reset_for_new_game()
+	MaskManager.reset_for_new_game()
 	DungeonManager.reset_for_new_game()
 	SaveManager.reset_respawn_point()
 	SceneTransitionManager.change_scene("res://scenes/levels/darkpine_forest/darkpine_forest.tscn")
+	call_deferred("_ensure_unpaused")
 	AudioManager.play_music("ambient")
+
+
+func _ensure_unpaused() -> void:
+	is_paused = false
+	if get_tree():
+		get_tree().paused = false
 
 
 func continue_game(slot: int = 0) -> bool:
 	if not SaveManager.load_game(slot):
 		return false
 	game_started = true
+	is_paused = false
+	pending_respawn_position = Vector3.ZERO
+	pending_respawn_active = false
+	pending_death_message = ""
 	var region := current_region_id
 	var path := "res://scenes/levels/%s/%s.tscn" % [region, region]
 	SceneTransitionManager.change_scene(path)
+	call_deferred("_ensure_unpaused")
 	return true
 
 

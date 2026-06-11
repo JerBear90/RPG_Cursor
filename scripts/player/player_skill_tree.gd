@@ -77,6 +77,7 @@ func refresh_derived_stats() -> void:
 		if "survivor_vitality" in unlocked_nodes:
 			health.max_health += 10.0
 		health.current_health = minf(health.current_health, health.max_health)
+		health.health_changed.emit(health.current_health, health.max_health)
 	if player.has_node("StatsComponent") and player.has_node("StaminaComponent"):
 		var stats := player.get_node("StatsComponent") as StatsComponent
 		var stamina := player.get_node("StaminaComponent") as StaminaComponent

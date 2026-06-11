@@ -37,6 +37,46 @@ const CATALOGS: Dictionary = {
 			{"item_id": "bandage", "price": 12},
 		],
 	},
+	"herbalist": {
+		"display_name": "Herbalist",
+		"buys": [
+			{"item_id": "herb_bundle", "price": 14},
+		],
+		"sells": [
+			{"item_id": "herb_bundle", "price": 5},
+			{"item_id": "bandage", "price": 10},
+			{"item_id": "purified_water", "price": 12},
+			{"item_id": "dried_rations", "price": 7},
+		],
+	},
+	"old_blacksmith": {
+		"display_name": "Old Blacksmith",
+		"buys": [
+			{"item_id": "iron_scrap", "price": 6},
+			{"item_id": "wood", "price": 2},
+		],
+		"sells": [
+			{"item_id": "iron_scrap", "price": 8},
+			{"item_id": "repair_kit", "price": 28},
+			{"item_id": "wood", "price": 3},
+			{"item_id": "stone", "price": 3},
+		],
+	},
+	"tool_vendor": {
+		"display_name": "Tool Vendor",
+		"buys": [
+			{"item_id": "wood", "price": 3},
+			{"item_id": "stone", "price": 3},
+			{"item_id": "cloth_scrap", "price": 4},
+		],
+		"sells": [
+			{"item_id": "wood", "price": 2},
+			{"item_id": "stone", "price": 2},
+			{"item_id": "cloth_scrap", "price": 5},
+			{"item_id": "repair_kit", "price": 32},
+			{"item_id": "waterskin", "price": 6},
+		],
+	},
 }
 
 

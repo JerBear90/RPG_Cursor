@@ -23,8 +23,12 @@ func _update_prompt() -> void:
 	var hud := get_tree().get_first_node_in_group("game_hud")
 	if hud == null:
 		return
+	if DialogueManager.is_active():
+		hud.set_interact_prompt("")
+		return
 	if _current_interactable and is_instance_valid(_current_interactable):
-		var prompt := "A: %s" % _get_prompt(_current_interactable)
+		var key := "E" if _player.player_index == 0 else "A"
+		var prompt := "%s: %s" % [key, _get_prompt(_current_interactable)]
 		hud.set_interact_prompt(prompt)
 	else:
 		hud.set_interact_prompt("")
@@ -49,7 +53,7 @@ func _on_area_exited(area: Area3D) -> void:
 
 
 func _try_interact() -> void:
-	if get_tree().paused:
+	if get_tree().paused or DialogueManager.is_active():
 		return
 	if _current_interactable and _current_interactable.has_method("interact"):
 		_current_interactable.interact(_player)

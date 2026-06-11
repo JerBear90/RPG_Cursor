@@ -41,7 +41,7 @@ horizontal_alignment = 1
 [node name="Subtitle" type="Label" parent="CenterContainer/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "Darkpine Forest Prototype"
+text = "Shared-Screen Co-op Survival ARPG"
 horizontal_alignment = 1
 
 [node name="SoloButton" type="Button" parent="CenterContainer/VBox"]
@@ -63,7 +63,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(360, 56)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "Continue"
+text = "Load Game"
 
 [node name="SettingsButton" type="Button" parent="CenterContainer/VBox"]
 unique_name_in_owner = true

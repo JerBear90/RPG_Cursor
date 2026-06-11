@@ -35,6 +35,7 @@ func _ready() -> void:
 
 func _capture_mouse() -> void:
 	if get_tree().paused:
+		call_deferred("_capture_mouse")
 		return
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_mouse_captured = true
@@ -134,6 +135,18 @@ func get_planar_forward() -> Vector3:
 
 func get_planar_right() -> Vector3:
 	return Vector3.UP.cross(get_planar_forward()).normalized()
+
+
+func snap_to_player(player: Node3D) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	_yaw = player.rotation.y
+	_pitch = -0.12
+	global_position = player.global_position + Vector3(0.0, pivot_height, 0.0)
+	_snapped = true
+	if _attach_player and is_instance_valid(_attach_player):
+		_attach_player.rotation.y = _yaw
+	_apply_look(_attach_player != null)
 
 
 func _input(event: InputEvent) -> void:

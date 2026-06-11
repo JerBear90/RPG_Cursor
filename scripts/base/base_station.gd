@@ -11,7 +11,7 @@ func _ready() -> void:
 	prompt_text = "Use %s" % display_name
 
 
-func _on_interact(_player: Node) -> void:
+func _on_interact(player: Node) -> void:
 	if not BaseManager.is_station_unlocked(station_id):
 		DialogueManager.start_dialogue(station_id, [
 			{"speaker": display_name, "text": "This station is not built yet."},
@@ -38,7 +38,7 @@ func _on_interact(_player: Node) -> void:
 		])
 		return
 	if station_id == "mask_stand":
-		DialogueManager.start_dialogue("mask_stand", [
-			{"speaker": display_name, "text": "Empty masks wait here. Future memories will be etched upon them."},
-		])
+		for hud in get_tree().get_nodes_in_group("game_hud"):
+			if hud.has_method("open_mask_menu"):
+				hud.open_mask_menu(player)
 		return

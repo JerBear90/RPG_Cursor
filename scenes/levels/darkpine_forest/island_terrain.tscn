@@ -7,6 +7,12 @@ script = ExtResource("1")
 region_id = "darkpine_forest"
 island_radius = 28.0
 water_extent = 52.0
+tile_step = 2.0
+tile_scale = 2.25
+scatter_trees = 32
+scatter_rocks = 20
+scatter_grass = 60
+scatter_bushes = 18
 
 [node name="Land" type="Node3D" parent="."]
 

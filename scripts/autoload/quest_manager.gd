@@ -110,7 +110,16 @@ func _default_objectives(quest_id: String) -> Array:
 		"first_blood":
 			return [{"id": "kill_enemy", "description": "Slay your first foe", "current": 0, "target": 1, "completed": false}]
 		"defeat_warden":
-			return [{"id": "kill_warden", "description": "Defeat the Hollow Grove Warden", "current": 0, "target": 1, "completed": false}]
+			return [{"id": "kill_warden", "description": "Slay the Hollow Grove Warden", "current": 0, "target": 1, "completed": false}]
+		"watchtower_sweep":
+			return [{"id": "clear_hostiles", "description": "Clear watchtower hostiles", "current": 0, "target": 3, "completed": false}]
+		"raid_bandit_camp":
+			return [
+				{"id": "kill_captain", "description": "Defeat the Bandit Captain", "current": 0, "target": 1, "completed": false},
+				{"id": "clear_camp", "description": "Rout the bandit camp", "current": 0, "target": 2, "completed": false},
+			]
+		"crystal_echoes":
+			return [{"id": "clear_crystal", "description": "Silence the crystal cave", "current": 0, "target": 2, "completed": false}]
 		_:
 			return [{"id": "default", "description": quest_id, "current": 0, "target": 1, "completed": false}]
 
@@ -145,9 +154,22 @@ func _grant_quest_rewards(quest_id: String) -> void:
 			CurrencyManager.add_silver(2)
 			InventoryManager.add_item("iron_scrap", 5)
 			summary = "+2 silver, iron scrap"
+			MaskManager.sync_unlocks_from_quests()
 			var player := GameManager.get_player(0)
 			if player and player.has_node("Spellcaster"):
 				(player.get_node("Spellcaster") as Node).unlock_spell("shadow_lash")
+		"watchtower_sweep":
+			CurrencyManager.add_copper(60)
+			InventoryManager.add_item("iron_scrap", 2)
+			summary = "+60 copper, iron scrap"
+		"raid_bandit_camp":
+			CurrencyManager.add_silver(1)
+			InventoryManager.add_item("iron_sword", 1)
+			summary = "+1 silver, iron sword"
+		"crystal_echoes":
+			CurrencyManager.add_copper(90)
+			InventoryManager.add_item("stone", 5)
+			summary = "+90 copper, stone"
 	if summary != "":
 		quest_rewarded.emit(quest_id, summary)
 		AudioManager.play_sfx("quest")
@@ -159,14 +181,18 @@ func _chain_next_quest(quest_id: String) -> void:
 			WaystoneManager.hearthhold_unlocked = true
 			if "hearthhold_camp" not in WaystoneManager.discovered:
 				WaystoneManager.discovered.append("hearthhold_camp")
+			MaskManager.sync_unlocks_from_quests()
 			start_quest("merchant_errand")
 			DialogueManager.start_dialogue("quest_wolf_done", [
 				{"speaker": "Quest", "text": "The Wolf Crest is yours. Hearthhold is linked. A wounded scout may need herb bundles."},
 			])
 		"merchant_errand":
 			start_quest("defeat_warden")
+			if "hollow_grove_shrine" not in WaystoneManager.discovered:
+				WaystoneManager.discover("hollow_grove_shrine")
+			MaskManager.sync_unlocks_from_quests()
 			DialogueManager.start_dialogue("quest_errand_done", [
-				{"speaker": "Quest", "text": "The merchant owes you a favor. The Hollow Grove Warden must fall."},
+				{"speaker": "Quest", "text": "The merchant owes you a favor. Travel to the Hollow Grove Shrine and slay the Warden."},
 			])
 
 

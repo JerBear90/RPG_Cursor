@@ -8,11 +8,13 @@ const ASH_HOUND_SCENE := preload("res://scenes/pets/ash_hound.tscn")
 
 var unlocked_pets: Array[String] = []
 var active_pets: Dictionary = {}
+var pet_commands: Dictionary = {}
 
 
 func reset_for_new_game() -> void:
 	unlocked_pets.clear()
 	active_pets.clear()
+	pet_commands.clear()
 
 
 func unlock_pet(pet_id: String) -> void:
@@ -49,8 +51,19 @@ func unlock_ash_hound_from_shelter() -> void:
 	AchievementManager.unlock("loyal_companion")
 
 
+func set_pet_command(owner_index: int, command_id: String) -> void:
+	pet_commands[owner_index] = command_id
+	var pet: Node = active_pets.get(owner_index)
+	if pet and pet.has_method("set_command"):
+		pet.set_command(command_id)
+
+
+func get_pet_command(owner_index: int) -> String:
+	return str(pet_commands.get(owner_index, "follow"))
+
+
 func serialize() -> Dictionary:
-	return {"unlocked": unlocked_pets.duplicate()}
+	return {"unlocked": unlocked_pets.duplicate(), "commands": pet_commands.duplicate()}
 
 
 func deserialize(data: Dictionary) -> void:
@@ -58,3 +71,4 @@ func deserialize(data: Dictionary) -> void:
 	unlocked_pets.clear()
 	for entry in saved:
 		unlocked_pets.append(str(entry))
+	pet_commands = data.get("commands", {})
