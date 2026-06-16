@@ -1,0 +1,142 @@
+Quest Tracker, World Map, Objective Routing, and Region Progression — Production Report
+=======================================================================================
+Date: 2026-06-10
+Scope: Player-facing navigation layer for missions and progression (Phase 0–8 + NPC mission pass preserved)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0** (verified after compile fixes; no script errors in Godot log)
+
+---
+
+## Changes Summary
+
+### Objective Routing Foundation
+* `scripts/navigation/objective_target.gd` — target data (id, type, region, position, hints)
+* `scripts/navigation/map_icon.gd` — map icon types and colors
+* `scripts/navigation/map_region_data.gd` — region level/danger labels and summaries
+* `scripts/navigation/objective_marker.gd` — optional world marker node
+* `scripts/autoload/objective_router.gd` — autoload routing table, distance (nearest living player), map icons, waypoint sync
+
+### Quest Tracker HUD
+* `ui/components/quest_tracker.gd` — "Tracked:" title, objective, progress, distance, input hints
+* `scripts/ui/game_hud.gd` — HUD updates via ObjectiveRouter; D-pad L/R cycles tracked mission; View opens map; quest tracker screen integration
+
+### Quest Tracker Screen
+* `ui/map/quest_tracker_screen.gd` + `.tscn` — mission list with status labels (Available / Active / Ready to Turn In / Completed / Locked), objectives, reward preview, NPC giver, region hint, track on confirm
+
+### World / Region Map
+* `ui/map/world_map.gd` + `.tscn` — region list with danger/level, legend, detail panel
+* `ui/map/map_canvas.gd` — functional region map drawing with icon markers
+* `ui/map/minimap.gd`, `minimap_marker_service.gd` — ObjectiveRouter distance and tracked position
+
+### QuestManager Extensions
+* `get_tracked_display_title()`, `get_current_objective()`, `get_quest_status()`, `get_reward_preview_text()`
+* `cycle_tracked_quest()`, `clear_tracked_quest()`, tracked-mission toast on manual track
+* Save/load emits `tracked_quest_changed` after deserialize for routing refresh
+
+### Notifications (NpcMissionHooks)
+* Mission Accepted, Objective Updated (count progress), Objective Complete, Mission Ready, Mission Complete
+* Registry missions skip duplicate quest toasts in game_hud
+
+### Routing Table (Prototype Missions + Legacy)
+* NPC turn-ins, base stations, waystones, resource hints, bandit group, boss, quest destinations
+* Cross-region objectives show region hint instead of broken distance
+* Missing targets fail safely (text only, no crash)
+
+---
+
+## Manual Verification Checklist
+
+1. [ ] Solo New Game still behaves unchanged.
+2. [ ] Local Co-op still spawns both players safely.
+3. [ ] Quest tracker HUD displays active mission.
+4. [ ] Quest tracker HUD displays current objective.
+5. [ ] Count objective displays progress.
+6. [ ] Location objective displays distance.
+7. [ ] Co-op objective distance uses nearest living player.
+8. [ ] Tracker updates when P1 completes objective action.
+9. [ ] Tracker updates when P2 completes objective action.
+10. [ ] Quest tracker screen opens.
+11. [ ] Quest tracker screen uses correct menu owner.
+12. [ ] Wrong-player input is blocked in quest tracker.
+13. [ ] Mission list shows Active / Ready / Completed states.
+14. [ ] Reward preview displays clearly.
+15. [ ] Track mission action works.
+16. [ ] Clear tracked mission works if implemented.
+17. [ ] Map screen opens.
+18. [ ] Map screen uses correct menu owner.
+19. [ ] P1/P2 markers appear on map.
+20. [ ] Downed player marker updates.
+21. [ ] Pet marker appears when pet is active.
+22. [ ] Waystone markers appear after discovery.
+23. [ ] NPC mission markers appear.
+24. [ ] Ready-to-turn-in marker appears.
+25. [ ] Active objective marker appears.
+26. [ ] Region transition marker appears if implemented.
+27. [ ] Boss marker appears if implemented.
+28. [ ] Base station objective marker appears.
+29. [ ] Objective marker changes after objective completion.
+30. [ ] Objective in another region shows region hint.
+31. [ ] Missing target does not crash tracker/map.
+32. [ ] Region level/danger text displays.
+33. [ ] Mission accepted toast appears once.
+34. [ ] Objective updated toast appears correctly.
+35. [ ] Objective complete toast appears once.
+36. [ ] Mission complete toast appears once.
+37. [ ] Mission reward does not duplicate.
+38. [ ] Save/load preserves tracked mission.
+39. [ ] Save/load preserves completed objectives.
+40. [ ] Save/load preserves completed missions.
+41. [ ] Save/load preserves discovered region/Waystone map state.
+42. [ ] Older save with no tracked quest loads safely.
+43. [ ] Existing NPC mission flow still works.
+44. [ ] Existing NPC anger/reputation still works.
+45. [ ] Existing pet system still works.
+46. [ ] Existing spell/skill system still works.
+47. [ ] Existing equipment/gem systems still work.
+48. [ ] Existing resource gathering still works.
+49. [ ] Existing co-op revive still works.
+50. [ ] Existing Waystone travel still works.
+51. [ ] Existing boss fight still works.
+52. [ ] `.\start game.ps1` exits 0.
+
+---
+
+## Cross-Pass Summary: Vertical Slice / Tutorial (2026-06-10)
+
+Follow-up pass added demo onboarding without new major systems:
+
+* **TutorialPromptManager** — one-time control/system toasts with save-persisted seen state
+* **VerticalSliceFlow** — opening intro, hearthhold/blacksmith guidance, demo completion messages
+* Opening quest now guides **Reach Hearthhold Camp** then Wolf Crest Shrine
+* Starter gear auto-equipped; bandages in quick slot; early Darkpine resources + tutorial enemy
+* Milestone autosave to slot 0 on key progression beats
+* Build verified: `.\start game.ps1` exit 0 — see `tests/production_vertical_slice_flow_report.txt`
+
+---
+
+## Known Limitations (After This Pass)
+
+* Map is functional placeholder art — not a final illustrated world map
+* No map editor or custom player-placed markers
+* Resource/enemy objectives use region hints when no spawned node target exists
+* Abandon mission not implemented
+* Quest tracker screen map open requires footer binding (open_map_requested wired from game_hud)
+* `open_quest_tracker` is keyboard-oriented; map uses View / D-pad Up per input scheme
+* No branching story, faction reputation, or time-based anger decay (inherited)
+* Apology tasks not wired; pet hits do not anger NPCs (inherited)
+* Legacy `merchant_errand` routing retained for older saves
+* No new regions added
+* Co-op shared tracked mission (not per-player tracking)
+* Vertical slice tutorial/onboarding layer added — see `production_vertical_slice_flow_report.txt`
+* QA/balance/playtest pass applied — see `production_vertical_slice_playtest_report.txt`
+
+---
+
+## Files Added / Modified (Key)
+
+**Added:** `scripts/navigation/*`, `scripts/autoload/objective_router.gd`, `ui/map/map_canvas.gd`, `ui/map/quest_tracker_screen.gd` + `.tscn`
+
+**Modified:** `project.godot`, `quest_manager.gd`, `npc_mission_hooks.gd`, `game_hud.gd`, `world_map.gd` + `.tscn`, `quest_tracker.gd`, `minimap.gd`, `minimap_marker_service.gd`

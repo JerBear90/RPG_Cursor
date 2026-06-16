@@ -13,4 +13,9 @@ if (-not (Test-Path -LiteralPath $godot)) {
 
 Write-Host "Running focused health test runner..."
 & $godot --path $ProjectRoot --headless res://tests/health_test_runner.tscn
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Write-Host ""
+Write-Host "Running production Darkpine Forest health audit..."
+& $godot --path $ProjectRoot --headless res://tests/production_health_gameplay_audit.tscn
 exit $LASTEXITCODE

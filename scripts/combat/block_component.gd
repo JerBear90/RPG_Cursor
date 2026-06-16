@@ -30,11 +30,14 @@ func stop_block() -> void:
 func process_block(damage: DamageData) -> float:
 	if not is_blocking:
 		return damage.amount
-	if _stamina and not _stamina.can_spend(stamina_cost_per_hit):
-		stop_block()
-		return damage.amount
 	if _stamina:
-		_stamina.spend(stamina_cost_per_hit)
+		var cost := stamina_cost_per_hit
+		if get_parent().has_node("SkillTree"):
+			cost *= (get_parent().get_node("SkillTree") as Node).get_block_stamina_multiplier()
+		if not _stamina.can_spend(cost):
+			stop_block()
+			return damage.amount
+		_stamina.spend(cost)
 	var absorbed := damage.amount * block_efficiency
 	var remaining := damage.amount - absorbed
 	block_hit.emit(damage, absorbed)

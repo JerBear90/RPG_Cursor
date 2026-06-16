@@ -15,14 +15,14 @@ func _seed_showcase(hud: PlayerHud) -> void:
 	hud.set_stamina_values(72, 100)
 	hud.set_mp_values(24, 50)
 	hud.set_level(7)
-	hud.set_xp_values(2450, 7000)
+	hud.set_xp_values(3500, 7000)
 	hud.update_quest(
 		"Ashes Beneath Darkpine",
 		PackedStringArray(["Investigate the corrupted grove", " (2/5)"]),
 		"148 m",
 		"MAIN QUEST"
 	)
-	hud.show_toast("Item Acquired", 4.0, "Corrupted Resin", "notification")
+	hud.show_toast("Quest complete:", 4.0, "First Blood - (+15 copper)", "notification")
 	hud.set_skill_highlight(2, true)
 	hud.set_slot_cooldown(2, 0.45, 2.3)
 	hud.set_slot_locked(4, true)

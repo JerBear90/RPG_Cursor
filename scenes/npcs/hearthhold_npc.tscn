@@ -1,0 +1,34 @@
+[gd_scene load_steps=6 format=3 uid="uid://hearthholdnpc001"]
+
+[ext_resource type="Script" path="res://scripts/npcs/hearthhold_npc.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="2"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.35
+height = 1.6
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 2.5
+
+[node name="HearthholdNpc" type="CharacterBody3D"]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("1")
+npc_id = "captain_elira_voss"
+display_name = "Captain Elira Voss"
+is_quest_giver = true
+
+[node name="CharacterVisual" type="Node3D" parent="."]
+script = ExtResource("2")
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Matt_SingleWeapon.gltf"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="InteractionArea" type="Area3D" parent="."]
+collision_layer = 32
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea"]
+shape = SubResource("SphereShape3D_interact")

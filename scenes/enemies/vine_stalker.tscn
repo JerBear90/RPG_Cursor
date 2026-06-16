@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://vinestalker001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="VineStalker" instance=ExtResource("1")]
+enemy_id = "vine_stalker"
+display_name = "Vine Stalker"
+enemy_level = 7
+max_health = 48.0
+damage = 14.0
+move_speed = 5.8
+detection_range = 12.0
+attack_range = 2.3
+loot_table_id = "vine_stalker"
+xp_reward = 34
+experience_reward = 25
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Zombie.gltf"

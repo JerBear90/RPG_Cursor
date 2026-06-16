@@ -1,0 +1,46 @@
+class_name FutureCoastGate
+extends InteractableBase
+## Shattered Coast transition shell — unlocks with Paleheart Relic.
+
+@export var required_item_id: String = "paleheart_relic"
+@export var transition_id: String = "frostgrave_to_shattered_coast"
+@export var destination_region_id: String = "shattered_coast"
+@export var destination_spawn_id: String = "frostgrave_arrival_shattered_coast"
+@export var destination_scene_path: String = "res://scenes/levels/shattered_coast/shattered_coast.tscn"
+
+
+func _ready() -> void:
+	super._ready()
+	prompt_text = "Shattered Coast Pass"
+	add_to_group("region_transition_gate")
+	if get_node_or_null("InteractionArea") == null:
+		var area := Area3D.new()
+		area.name = "InteractionArea"
+		var col := CollisionShape3D.new()
+		var sp := SphereShape3D.new()
+		sp.radius = 3.0
+		col.shape = sp
+		area.add_child(col)
+		add_child(area)
+	if get_node_or_null("CollisionShape3D") == null:
+		var body_col := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(3, 3, 1)
+		body_col.shape = box
+		body_col.position = Vector3(0, 1.5, 0)
+		add_child(body_col)
+
+
+func _on_interact(_player: Node) -> void:
+	if not _is_unlocked():
+		DialogueManager.start_dialogue("coast_locked", [
+			{"speaker": "Frozen Harbor", "text": "The road beyond is not yet accessible.\n\nDefeat the Hollow King and claim the Paleheart Relic."},
+		], [], {"from_interact": true})
+		return
+	DialogueManager.start_dialogue("coast_unbuilt", [
+		{"speaker": "Shattered Coast", "text": "The road beyond is not yet accessible."},
+	], [], {"from_interact": true})
+
+
+func _is_unlocked() -> bool:
+	return InventoryManager.has_item(required_item_id) or CryptState.boss_defeated_persistent

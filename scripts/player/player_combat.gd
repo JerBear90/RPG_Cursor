@@ -35,6 +35,12 @@ var _attack_anim_heavy: bool = false
 var _combo_index: int = 0
 var _combo_window_timer: float = 0.0
 var _queued_attack: String = ""
+var _target_switch_cd: float = 0.0
+var _target_stick_armed: bool = true
+
+const TARGET_STICK_THRESHOLD := 0.65
+const TARGET_STICK_NEUTRAL := 0.35
+const TARGET_SWITCH_COOLDOWN := 0.35
 
 
 func _ready() -> void:
@@ -64,13 +70,17 @@ func _process(delta: float) -> void:
 
 
 func _handle_input(delta: float) -> void:
-	if DialogueManager.blocks_gameplay() or _player.is_input_locked():
+	if InputManager.gameplay_input_blocked() or _player.is_input_locked():
+		force_release_combat_state()
 		return
 	var idx := _player.player_index
+	_target_switch_cd = maxf(_target_switch_cd - delta, 0.0)
 	if InputManager.is_action_just_pressed("dodge", idx) and _dodge.start_dodge():
+		TutorialPromptManager.try_show("dodge")
 		_cancel_attack()
 		_player.set_state(PlayerController.State.DODGE)
 	if InputManager.is_action_pressed("block", idx) and _stamina.can_spend(1.0):
+		TutorialPromptManager.try_show("block")
 		_block.start_block()
 		if _attack_phase == AttackPhase.NONE:
 			_player.set_state(PlayerController.State.BLOCK)
@@ -80,6 +90,7 @@ func _handle_input(delta: float) -> void:
 			_player.set_state(PlayerController.State.IDLE)
 	if InputManager.is_action_just_pressed("lock_on", idx):
 		_lock_on.toggle_lock()
+	_handle_target_switch(idx)
 	if InputManager.is_action_just_pressed("light_attack", idx):
 		_request_attack("light")
 	if InputManager.is_action_just_pressed("heavy_attack", idx):
@@ -88,6 +99,44 @@ func _handle_input(delta: float) -> void:
 		_execution.process_hold(delta, true)
 	else:
 		_execution.process_hold(delta, false)
+
+
+func _handle_target_switch(player_index: int) -> void:
+	if not _lock_on.is_locked or _target_switch_cd > 0.0:
+		return
+	var direction := 0
+	if InputManager.is_action_just_pressed("switch_target_left", player_index):
+		direction = -1
+	elif InputManager.is_action_just_pressed("switch_target_right", player_index):
+		direction = 1
+	elif InputManager.current_device == InputManager.DEVICE_GAMEPAD:
+		var look := InputManager.get_look_vector(player_index)
+		if absf(look.x) < TARGET_STICK_NEUTRAL:
+			_target_stick_armed = true
+			return
+		if not _target_stick_armed:
+			return
+		if look.x <= -TARGET_STICK_THRESHOLD:
+			direction = -1
+		elif look.x >= TARGET_STICK_THRESHOLD:
+			direction = 1
+	if direction != 0:
+		_lock_on.switch_target(direction)
+		_target_switch_cd = TARGET_SWITCH_COOLDOWN
+		_target_stick_armed = false
+
+
+func force_release_combat_state() -> void:
+	if _block.is_blocking:
+		_block.stop_block()
+		if _player.current_state == PlayerController.State.BLOCK:
+			_player.set_state(PlayerController.State.IDLE)
+	if _lock_on.is_locked:
+		_lock_on.release_lock()
+
+
+func is_attacking() -> bool:
+	return _attack_active or _attack_phase != AttackPhase.NONE
 
 
 func _request_attack(kind: String) -> void:
@@ -99,8 +148,10 @@ func _request_attack(kind: String) -> void:
 	if _attack_active:
 		return
 	if kind == "light":
+		TutorialPromptManager.try_show("combat")
 		_begin_attack(light_attack_damage, LIGHT_TIMING, 8.0, false)
 	else:
+		TutorialPromptManager.try_show("heavy_attack")
 		_begin_attack(heavy_attack_damage, HEAVY_TIMING, 15.0, true)
 
 
@@ -177,24 +228,37 @@ func receive_damage(damage: DamageData) -> void:
 		return
 	if _player.has_combat_invulnerability():
 		_log_rejected_hit(damage, "combat_invulnerability")
+		CombatVfx.spawn_combat_status(_player.global_position + Vector3(0, 1.75, 0), "IMMUNE")
 		return
 	if _dodge.iframes_active:
 		_log_rejected_hit(damage, "dodge_iframes")
+		CombatVfx.spawn_combat_status(_player.global_position + Vector3(0, 1.75, 0), "DODGED")
 		return
 	var amount := damage.amount
-	if _block.is_blocking and damage.can_be_blocked:
+	var blocking := _block.is_blocking and damage.can_be_blocked
+	if blocking:
+		var absorbed := damage.amount * _block.block_efficiency
 		amount = _block.process_block(damage)
 		if amount <= 0.0:
+			EquipmentManager.on_shield_block(absorbed)
 			_log_rejected_hit(damage, "blocked")
+			CombatVfx.spawn_combat_status(_player.global_position + Vector3(0, 1.75, 0), "BLOCKED")
 			return
 	var result := _health.apply_damage(DamageData.create_physical(amount, damage.source))
+	if amount > 0.0:
+		EquipmentManager.on_armor_damaged()
+	if _PlayerHealthDebug.DEBUG_PLAYER_HEALTH:
+		var hud := _find_player_hud()
+		_PlayerHealthDebug.log_damage_trace(
+			_player, self, _health, damage, result, hud, "", result.accepted
+		)
 
 
 func _log_rejected_hit(damage: DamageData, reason: String) -> void:
 	if not _PlayerHealthDebug.DEBUG_PLAYER_HEALTH:
 		return
 	var hud := _find_player_hud()
-	_PlayerHealthDebug.log_hit(_player, _health, null, damage, hud, reason)
+	_PlayerHealthDebug.log_damage_trace(_player, self, _health, damage, null, hud, reason, false)
 
 
 func _find_player_hud() -> PlayerHud:
@@ -217,6 +281,7 @@ func die_from_environment(_cause: String) -> void:
 func _on_damaged(_damage: DamageData, _remaining: float) -> void:
 	CombatVfx.spawn_hit(_player.global_position + Vector3(0, 1.55, 0), Color(1.0, 0.25, 0.2))
 	if _health.current_health <= 0:
+		force_release_combat_state()
 		_cancel_attack()
 		_player.set_state(PlayerController.State.DEAD)
 		GameManager.player_died.emit(_player, _player.player_index)
@@ -266,8 +331,12 @@ func _get_final_physical_damage(base: float) -> float:
 	var total := base
 	if _player.has_node("StatsComponent"):
 		total += (_player.get_node("StatsComponent") as StatsComponent).get_physical_damage_bonus()
-	var weapon_id: String = InventoryManager.equipment.get("main_weapon", "rusty_sword")
-	total += ItemDatabase.get_weapon_damage(weapon_id)
+	var weapon_entry := EquipmentManager.get_equipped_instance("main_weapon")
+	if weapon_entry.is_empty():
+		var weapon_id: String = str(InventoryManager.equipment.get("main_weapon", "rusty_sword"))
+		total += ItemDatabase.get_weapon_damage(weapon_id)
+	else:
+		total += EquipmentManager.get_effective_weapon_damage(weapon_entry)
 	if _player.has_node("SkillTree"):
 		total *= (_player.get_node("SkillTree") as Node).get_physical_damage_multiplier()
 	var combo_bonus := 1.0 + (_combo_index * 0.05)

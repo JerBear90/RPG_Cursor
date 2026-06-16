@@ -1,0 +1,142 @@
+Vertical Slice Flow, Tutorialization, Demo Onboarding, and Playtest Polish — Production Report
+=================================================================================================
+Date: 2026-06-10
+Scope: Playable demo vertical slice on existing systems (Phase 0–8 + quest/map/NPC passes preserved)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0** (verified after this pass; no script errors in Godot log)
+
+---
+
+## Changes Summary
+
+### Tutorial Prompt Layer
+* `tutorial_prompt_manager.gd` — one-time toasts for movement, camera, interact, combat, dodge, block, gather, destructibles, inventory, crafting, quest tracker, map, waystone, camp rest, co-op revive, pet, spellcasting
+* Seen state persists in save/load
+* Keyboard + controller labels via `UiInputLabels`
+
+### Vertical Slice Flow
+* `vertical_slice_flow.gd` — opening intro copy, hearthhold arrival hint, blacksmith guidance, demo completion messages
+* Milestone autosave hooks (hearthhold arrival, mission accept, quest complete, waystone unlock)
+* Demo complete after `rebuild_the_forge`, `wake_the_stone`, `clear_bandit_path`, or Bandit Captain defeat
+
+### New Game Opening
+* Intro toast on first spawn (solo + co-op variants)
+* Opening quest `find_wolf_crest` now has two steps: **Reach Hearthhold Camp** → **Find the Wolf Crest Shrine**
+* Hearthhold region entry advances first objective and shows blacksmith hint
+
+### Starting Gear
+* Auto-equip rusty sword + traveler cloak
+* 2 bandages in quick slot 0
+* Existing rations, waterskin, wood, stone, 50 copper preserved
+
+### Objective Routing Polish
+* Hearthhold gate route for opening objective
+* Resource hints: "Search Darkpine Forest for Metal Scraps / Fire Resin"
+* Wounded Scout fallback position corrected to scene coords
+* Crystal shard region hint improved
+
+### Early Content Placement (Darkpine)
+* Extra crates, barrels, scrap piles near outpost path
+* Second fire resin node near spawn route
+* Tutorial **Raider Trainee** (low HP/damage) near outpost
+
+### Save / Continue
+* `SaveManager.try_milestone_autosave()` — autosaves to slot 0 on milestones
+* Tutorial + vertical slice state in save payload
+* `WaystoneManager.reset_for_new_game()` fully resets `hearthhold_unlocked`
+
+### Integration Hooks
+* Player movement/combat/interact, camera, destructibles, resources, camps, waystones, workbench/forge, pet shelter, spell cast, co-op revive, map/quest/inventory menus
+
+---
+
+## Manual Verification Checklist
+
+1. [ ] Solo New Game starts safely.
+2. [ ] Local Co-op starts safely.
+3. [ ] Opening objective appears.
+4. [ ] Movement tutorial appears once.
+5. [ ] Combat tutorial appears once.
+6. [ ] Interact tutorial appears once.
+7. [ ] Resource gathering tutorial appears once.
+8. [ ] Destructible tutorial appears once.
+9. [ ] Map tutorial appears once.
+10. [ ] Quest tracker tutorial appears once.
+11. [ ] Co-op revive tutorial appears only in co-op.
+12. [ ] Starting weapon/gear are usable.
+13. [ ] Starting healing item is available.
+14. [ ] Old Blacksmith route/objective is clear.
+15. [ ] Rebuild the Forge mission can be accepted.
+16. [ ] Metal Scraps can be found on early route.
+17. [ ] Fire Resin can be found on early route.
+18. [ ] Resource objective updates after pickup.
+19. [ ] Return-to-NPC objective routes correctly.
+20. [ ] Workbench/Forge interaction is understandable.
+21. [ ] Repair Kit can be crafted or repair can be demonstrated.
+22. [ ] Waystone Keeper route/objective is clear.
+23. [ ] Wake the Stone mission can be accepted.
+24. [ ] Crystal Shards can be found.
+25. [ ] Waystone can be activated.
+26. [ ] Waystone marker appears on map.
+27. [ ] Wounded Scout mission can be accepted.
+28. [ ] Bandit objective can be completed.
+29. [ ] Mini-boss or elite encounter works.
+30. [ ] Mission completion rewards grant once.
+31. [ ] Demo completion message appears.
+32. [ ] Save/load preserves vertical slice progress.
+33. [ ] Continue restores tracked objective.
+34. [ ] Co-op continue restores both players safely.
+35. [ ] Pet state remains stable through demo flow.
+36. [ ] Spellcasting remains stable through demo flow.
+37. [ ] Equipment/gem systems remain stable through demo flow.
+38. [ ] NPC anger/reputation does not soft-lock demo progression.
+39. [ ] Controller navigation works in main menu.
+40. [ ] Controller navigation works in map/quest tracker.
+41. [ ] Controller navigation works in dialogue.
+42. [ ] Controller navigation works in crafting/Forge.
+43. [ ] Controller navigation works in Waystone menu.
+44. [ ] Steam Deck 1280x800 UI remains readable.
+45. [ ] Existing field revive still works.
+46. [ ] Existing camp rest still works.
+47. [ ] Existing boss fight still works.
+48. [ ] `.\start game.ps1` exits 0.
+
+---
+
+## Cross-Pass Summary: QA / Balance / Playtest Readiness (2026-06-10)
+
+Follow-up pass stabilized the vertical slice for manual playtesting:
+
+* Fixed co-op boss camera crash (`midpoint` undefined)
+* Fixed forge turn-in base-storage soft-lock (`consume_combined`)
+* Added crystal shard nodes on Darkpine Waystone path for `Wake the Stone`
+* Improved early scrap/resin availability; scrap drops 2–4
+* Throttled quest HUD distance, objective routing cache, milestone autosave, progress toasts
+* Raider Trainee repositioned/tuned; rusty sword 50 durability
+* Build verified: `.\start game.ps1` exit 0 — see `tests/production_vertical_slice_playtest_report.txt`
+
+---
+
+## Known Limitations (After This Pass)
+
+* Tutorial prompts are toasts only — no full tutorial mission chain
+* Milestone autosave uses slot 0; manual save still via pause menu and Memory Altar
+* Demo completion message is non-blocking — player can continue freely
+* Bandit Captain remains far from outpost; tutorial Raider Trainee covers early combat
+* Crystal shards for demo placed near Darkpine Waystone (Crystal Cave nodes added for later travel)
+* Co-op boss camera midpoint bug fixed this pass
+* See `production_vertical_slice_playtest_report.txt` for full QA checklist
+* No branching story, faction rep, anger decay, apology tasks (inherited)
+* Map remains functional placeholder art (inherited)
+* Legacy `merchant_errand` and wolf crest chain still active after shrine (inherited)
+
+---
+
+## Files Added / Modified (Key)
+
+**Added:** `scripts/autoload/tutorial_prompt_manager.gd`, `scripts/autoload/vertical_slice_flow.gd`
+
+**Modified:** `project.godot`, `game_manager.gd`, `save_manager.gd`, `quest_manager.gd`, `objective_router.gd`, `inventory_manager.gd`, `waystone_manager.gd`, `region_content.gd`, `level_manager.gd`, `npc_mission_hooks.gd`, `game_hud.gd`, player/camera/destructible/waystone/camp/base hooks

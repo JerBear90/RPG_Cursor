@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3 uid="uid://solartyrant001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+[ext_resource type="Script" path="res://scripts/enemies/bosses/solar_tyrant.gd" id="2"]
+
+[node name="SolarTyrant" instance=ExtResource("1")]
+script = ExtResource("2")
+enemy_id = "solar_tyrant"
+display_name = "The Solar Tyrant"
+enemy_level = 18
+max_health = 640.0
+damage = 28.0
+move_speed = 3.1
+detection_range = 0.0
+attack_range = 3.8
+loot_table_id = "solar_tyrant"
+xp_reward = 320
+experience_reward = 300
+respawns = false
+head_bar_offset = 3.6
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Matt_SingleWeapon.gltf"
+
+[node name="SolarCore" type="OmniLight3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0.15)
+light_color = Color(0.98, 0.55, 0.18, 1)
+light_energy = 1.25
+omni_range = 6.5
+
+[node name="SolarCrown" type="OmniLight3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.3, 0)
+light_color = Color(0.95, 0.72, 0.22, 1)
+light_energy = 0.85
+omni_range = 4.0

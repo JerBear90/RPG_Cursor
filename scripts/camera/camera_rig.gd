@@ -4,6 +4,14 @@ extends Node3D
 @export var shoulder_offset: float = 0.45
 @export var height_offset: float = 0.15
 @export var shoulder_back: float = 2.73
+# Co-op zoom tuning — min/max camera distance, separation scale, smooth lerp, close-player floor
+@export var coop_min_back: float = 2.73
+@export var coop_max_back: float = 6.8
+@export var coop_zoom_separation: float = 14.0
+@export var coop_zoom_smooth_speed: float = 0.1
+@export var coop_close_separation_floor: float = 2.0
+@export var coop_soft_tether_distance: float = 18.0
+@export var coop_boss_zoom_padding: float = 3.5
 @export var pivot_height: float = 1.0
 @export var mouse_sensitivity: float = 0.003
 @export var min_pitch: float = -0.75
@@ -17,12 +25,14 @@ var _snapped: bool = false
 var _mouse_captured: bool = false
 var _level_parent: Node3D
 var _attach_player: Node3D
+var _coop_back_distance: float = 2.73
 
 
 func _ready() -> void:
 	add_to_group("camera_rig")
 	process_physics_priority = -10
 	_level_parent = get_parent() as Node3D
+	_coop_back_distance = coop_min_back
 	if camera:
 		camera.current = true
 	if not GameManager.player_spawned.is_connected(_on_player_spawned):
@@ -42,34 +52,68 @@ func _capture_mouse() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	var players := GameManager.get_alive_players()
-	if players.is_empty():
+	var subjects := _get_camera_subjects()
+	if subjects.is_empty():
 		return
 
 	if _attach_player and is_instance_valid(_attach_player):
 		_attach_player.rotation.y = _yaw
-		_apply_look(true)
+		_apply_look(true, _delta)
 		return
 
 	var midpoint := Vector3.ZERO
-	for p in players:
-		midpoint += p.global_position
-	midpoint /= players.size()
+	for p in subjects:
+		if p is Node3D:
+			midpoint += (p as Node3D).global_position
+	midpoint /= subjects.size()
 
 	var pivot := midpoint + Vector3(0.0, pivot_height, 0.0)
 	if not _snapped:
 		global_position = pivot
-		_yaw = (players[0] as Node3D).rotation.y
+		if subjects[0] is Node3D:
+			_yaw = (subjects[0] as Node3D).rotation.y
 		_snapped = true
 	else:
-		global_position = pivot
+		global_position = global_position.lerp(pivot, 0.18)
 
-	_apply_look(false)
+	_apply_look(false, _delta)
 
 
-func _apply_look(parented: bool) -> void:
+func _get_camera_subjects() -> Array[Node]:
+	if GameManager.is_local_coop():
+		var subjects: Array[Node] = []
+		for p in GameManager.get_all_registered_players():
+			if p and is_instance_valid(p) and p is Node3D:
+				subjects.append(p)
+		return subjects
+	return GameManager.get_alive_players()
+
+
+func _apply_look(parented: bool, delta: float) -> void:
 	rotation.y = 0.0 if parented else _yaw
-	camera.position = Vector3(shoulder_offset, height_offset, shoulder_back)
+	var back := shoulder_back
+	if not parented and GameManager.is_local_coop():
+		var subjects := _get_camera_subjects()
+		if subjects.size() > 1 and subjects[0] is Node3D and subjects[1] is Node3D:
+			var sep: float = (subjects[0] as Node3D).global_position.distance_to((subjects[1] as Node3D).global_position)
+			# Soft tether: cap zoom demand when players are very far apart
+			sep = minf(sep, coop_soft_tether_distance)
+			# Floor separation reduces jitter when players stand close together
+			var sep_for_zoom := maxf(sep, coop_close_separation_floor)
+			if GameManager.in_boss_fight:
+				var midpoint := Vector3.ZERO
+				for p in subjects:
+					if p is Node3D:
+						midpoint += (p as Node3D).global_position
+				midpoint /= subjects.size()
+				var boss_sep := _boss_separation_from_midpoint(midpoint)
+				sep_for_zoom = maxf(sep_for_zoom, boss_sep)
+			var span := maxf(coop_zoom_separation - coop_close_separation_floor, 1.0)
+			var t := clampf((sep_for_zoom - coop_close_separation_floor) / span, 0.0, 1.0)
+			back = lerpf(coop_min_back, coop_max_back, t)
+		_coop_back_distance = lerpf(_coop_back_distance, back, clampf(delta * coop_zoom_smooth_speed * 60.0, 0.0, 1.0))
+		back = _coop_back_distance
+	camera.position = Vector3(shoulder_offset, height_offset, back)
 	camera.rotation = Vector3(_pitch, 0.0, 0.0)
 
 
@@ -86,6 +130,7 @@ func attach_to_player(player: Node3D) -> void:
 	_yaw = player.rotation.y
 	player.rotation.y = _yaw
 	_snapped = true
+	_coop_back_distance = coop_min_back
 
 
 func detach_from_player() -> void:
@@ -100,9 +145,9 @@ func detach_from_player() -> void:
 
 
 func _refresh_attachment() -> void:
-	var players := GameManager.get_alive_players()
-	if players.size() == 1 and players[0] is Node3D:
-		attach_to_player(players[0] as Node3D)
+	var living := GameManager.get_alive_players()
+	if living.size() == 1 and living[0] is Node3D:
+		attach_to_player(living[0] as Node3D)
 	else:
 		detach_from_player()
 
@@ -133,6 +178,16 @@ func get_planar_forward() -> Vector3:
 	return Vector3(-sin(_yaw), 0.0, -cos(_yaw)).normalized()
 
 
+func _boss_separation_from_midpoint(midpoint: Vector3) -> float:
+	var best := 0.0
+	for node in get_tree().get_nodes_in_group("boss"):
+		if not node is Node3D or not is_instance_valid(node):
+			continue
+		var dist: float = (node as Node3D).global_position.distance_to(midpoint)
+		best = maxf(best, dist * 0.45 + coop_boss_zoom_padding * 0.25)
+	return best
+
+
 func get_planar_right() -> Vector3:
 	return Vector3.UP.cross(get_planar_forward()).normalized()
 
@@ -146,7 +201,7 @@ func snap_to_player(player: Node3D) -> void:
 	_snapped = true
 	if _attach_player and is_instance_valid(_attach_player):
 		_attach_player.rotation.y = _yaw
-	_apply_look(_attach_player != null)
+	_apply_look(_attach_player != null, get_physics_process_delta_time())
 
 
 func _input(event: InputEvent) -> void:
@@ -174,4 +229,9 @@ func _process(_delta: float) -> void:
 		return
 	var look := InputManager.get_look_vector(0)
 	if look.length_squared() > 0.01:
+		TutorialPromptManager.try_show("camera")
 		add_look_input(look * 0.04)
+	if GameManager.is_local_coop():
+		var look2 := InputManager.get_look_vector(1)
+		if look2.length_squared() > 0.01:
+			add_look_input(look2 * 0.04)

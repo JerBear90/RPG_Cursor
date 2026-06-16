@@ -18,6 +18,7 @@ var _action_use: Button
 var _action_equip: Button
 var _action_unequip: Button
 var _selected_item_id: String = ""
+var _selected_instance_id: String = ""
 var _selected_slot: String = ""
 
 
@@ -31,6 +32,7 @@ func _ready() -> void:
 func open(player: Node) -> void:
 	_player = player
 	_selected_item_id = ""
+	_selected_instance_id = ""
 	_selected_slot = ""
 	_refresh()
 	visible = true
@@ -70,7 +72,7 @@ func _build_ui() -> void:
 	scroll.add_child(_item_grid)
 	_detail_label = Label.new()
 	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_label.custom_minimum_size = Vector2(0, 48)
+	_detail_label.custom_minimum_size = Vector2(0, 72)
 	inv_col.add_child(_detail_label)
 	var actions := HBoxContainer.new()
 	inv_col.add_child(actions)
@@ -103,10 +105,10 @@ func _rebuild_equipment() -> void:
 		child.queue_free()
 	for slot in EQUIPMENT_SLOTS:
 		var btn := Button.new()
-		var item_id: String = InventoryManager.equipment.get(slot, "")
+		var entry := EquipmentManager.get_equipped_instance(slot)
 		var label := slot.replace("_", " ").capitalize()
-		if item_id != "":
-			label += "\n%s" % item_id.replace("_", " ")
+		if not entry.is_empty():
+			label += "\n%s" % EquipmentManager.get_display_name(entry)
 		btn.text = label
 		btn.custom_minimum_size = Vector2(90, 56)
 		btn.pressed.connect(_on_equip_slot_pressed.bind(slot))
@@ -118,18 +120,27 @@ func _rebuild_inventory() -> void:
 		child.queue_free()
 	for entry in InventoryManager.items:
 		var item_id: String = entry.id
+		var instance_id: String = str(entry.get("instance_id", ""))
 		var btn := Button.new()
-		btn.text = _ItemUiTheme.format_item_button(item_id, entry.quantity)
+		var label := _ItemUiTheme.format_item_button(item_id, entry.quantity)
+		if EquipmentManager.supports_durability(item_id):
+			label = "%s\n%d/%d" % [
+				EquipmentManager.get_display_name(entry),
+				int(entry.get("current_durability", 0)),
+				int(entry.get("max_durability", 0)),
+			]
+		btn.text = label
 		btn.toggle_mode = true
-		btn.button_pressed = item_id == _selected_item_id
+		btn.button_pressed = instance_id != "" and instance_id == _selected_instance_id
 		btn.custom_minimum_size = Vector2(96, 68)
-		_ItemUiTheme.style_item_button(btn, item_id, item_id == _selected_item_id)
-		btn.pressed.connect(_on_item_pressed.bind(item_id))
+		_ItemUiTheme.style_item_button(btn, item_id, btn.button_pressed)
+		btn.pressed.connect(_on_item_pressed.bind(item_id, instance_id))
 		_item_grid.add_child(btn)
 
 
-func _on_item_pressed(item_id: String) -> void:
+func _on_item_pressed(item_id: String, instance_id: String) -> void:
 	_selected_item_id = item_id
+	_selected_instance_id = instance_id
 	_selected_slot = ""
 	_rebuild_inventory()
 	_update_detail()
@@ -137,7 +148,9 @@ func _on_item_pressed(item_id: String) -> void:
 
 func _on_equip_slot_pressed(slot: String) -> void:
 	_selected_slot = slot
-	_selected_item_id = InventoryManager.equipment.get(slot, "")
+	var entry := EquipmentManager.get_equipped_instance(slot)
+	_selected_item_id = str(entry.get("id", ""))
+	_selected_instance_id = str(entry.get("instance_id", ""))
 	_update_detail()
 
 
@@ -146,27 +159,56 @@ func _update_detail() -> void:
 		_detail_label.text = "Select an item or equipment slot."
 		_set_actions(false, false, false)
 		return
-	var item_id := _selected_item_id
-	if item_id == "" and _selected_slot != "":
+	var entry := _find_selected_entry()
+	if entry.is_empty() and _selected_item_id != "":
+		entry = {"id": _selected_item_id}
+	if entry.is_empty() and _selected_slot != "":
 		_detail_label.text = "Empty slot: %s" % _selected_slot.replace("_", " ")
 		_set_actions(false, false, false)
 		return
+	var item_id := str(entry.get("id", _selected_item_id))
 	var data := ItemDatabase.get_item(item_id)
-	var lines: PackedStringArray = [
-		item_id.replace("_", " ").capitalize(),
-		"Type: %s" % str(data.get("type", "unknown")),
-	]
-	if data.has("damage"):
-		lines.append("Damage: +%d" % int(data.damage))
-	if data.has("health"):
-		lines.append("Health: +%d" % int(data.health))
-	if data.has("label"):
+	var lines: PackedStringArray = []
+	if EquipmentManager.supports_durability(item_id):
+		lines = EquipmentManager.format_gear_detail(entry).split("\n")
+	else:
+		lines.append(item_id.replace("_", " ").capitalize())
+		lines.append("Type: %s" % str(data.get("type", "unknown")))
+		if data.has("damage"):
+			lines.append("Damage: +%d" % int(data.damage))
+		if data.has("health"):
+			lines.append("Health: +%d" % int(data.health))
+	if EquipmentManager.supports_durability(item_id):
+		var preview := EquipmentManager.get_repair_materials(entry)
+		if not preview.is_empty():
+			var parts: PackedStringArray = []
+			for mat in preview:
+				parts.append("%s x%d" % [ItemDatabase.get_display_name(mat.id), int(mat.quantity)])
+			lines.append("Repair: %s" % ", ".join(parts))
+	if data.has("label") and not EquipmentManager.supports_durability(item_id):
 		lines.append("Action: %s" % data.label)
 	_detail_label.text = "\n".join(lines)
 	var can_use := ItemDatabase.can_use(item_id)
 	var can_equip := ItemDatabase.can_equip(item_id)
-	var is_equipped := item_id in InventoryManager.equipment.values()
+	var is_equipped := _is_instance_equipped(_selected_instance_id, item_id)
 	_set_actions(can_use, can_equip and not is_equipped, is_equipped or _selected_slot != "")
+
+
+func _find_selected_entry() -> Dictionary:
+	if _selected_instance_id != "":
+		return EquipmentManager.find_entry_by_instance(_selected_instance_id)
+	for entry in InventoryManager.items:
+		if entry.id == _selected_item_id:
+			return entry
+	return {}
+
+
+func _is_instance_equipped(instance_id: String, item_id: String) -> bool:
+	if instance_id != "":
+		for slot in InventoryManager.equipment.keys():
+			if str(InventoryManager.equipment[slot]) == instance_id:
+				return true
+	return InventoryManager.is_equipped(item_id)
 
 
 func _set_actions(use: bool, equip: bool, unequip: bool) -> void:
@@ -182,22 +224,27 @@ func _on_use_pressed() -> void:
 
 func _on_equip_pressed() -> void:
 	if _player and _selected_item_id != "":
-		InventoryManager.equip_item(_selected_item_id, _player)
+		if _selected_instance_id != "":
+			var slot := ItemDatabase.normalize_equipment_slot(str(ItemDatabase.get_item(_selected_item_id).get("slot", "main_weapon")))
+			EquipmentManager.equip_instance(_selected_instance_id, slot)
+			PlayerProgress._apply_equipment_stats(_player)
+		else:
+			InventoryManager.equip_item(_selected_item_id, _player)
 
 
 func _on_unequip_pressed() -> void:
 	var slot := _selected_slot
 	if slot == "":
 		for s in InventoryManager.equipment.keys():
-			if InventoryManager.equipment[s] == _selected_item_id:
+			if str(InventoryManager.equipment[s]) == _selected_instance_id:
 				slot = s
 				break
 	if slot != "" and InventoryManager.equipment.has(slot):
-		var item_id: String = InventoryManager.equipment[slot]
 		InventoryManager.equipment.erase(slot)
 		InventoryManager.equipment_changed.emit(slot)
-		InventoryManager.add_item(item_id, 1)
 		if _player:
 			PlayerProgress._apply_equipment_stats(_player)
 		_selected_item_id = ""
+		_selected_instance_id = ""
 		_selected_slot = ""
+		_refresh()

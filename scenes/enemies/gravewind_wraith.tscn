@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://gravewindwraith001"]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/ash_wraith.tscn" id="1"]
+
+[node name="GravewindWraith" instance=ExtResource("1")]
+enemy_id = "gravewind_wraith"
+display_name = "Gravewind Wraith"
+enemy_level = 6
+max_health = 48.0
+damage = 13.0
+loot_table_id = "gravewind_wraith"
+xp_reward = 36
+experience_reward = 28

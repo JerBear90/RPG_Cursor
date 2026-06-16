@@ -17,8 +17,8 @@ display_name = "Workbench"
 
 [node name="KenneyVisual" type="Node3D" parent="."]
 script = ExtResource("2")
-gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/fence_planksDouble.glb"
-mesh_scale = Vector3(1.4, 1.0, 1.2)
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/log_stackLarge.glb"
+mesh_scale = Vector3(1.2, 1.0, 1.1)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)

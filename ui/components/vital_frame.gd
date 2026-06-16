@@ -117,6 +117,7 @@ func flash_insufficient_resource() -> void:
 
 
 func _apply_values(animate: bool) -> void:
+	var label_before := get_display_text()
 	_resolve_widgets()
 	var prev := _target
 	_max = pending_maximum
@@ -145,6 +146,13 @@ func _apply_values(animate: bool) -> void:
 			_damage_tween.tween_method(_set_damage_display, _damage_display, _target, 0.55)\
 				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	value_updated.emit(_target, _max)
+	var _PlayerHealthDebug = preload("res://scripts/debug/player_health_debug.gd")
+	_PlayerHealthDebug.log_hud_update(
+		"VitalFrame applied",
+		_target,
+		_max,
+		'label "%s" -> "%s"' % [label_before, get_display_text()]
+	)
 
 
 func _resolve_widgets() -> void:

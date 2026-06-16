@@ -1,0 +1,133 @@
+Exiled Survivors — Phase 2 Production Report
+Generated: 2026-06-10
+
+=== 1. Rotfen shallow-water behavior ===
+ShallowWaterZone (0.85 speed multiplier) spawned in rotfen marsh environment zones.
+BoardwalkZone strips penalty on main causeway (z=-18..26, x=0) and Marshwatch path (x=-8).
+EnvironmentMovementModifier on player applies shared multiplier.
+
+=== 2. Rotfen poison-zone behavior ===
+PoisonZone areas at bog pockets (x=±7, z=12..20). StatusEffectsComponent handles buildup,
+threshold, DoT, resistance, decay on exit. Cleansed via camp rest, healer, bogward tonic.
+
+=== 3. Rotfen visual asset pass ===
+Existing Phase 1 town_layouts rotfen props + island_terrain swamp mode retained.
+Deep-water blockers at interior pools; shallow river tiles from terrain generator.
+
+=== 4. Sunken Reliquary scene path ===
+res://scenes/dungeons/sunken_reliquary/sunken_reliquary.tscn
+
+=== 5. Sunken Reliquary room list ===
+Entrance Hall, Flooded Corridor, Checkpoint Sanctuary, Bell Chamber, optional Resource Alcove,
+Trap Hall, Combat Room, optional Elite Chamber, Boss Approach, Bellkeeper Arena.
+
+=== 6. Dungeon generation flow ===
+Reliquary entrance (the_sunken_bells complete) → confirm → fade → DungeonManager.enter_reliquary()
+→ ReliquaryGenerator.generate(seed) → ReliquaryBuilder builds → markers register → safe spawn → fade in.
+
+=== 7. Dungeon marker IDs ===
+dungeon_entry_sunken_reliquary, dungeon_spawn_sunken_reliquary,
+dungeon_checkpoint_sunken_reliquary, preboss_sunken_reliquary, boss_checkpoint_sunken_reliquary
+
+=== 8. Dungeon checkpoint behavior ===
+ReliquaryCheckpoint shrine restores HP/mana/stamina, registers checkpoint, persists via ReliquaryState.
+
+=== 9. Dungeon minimap behavior ===
+Room discovery on player enter (RoomDiscoveryZone). Minimap draws discovered rooms with category colors.
+
+=== 10. Dungeon puzzle ===
+Three-bell sequence (1-2-3) in Bell Chamber; wrong order resets; gate opens once; persists.
+
+=== 11. Dungeon traps ===
+Trap Hall: poison vents, debris, telegraphed DungeonTrap nodes with cooldown damage.
+
+=== 12. Boss implementation ===
+The Drowned Bellkeeper — scenes/enemies/drowned_bellkeeper.tscn, scripts/ai/drowned_bellkeeper.gd
+
+=== 13. Boss phase behavior ===
+Phase 2 at 50%: faster movement, Mire Hound summons, increased damage/range.
+
+=== 14. Boss reward persistence ===
+Marsh Sigil, loot table (once), depths_of_reliquary completion, ReliquaryState.boss_defeated_persistent.
+
+=== 15. Reliquary exit behavior ===
+DungeonExitPortal after boss → exit_dungeon → exterior_sunken_reliquary in Rotfen Marsh.
+
+=== 16. Ashfall scene path ===
+res://scenes/levels/ashfall_highlands/ashfall_highlands.tscn
+
+=== 17. Ashfall subregions ===
+Rotfen Pass, Cinder Road, Stonewatch Outpost, Burned Woodland, Collapsed Rail Line,
+Ember Quarry approach, Blackvein Approach, future departure marker.
+
+=== 18. Ashfall spawn markers ===
+region_start_ashfall, rotfen_arrival_ashfall, checkpoint_ashfall, camp_stonewatch, town_stonewatch,
+waystone_ashfall, blackvein_foundry_exterior, exterior_blackvein_foundry, ashfall_return_rotfen,
+future_region_departure_ashfall
+
+=== 19. Rotfen ↔ Ashfall transition ===
+rotfen_to_ashfall / ashfall_to_rotfen gates; unlock on depths_of_reliquary complete or Marsh Sigil.
+
+=== 20. Stonewatch implementation ===
+Town props (walls, tents, forge path), camp, waystone, merchants, commander quest POI, checkpoint.
+
+=== 21. Ashfall enemy roster ===
+Reused combat pipeline with regional placement: Cinder Wolves (mire_hound), Ash Raiders (forest_bandit),
+Furnace Construct (spore_brute), Ash Wraith (rotfen_cultist), Blackvein miners, Ironbound (shield_bandit).
+
+=== 22. Ashfall hazards ===
+Volcanic fissure rock scatter; lava/deep hazard placeholders via terrain; heat zones deferred.
+
+=== 23. Ashfall resource roster ===
+cinder_ore, ashwood, blackvein_iron, machine_scrap (+ item_database entries for ember_crystal, etc.)
+
+=== 24. Ashfall quest chain ===
+through_the_ash, the_broken_rail, fires_below, gather_cinder_ore side quest wired in QuestManager + POIs.
+
+=== 25. Blackvein exterior status ===
+FoundryEntrance at (22,0,18) — exterior shell only; shows "The Foundry is not yet accessible."
+
+=== 26. Minimap integration ===
+Ashfall POIs registered; dungeon room overlay for sunken_reliquary; volcanic land tint on minimap.
+
+=== 27. Assets imported and sources ===
+Kenney Nature Kit (existing): ground_path*, statues, tents, rocks, fences, campfires.
+
+=== 28. Files created ===
+scripts/dungeons/reliquary_*.gd, bell_puzzle.gd, bell_ring.gd, reliquary_checkpoint.gd,
+dungeon_trap.gd, room_discovery_zone.gd, foundry_entrance.gd, reliquary_state.gd,
+scripts/ai/drowned_bellkeeper.gd, scripts/combat/status_effects_component.gd,
+scripts/player/environment_movement_modifier.gd, scripts/environment/*.gd,
+scenes/dungeons/sunken_reliquary/sunken_reliquary.tscn,
+scenes/enemies/drowned_bellkeeper.tscn,
+scenes/levels/ashfall_highlands/ashfall_highlands.tscn
+
+=== 29. Files modified ===
+dungeon_manager.gd, reliquary_entrance.gd, level_restart_service.gd, save_manager.gd,
+quest_manager.gd, loot_manager.gd, item_database.gd, player_controller.gd, game_manager.gd,
+map_manager.gd, spawn_resolver.gd, level_manager.gd, region_content.gd, town_layouts.gd,
+island_terrain.gd, minimap_control.gd, inventory_manager.gd, healer_station.gd, camp_site.gd,
+region_transition_gate.gd, waystone.gd, project.godot
+
+=== 30. Manual verification results ===
+Run: .\start game.ps1
+[PENDING — verify in production session]
+
+=== 31. Known limitations ===
+- Dedicated Ashfall enemy scenes not yet split (reuses Rotfen/bandit variants)
+- Ashfall heat/lava/ash-storm hazards are visual-first; full buildup mechanics deferred
+- Blackvein Foundry interior not built (by design for Phase 2)
+- Bell puzzle uses BellRing interactables + BellPuzzle controller (verify interaction radius)
+- Dungeon enemy variants (Drowned Husk Guardian, Bellbound Wraith, etc.) reuse Rotfen roster
+
+=== 32. Remaining placeholder assets ===
+Industrial KayKit props for foundry exterior; dedicated bell meshes; ash particle VFX
+
+=== 33. Automated tests ===
+CONFIRMED: No new automated tests added.
+
+=== 34. Phase 0/1 preservation ===
+CONFIRMED: RegionTransitionManager, SpawnResolver, DungeonManager, quest/minimap/combat pipelines preserved.
+
+=== 35. Safe grounding ===
+SpawnResolver dungeon markers + SpawnHelpers; builder await before player fade-in; exterior return via pending_spawn_id.

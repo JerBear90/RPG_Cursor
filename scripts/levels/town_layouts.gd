@@ -17,6 +17,16 @@ static func get_layout(region_id: String) -> Dictionary:
 	match region_id:
 		"hearthhold_camp":
 			return _hearthhold()
+		"rotfen_marsh":
+			return _rotfen_marsh()
+		"ashfall_highlands":
+			return _ashfall_highlands()
+		"frostgrave_expanse":
+			return _frostgrave_expanse()
+		"shattered_coast":
+			return _shattered_coast()
+		"blightreach":
+			return _blightreach()
 		"darkpine_forest":
 			return _darkpine_outpost()
 		"bandit_camp":
@@ -100,8 +110,29 @@ static func _hearthhold() -> Dictionary:
 	_fence_line(props, "fence_simple.glb", Vector3(-14, 0, 14), Vector3(-14, 0, -14), 3.5, 90.0)
 	_fence_line(props, "fence_simple.glb", Vector3(14, 0, -14), Vector3(14, 0, 14), 3.5, -90.0)
 	_fence_line(props, "fence_simple.glb", Vector3(-14, 0, 14), Vector3(14, 0, 14), 3.5, 180.0)
-	# Decorative trees at corners
-	props.append(_prop("tree_pineSmallA.glb", Vector3(-13, 0, 12), 0.0, Vector3(1.0, 1.0, 1.0), true))
+	# South Rotfen gate
+	props.append(_prop("fence_gate.glb", Vector3(0, 0, 14.5), 180.0, Vector3(1.2, 1.2, 1.2), true))
+	_path_strip(props, "ground_pathStraight.glb", Vector3(0, 0.01, 0), "z", 8, 2.0, 0.0)
+	# Watchtowers at corners
+	props.append(_prop("statue_column.glb", Vector3(-13, 0, -13), 0.0, Vector3(1.4, 1.6, 1.4), true))
+	props.append(_prop("statue_column.glb", Vector3(13, 0, -13), 0.0, Vector3(1.4, 1.6, 1.4), true))
+	props.append(_prop("statue_column.glb", Vector3(-13, 0, 13), 0.0, Vector3(1.4, 1.6, 1.4), true))
+	props.append(_prop("statue_column.glb", Vector3(13, 0, 13), 0.0, Vector3(1.4, 1.6, 1.4), true))
+	props.append(_prop("campfire_bricks.glb", Vector3(-13, 0, -12), 0.0, Vector3(0.8, 0.8, 0.8)))
+	props.append(_prop("campfire_bricks.glb", Vector3(13, 0, -12), 0.0, Vector3(0.8, 0.8, 0.8)))
+	# Quest hall (north-west chapel expanded)
+	props.append(_prop("tent_detailedOpen.glb", Vector3(-6, 0, -8), 45.0, TENT_LARGE, true))
+	props.append(_prop("statue_obelisk.glb", Vector3(-8, 0, -7), 0.0, Vector3(1.0, 1.0, 1.0), true))
+	# Training yard (west)
+	props.append(_prop("fence_planksDouble.glb", Vector3(-11, 0, 0), 90.0, Vector3(1.2, 1.0, 1.0), true))
+	props.append(_prop("log_stackLarge.glb", Vector3(-11, 0, 2), 0.0, Vector3(1.0, 1.0, 1.0), true))
+	props.append(_prop("fence_simpleLow.glb", Vector3(-11, 0, -2), 90.0))
+	# Waystone plaza markers
+	props.append(_prop("platform_stone.glb", Vector3(-2, 0.02, 5), 0.0, Vector3(1.6, 1.0, 1.6)))
+	props.append(_prop("campfire_bricks.glb", Vector3(-3.5, 0, 6), 0.0, Vector3(0.9, 0.9, 0.9)))
+	# Guard barracks hint
+	props.append(_prop("tent_detailedClosed.glb", Vector3(-3, 0, -12), 0.0, TENT_LARGE, true))
+	props.append(_prop("fence_planksDouble.glb", Vector3(-5, 0, -13), 0.0, Vector3(1.0, 1.0, 1.0), true))
 	props.append(_prop("tree_pineSmallA.glb", Vector3(13, 0, 12), 0.0, Vector3(0.95, 0.95, 0.95), true))
 	props.append(_prop("plant_bushDetailed.glb", Vector3(2, 0, -6), 0.0))
 	props.append(_prop("flower_yellowA.glb", Vector3(-2, 0, 5), 0.0))
@@ -192,4 +223,204 @@ static func _ruined_settlement() -> Dictionary:
 	# Collapsed palisade
 	_fence_line(props, "fence_simpleLow.glb", Vector3(-10, 0, -6), Vector3(10, 0, -6), 3.5, 0.0)
 	props.append(_prop("fence_bend.glb", Vector3(10, 0, -4), -90.0))
+	return {"props": props}
+
+
+static func _rotfen_marsh() -> Dictionary:
+	var props: Array = []
+	# Main causeway — boardwalk planks along z axis
+	_path_strip(props, "ground_pathStraight.glb", Vector3(0, 0.08, -18), "z", 24, 2.0, 0.0)
+	_path_strip(props, "ground_pathStraight.glb", Vector3(-8, 0.08, 0), "z", 6, 2.0, 0.0)
+	# Marshwatch camp cluster
+	props.append(_prop("campfire_planks.glb", Vector3(-8, 0, 4), 0.0, CAMPFIRE_SCALE))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(-10, 0, 5), 90.0, TENT_SMALL, true))
+	props.append(_prop("log_stack.glb", Vector3(-9, 0, 3), 0.0))
+	# Sunken village ruins
+	props.append(_prop("tent_detailedClosed.glb", Vector3(8, 0, 14), -30.0, TENT_LARGE, true))
+	props.append(_prop("statue_columnDamaged.glb", Vector3(6, 0, 16), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("statue_columnDamaged.glb", Vector3(10, 0, 15), 45.0, Vector3(1.0, 1.0, 1.0), true))
+	# Corrupted shrine side path
+	_path_strip(props, "ground_pathRocks.glb", Vector3(6, 0.06, 8), "z", 5, 2.0, 0.0)
+	props.append(_prop("statue_ring.glb", Vector3(8, 0, 12), 0.0, Vector3(1.15, 1.15, 1.15)))
+	props.append(_prop("mushroom_red.glb", Vector3(7, 0, 10), 0.0))
+	props.append(_prop("hanging_moss.glb", Vector3(5, 0, 11), 0.0))
+	# Reliquary approach
+	props.append(_prop("platform_stone.glb", Vector3(0, 0.04, 26), 0.0, Vector3(2.5, 1.0, 2.5)))
+	props.append(_prop("statue_column.glb", Vector3(-2, 0, 27), 15.0, Vector3(1.5, 1.8, 1.5), true))
+	props.append(_prop("statue_column.glb", Vector3(2, 0, 27), -15.0, Vector3(1.5, 1.8, 1.5), true))
+	# Dead trees as landmarks
+	props.append(_prop("tree_simple_dark.glb", Vector3(-12, 0, -6), 0.0, Vector3(2.2, 2.2, 2.2), true))
+	props.append(_prop("tree_tall_dark.glb", Vector3(12, 0, 0), 0.0, Vector3(2.0, 2.0, 2.0), true))
+	props.append(_prop("stump_oldTall.glb", Vector3(-4, 0, 8), 0.0, Vector3(1.3, 1.3, 1.3)))
+	props.append(_prop("stump_old.glb", Vector3(4, 0, 6), 0.0))
+	return {"props": props}
+
+
+static func _ashfall_highlands() -> Dictionary:
+	var props: Array = []
+	# Cinder Road into Stonewatch
+	_path_strip(props, "ground_pathStraight.glb", Vector3(-18, 0.08, 0), "x", 14, 2.0, 90.0)
+	_path_strip(props, "ground_pathStraight.glb", Vector3(-4, 0.08, 0), "x", 10, 2.0, 90.0)
+	_path_strip(props, "ground_pathRocks.glb", Vector3(8, 0.06, 0), "x", 14, 2.0, 90.0)
+	# Stonewatch walls and gate
+	props.append(_prop("fence_simpleHigh.glb", Vector3(-2, 0, -6), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("fence_simpleHigh.glb", Vector3(2, 0, -6), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("fence_gate.glb", Vector3(0, 0, -6.5), 0.0, Vector3(1.3, 1.3, 1.3), true))
+	props.append(_prop("platform_stone.glb", Vector3(0, 0.04, 0), 0.0, Vector3(3.0, 1.0, 3.0)))
+	props.append(_prop("campfire_bricks.glb", Vector3(0, 0, 2), 0.0, CAMPFIRE_SCALE))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(-4, 0, 3), 90.0, TENT_SMALL, true))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(4, 0, 3), -90.0, TENT_SMALL, true))
+	props.append(_prop("log_stack.glb", Vector3(-3, 0, -2), 0.0))
+	props.append(_prop("crate_open.glb", Vector3(3, 0, -2), 0.0))
+	# Collapsed rail line landmark
+	_path_strip(props, "ground_pathRocks.glb", Vector3(6, 0.05, -10), "z", 8, 2.0, 0.0)
+	props.append(_prop("statue_columnDamaged.glb", Vector3(8, 0, -14), 0.0, Vector3(1.1, 1.1, 1.1), true))
+	props.append(_prop("rock_largeA.glb", Vector3(10, 0, -12), 0.0, Vector3(1.6, 1.6, 1.6), true))
+	# Ember quarry / Blackvein approach
+	_path_strip(props, "ground_pathRocks.glb", Vector3(12, 0.06, 6), "z", 10, 2.0, 0.0)
+	props.append(_prop("cliff_block_rock.glb", Vector3(18, 0, 12), 0.0, Vector3(2.0, 2.0, 2.0), true))
+	props.append(_prop("platform_stone.glb", Vector3(22, 0.04, 18), 0.0, Vector3(3.5, 1.0, 3.5)))
+	props.append(_prop("statue_column.glb", Vector3(20, 0, 17), 0.0, Vector3(1.8, 2.0, 1.8), true))
+	props.append(_prop("statue_column.glb", Vector3(24, 0, 17), 180.0, Vector3(1.8, 2.0, 1.8), true))
+	# Burned woodland markers
+	props.append(_prop("tree_simple_dark.glb", Vector3(-10, 0, -12), 0.0, Vector3(2.0, 2.0, 2.0), true))
+	props.append(_prop("tree_simple_dark.glb", Vector3(-12, 0, -8), 45.0, Vector3(1.8, 1.8, 1.8), true))
+	props.append(_prop("stump_oldTall.glb", Vector3(-14, 0, 8), 0.0, Vector3(1.4, 1.4, 1.4)))
+	props.append(_prop("stump_old.glb", Vector3(-8, 0, 10), 30.0, Vector3(1.2, 1.2, 1.2)))
+	props.append(_prop("rock_tallA.glb", Vector3(14, 0, -6), 0.0, Vector3(1.5, 1.5, 1.5), true))
+	props.append(_prop("rock_largeB.glb", Vector3(-6, 0, -14), 0.0, Vector3(1.8, 1.8, 1.8), true))
+	props.append(_prop("cliff_block_stone.glb", Vector3(-18, 0, -6), 0.0, Vector3(2.2, 2.2, 2.2), true))
+	props.append(_prop("cliff_block_stone.glb", Vector3(28, 0, 4), 90.0, Vector3(2.5, 2.5, 2.5), true))
+	# Stonewatch outpost detail
+	props.append(_prop("fence_planksDouble.glb", Vector3(-6, 0, -4), 0.0, Vector3(1.1, 1.1, 1.1), true))
+	props.append(_prop("fence_planksDouble.glb", Vector3(6, 0, -4), 0.0, Vector3(1.1, 1.1, 1.1), true))
+	props.append(_prop("log_stackLarge.glb", Vector3(-5, 0, 5), 0.0, Vector3(1.2, 1.2, 1.2)))
+	props.append(_prop("crate_open.glb", Vector3(5, 0, 5), 0.0))
+	props.append(_prop("statue_obelisk.glb", Vector3(2, 0, 5), 0.0, Vector3(0.8, 1.2, 0.8), true))
+	# Rail and quarry industrial markers
+	props.append(_prop("log_stack.glb", Vector3(7, 0, -10), 90.0, Vector3(1.3, 1.3, 1.3)))
+	props.append(_prop("stone_largeA.glb", Vector3(9, 0, -8), 0.0, Vector3(1.4, 1.4, 1.4), true))
+	props.append(_prop("stone_smallA.glb", Vector3(13, 0, 5), 0.0, Vector3(1.5, 1.5, 1.5)))
+	props.append(_prop("stone_smallB.glb", Vector3(11, 0, 7), 0.0, Vector3(1.3, 1.3, 1.3)))
+	props.append(_prop("rock_smallA.glb", Vector3(16, 0, 10), 0.0, Vector3(1.6, 1.6, 1.6), true))
+	props.append(_prop("rock_smallB.glb", Vector3(19, 0, 15), 0.0, Vector3(1.4, 1.4, 1.4), true))
+	# Foundry approach and future pass road
+	_path_strip(props, "ground_pathRocks.glb", Vector3(24, 0.06, 2), "x", 8, 2.0, 90.0)
+	props.append(_prop("statue_columnDamaged.glb", Vector3(30, 0, 2), 0.0, Vector3(1.4, 1.6, 1.4), true))
+	props.append(_prop("fence_simpleCenter.glb", Vector3(22, 0, 16), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	return {"props": props}
+
+
+static func _frostgrave_expanse() -> Dictionary:
+	var props: Array = []
+	# Ashfall Mountain Pass → Pilgrim Road → Frostwatch
+	_path_strip(props, "ground_pathStraight.glb", Vector3(-18, 0.08, 0), "x", 14, 2.0, 90.0)
+	_path_strip(props, "ground_pathStraight.glb", Vector3(-4, 0.08, 0), "x", 10, 2.0, 90.0)
+	_path_strip(props, "ground_pathStraight.glb", Vector3(8, 0.08, 0), "x", 14, 2.0, 90.0)
+	# Frostwatch Bastion walls
+	props.append(_prop("fence_simpleHigh.glb", Vector3(-2, 0, -6), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("fence_simpleHigh.glb", Vector3(2, 0, -6), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("fence_gate.glb", Vector3(0, 0, -6.5), 0.0, Vector3(1.3, 1.3, 1.3), true))
+	props.append(_prop("platform_stone.glb", Vector3(0, 0.04, 0), 0.0, Vector3(3.0, 1.0, 3.0)))
+	props.append(_prop("campfire_bricks.glb", Vector3(0, 0, 2), 0.0, CAMPFIRE_SCALE))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(-4, 0, 3), 90.0, TENT_SMALL, true))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(4, 0, 3), -90.0, TENT_SMALL, true))
+	props.append(_prop("log_stackLarge.glb", Vector3(-3, 0, -2), 0.0))
+	props.append(_prop("statue_obelisk.glb", Vector3(2, 0, 5), 0.0, Vector3(0.9, 1.4, 0.9), true))
+	# Buried village / glacier route
+	_path_strip(props, "ground_pathStraight.glb", Vector3(12, 0.06, 6), "z", 10, 2.0, 0.0)
+	props.append(_prop("statue_columnDamaged.glb", Vector3(10, 0, -10), 0.0, Vector3(1.2, 1.4, 1.2), true))
+	props.append(_prop("cliff_block_stone.glb", Vector3(14, 0, -8), 0.0, Vector3(1.8, 1.8, 1.8), true))
+	props.append(_prop("rock_largeA.glb", Vector3(16, 0, 10), 0.0, Vector3(1.5, 1.5, 1.5), true))
+	# Deadwood tundra
+	props.append(_prop("tree_simple_dark.glb", Vector3(-10, 0, -12), 0.0, Vector3(2.0, 2.0, 2.0), true))
+	props.append(_prop("stump_oldTall.glb", Vector3(-14, 0, 8), 0.0, Vector3(1.4, 1.4, 1.4)))
+	# Paleheart approach
+	props.append(_prop("statue_column.glb", Vector3(20, 0, 17), 0.0, Vector3(1.8, 2.0, 1.8), true))
+	props.append(_prop("statue_column.glb", Vector3(24, 0, 17), 180.0, Vector3(1.8, 2.0, 1.8), true))
+	props.append(_prop("platform_stone.glb", Vector3(22, 0.04, 18), 0.0, Vector3(3.5, 1.0, 3.5)))
+	# Future coast gate road
+	_path_strip(props, "ground_pathStraight.glb", Vector3(24, 0.06, 2), "x", 8, 2.0, 90.0)
+	props.append(_prop("statue_columnDamaged.glb", Vector3(30, 0, 2), 0.0, Vector3(1.4, 1.6, 1.4), true))
+	return {"props": props}
+
+
+static func _shattered_coast() -> Dictionary:
+	var props: Array = []
+	# Frostgrave descent → Wreckshore → Tidewatch
+	_path_strip(props, "ground_pathRocks.glb", Vector3(-18, 0.08, 0), "x", 14, 2.0, 90.0)
+	_path_strip(props, "ground_pathRocks.glb", Vector3(-4, 0.08, 0), "x", 10, 2.0, 90.0)
+	_path_strip(props, "ground_pathRocks.glb", Vector3(8, 0.08, 0), "x", 14, 2.0, 90.0)
+	# Tidewatch Refuge — salvaged fort
+	props.append(_prop("fence_simpleHigh.glb", Vector3(-2, 0, -6), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("fence_simpleHigh.glb", Vector3(2, 0, -6), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("fence_gate.glb", Vector3(0, 0, -6.5), 0.0, Vector3(1.3, 1.3, 1.3), true))
+	props.append(_prop("platform_stone.glb", Vector3(0, 0.04, 0), 0.0, Vector3(3.2, 1.0, 3.2)))
+	props.append(_prop("campfire_bricks.glb", Vector3(0, 0, 2), 0.0, CAMPFIRE_SCALE))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(-4, 0, 3), 90.0, TENT_SMALL, true))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(4, 0, 3), -90.0, TENT_SMALL, true))
+	props.append(_prop("log_stackLarge.glb", Vector3(-3, 0, -2), 0.0))
+	props.append(_prop("statue_obelisk.glb", Vector3(2, 0, 5), 0.0, Vector3(0.9, 1.4, 0.9), true))
+	props.append(_prop("fence_simpleCenter.glb", Vector3(-5, 0, 0), 90.0, Vector3(1.1, 1.1, 1.1), true))
+	props.append(_prop("fence_simpleCenter.glb", Vector3(5, 0, 0), -90.0, Vector3(1.1, 1.1, 1.1), true))
+	# Wreckshore shipwrecks
+	props.append(_prop("cliff_block_rock.glb", Vector3(-12, 0, -8), 0.0, Vector3(1.6, 1.6, 1.6), true))
+	props.append(_prop("rock_largeA.glb", Vector3(-14, 0, -10), 45.0, Vector3(1.8, 1.4, 2.2), true))
+	props.append(_prop("rock_largeB.glb", Vector3(-10, 0, -12), -30.0, Vector3(2.0, 1.2, 1.8), true))
+	props.append(_prop("statue_columnDamaged.glb", Vector3(-11, 0, -9), 0.0, Vector3(1.3, 1.5, 1.3), true))
+	# Broken Harbor docks
+	_path_strip(props, "ground_pathRocks.glb", Vector3(10, 0.06, -6), "z", 8, 2.0, 0.0)
+	props.append(_prop("fence_simpleLow.glb", Vector3(12, 0, -8), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("fence_simpleLow.glb", Vector3(14, 0, -10), 0.0, Vector3(1.2, 1.2, 1.2), true))
+	# Drowned Village ruins
+	_path_strip(props, "ground_pathRocks.glb", Vector3(12, 0.06, 6), "z", 10, 2.0, 0.0)
+	props.append(_prop("statue_columnDamaged.glb", Vector3(10, 0, 10), 0.0, Vector3(1.2, 1.4, 1.2), true))
+	props.append(_prop("cliff_block_stone.glb", Vector3(14, 0, 8), 0.0, Vector3(1.8, 1.8, 1.8), true))
+	# Stormglass Cliffs
+	props.append(_prop("cliff_block_rock.glb", Vector3(16, 0, 4), 0.0, Vector3(2.0, 2.0, 2.0), true))
+	props.append(_prop("rock_tallA.glb", Vector3(18, 0, 6), 0.0, Vector3(1.5, 1.8, 1.5), true))
+	# Citadel Causeway
+	_path_strip(props, "ground_pathRocks.glb", Vector3(18, 0.06, 14), "z", 6, 2.0, 0.0)
+	props.append(_prop("statue_column.glb", Vector3(20, 0, 17), 0.0, Vector3(1.8, 2.0, 1.8), true))
+	props.append(_prop("statue_column.glb", Vector3(24, 0, 17), 180.0, Vector3(1.8, 2.0, 1.8), true))
+	props.append(_prop("platform_stone.glb", Vector3(22, 0.04, 18), 0.0, Vector3(3.5, 1.0, 3.5)))
+	# Distant lighthouse silhouette
+	props.append(_prop("statue_obelisk.glb", Vector3(28, 0, -14), 0.0, Vector3(1.6, 2.4, 1.6), true))
+	# Future Blightreach road
+	_path_strip(props, "ground_pathRocks.glb", Vector3(24, 0.06, 2), "x", 8, 2.0, 90.0)
+	props.append(_prop("statue_columnDamaged.glb", Vector3(30, 0, 2), 0.0, Vector3(1.4, 1.6, 1.4), true))
+	return {"props": props}
+
+
+static func _blightreach() -> Dictionary:
+	var props: Array = []
+	_path_strip(props, "ground_pathRocks.glb", Vector3(-18, 0.08, 0), "x", 14, 2.0, 90.0)
+	_path_strip(props, "ground_pathRocks.glb", Vector3(-4, 0.08, 0), "x", 10, 2.0, 90.0)
+	_path_strip(props, "ground_pathRocks.glb", Vector3(8, 0.08, 0), "x", 14, 2.0, 90.0)
+	props.append(_prop("fence_simpleHigh.glb", Vector3(-3, 0, -5), 0.0, Vector3(1.3, 1.3, 1.3), true))
+	props.append(_prop("fence_simpleHigh.glb", Vector3(3, 0, -5), 0.0, Vector3(1.3, 1.3, 1.3), true))
+	props.append(_prop("fence_gate.glb", Vector3(0, 0, -5.5), 0.0, Vector3(1.3, 1.3, 1.3), true))
+	props.append(_prop("platform_stone.glb", Vector3(0, 0.04, 0), 0.0, Vector3(3.4, 1.0, 3.4)))
+	props.append(_prop("campfire_bricks.glb", Vector3(0, 0, 2), 0.0, CAMPFIRE_SCALE))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(-4, 0, 3), 90.0, TENT_SMALL, true))
+	props.append(_prop("tent_detailedClosed.glb", Vector3(4, 0, 3), -90.0, TENT_SMALL, true))
+	props.append(_prop("fence_simpleCenter.glb", Vector3(-6, 0, 0), 90.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("fence_simpleCenter.glb", Vector3(6, 0, 0), -90.0, Vector3(1.2, 1.2, 1.2), true))
+	props.append(_prop("statue_obelisk.glb", Vector3(2, 0, 5), 0.0, Vector3(0.85, 1.3, 0.85), true))
+	props.append(_prop("fence_simpleLow.glb", Vector3(-10, 0, -8), 0.0, Vector3(1.1, 1.1, 1.1), true))
+	props.append(_prop("log_stackLarge.glb", Vector3(-12, 0, -6), 0.0))
+	props.append(_prop("statue_columnDamaged.glb", Vector3(-11, 0, -10), 0.0, Vector3(1.2, 1.4, 1.2), true))
+	_path_strip(props, "ground_pathRocks.glb", Vector3(10, 0.06, -4), "z", 10, 2.0, 0.0)
+	props.append(_prop("cliff_block_stone.glb", Vector3(12, 0, -8), 0.0, Vector3(1.6, 1.6, 1.6), true))
+	_path_strip(props, "ground_pathRocks.glb", Vector3(12, 0.06, 6), "z", 8, 2.0, 0.0)
+	props.append(_prop("statue_columnDamaged.glb", Vector3(14, 0, 8), 0.0, Vector3(1.3, 1.5, 1.3), true))
+	_path_strip(props, "ground_pathRocks.glb", Vector3(16, 0.06, 12), "z", 6, 2.0, 0.0)
+	props.append(_prop("statue_column.glb", Vector3(18, 0, 14), 0.0, Vector3(1.6, 1.8, 1.6), true))
+	_path_strip(props, "ground_pathRocks.glb", Vector3(18, 0.06, 16), "z", 4, 2.0, 0.0)
+	props.append(_prop("statue_column.glb", Vector3(20, 0, 17), 0.0, Vector3(2.2, 2.6, 2.2), true))
+	props.append(_prop("statue_column.glb", Vector3(24, 0, 17), 180.0, Vector3(2.2, 2.6, 2.2), true))
+	props.append(_prop("platform_stone.glb", Vector3(22, 0.04, 18), 0.0, Vector3(4.0, 1.2, 4.0)))
+	props.append(_prop("statue_obelisk.glb", Vector3(22, 0, 20), 0.0, Vector3(2.0, 3.2, 2.0), true))
+	_path_strip(props, "ground_pathRocks.glb", Vector3(24, 0.06, 2), "x", 8, 2.0, 90.0)
+	props.append(_prop("statue_columnDamaged.glb", Vector3(30, 0, 2), 0.0, Vector3(1.5, 1.7, 1.5), true))
 	return {"props": props}

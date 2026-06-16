@@ -14,6 +14,8 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if _player == null or not _player.is_alive():
 		return
+	if InputManager.gameplay_input_blocked() or get_tree().paused:
+		return
 	var idx := _player.player_index
 	if InputManager.is_action_just_pressed("quick_heal", idx):
 		_try_quick_heal()

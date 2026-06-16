@@ -1,0 +1,177 @@
+Vertical Slice Playtest / QA / Balance / Release-Readiness Report
+=================================================================
+Date: 2026-06-10
+Scope: Bugfix-only polish for demo path, early balance, save/load, performance, controller readiness
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0**
+Script errors found/fixed this pass:
+* Co-op boss camera referenced undefined `midpoint` in `camera_rig.gd` — fixed
+* `rebuild_the_forge` turn-in used `remove_item` instead of `consume_combined` — fixed (base storage soft-lock)
+* `Wake the Stone` crystal shards had no harvest nodes on demo route — fixed
+
+Known warnings: none logged at startup after this pass.
+
+---
+
+## Demo Path Result
+
+| Step | Status | Notes |
+|------|--------|-------|
+| Spawn at Darkpine outpost | PASS (code) | Spawn marker + safe placement preserved |
+| Intro appears once | PASS (code) | `VerticalSliceFlow.opening_shown` + save persist |
+| Tutorials once, not spam | PASS (code) | Staggered delays; seen-state in save |
+| Raider Trainee | PASS (code) | Moved to (6,-3), detection 6m, 35 HP / 5 dmg |
+| Reach Hearthhold | PASS (code) | `reach_hearthhold` objective + region hook |
+| Blacksmith mission | PASS (code) | Existing NPC mission flow |
+| Metal Scraps / Fire Resin | IMPROVED | +1 scrap pile, scrap drops 2–4, consume_combined turn-in |
+| Craft/repair | PASS (code) | Workbench/forge + rusty sword 50 durability |
+| Waystone Keeper / Wake the Stone | IMPROVED | 3 crystal nodes near Darkpine Waystone |
+| Wounded Scout / bandits | PASS (code) | Existing hooks |
+| Demo completion message | PASS (code) | `demo_complete_shown` guard; captain single toast |
+| Save/continue | PASS (code) | Milestone autosave debounced; tutorial/vslice in save |
+
+Manual in-game confirmation still recommended for full checklist below.
+
+---
+
+## Balance Notes
+
+| Area | Tuning |
+|------|--------|
+| Starting gear | Rusty Sword 12 dmg, 50 max durability; Traveler Cloak +10 HP; 2 bandages (25 heal each) |
+| Raider Trainee | 35 HP, 5 dmg, level 1, 6m detection — teaching encounter |
+| First bandits (scene) | Forest Bandit 60 HP / 10 dmg — unchanged; trainee separated from scene bandit at (8,-6) |
+| Bandit Captain | 140 HP / 18 dmg — challenging; demo completion on defeat |
+| Resource availability | 3 scrap piles (2–4 scrap each), 2 fire resin nodes, 3 crystal shards on Waystone path |
+| Scrap turn-in | Inventory + base storage both work via `consume_combined` |
+| Co-op | Easier via shared inventory/revive; camera zoom floor 2.0m |
+| Pet | Unchanged — assists without carrying encounters |
+
+---
+
+## Steam Deck / Controller Notes
+
+| Area | Status |
+|------|--------|
+| 1280x800 HUD | Preserved from prior passes; quest tracker uses FONT_META/LG |
+| Controller labels | Tutorial prompts use `UiInputLabels` dual keyboard/pad text |
+| Map/quest menus | Menu owner blocking preserved |
+| Co-op P2 HUD | Compact vitals row unchanged |
+| Inventory/Forge | Existing controller nav; crafting tutorial on first use |
+
+No new UI redesign in this pass. Obvious blockers not found in code review.
+
+---
+
+## Save/Load Notes
+
+| Area | Status |
+|------|--------|
+| Solo continue | Slot 0 milestone autosave + manual pause/altar |
+| Co-op continue | v3 progress_all preserved |
+| Tracked objective | Quest serialize + ObjectiveRouter cache invalidates on load |
+| Tutorial seen state | `tutorial` block in save |
+| Vertical slice state | `vertical_slice` block in save |
+| Milestone autosave | 3s debounce; skips combat/boss/spawn/transition |
+| Duplicated rewards | Turn-in consume guard prevents double-spend |
+
+---
+
+## Performance / Stability Fixes (Low-Risk)
+
+* Quest HUD distance updates throttled to 0.35s (was every frame)
+* ObjectiveRouter caches tracked target between invalidations
+* Milestone autosave debounced and combat-gated
+* Objective progress toasts throttled to milestones (1, half, near-complete)
+* Opening tutorial toasts staggered after intro
+
+---
+
+## Manual Verification Checklist
+
+1. [ ] Solo New Game starts safely.
+2. [ ] Local Co-op starts safely.
+3. [ ] Intro appears once.
+4. [ ] Tutorial prompts do not spam.
+5. [ ] Starting gear equips correctly.
+6. [ ] Starting bandages appear in quick slot.
+7. [ ] Raider Trainee is fair.
+8. [ ] Hearthhold objective routes correctly.
+9. [ ] Hearthhold arrival advances objective.
+10. [ ] Old Blacksmith mission can be accepted.
+11. [ ] Metal Scraps can be gathered.
+12. [ ] Fire Resin can be gathered.
+13. [ ] Resource objective progresses.
+14. [ ] Return-to-blacksmith objective works.
+15. [ ] Workbench/Forge is usable.
+16. [ ] Repair Kit or repair flow works.
+17. [ ] Waystone Keeper mission can be accepted.
+18. [ ] Crystal Shards can be gathered.
+19. [ ] Waystone unlocks correctly.
+20. [ ] Waystone appears on map.
+21. [ ] Wounded Scout mission can be accepted.
+22. [ ] Bandit kills count correctly.
+23. [ ] Bandit Captain or elite encounter works.
+24. [ ] Demo completion toast appears.
+25. [ ] Save after demo completion works.
+26. [ ] Continue after demo completion restores state.
+27. [ ] Quest tracker restores tracked objective.
+28. [ ] Map markers remain correct after load.
+29. [ ] Pet remains stable.
+30. [ ] Spellcasting remains stable.
+31. [ ] Equipment durability remains stable.
+32. [ ] Gem/socket state remains stable.
+33. [ ] NPC anger does not soft-lock critical progression.
+34. [ ] Co-op revive still works.
+35. [ ] Co-op Waystone travel still works.
+36. [ ] Co-op camera remains readable.
+37. [ ] P2 HUD remains readable.
+38. [ ] Controller navigation works in core menus.
+39. [ ] Steam Deck 1280x800 text is readable.
+40. [ ] No new script errors.
+41. [ ] `.\start game.ps1` exits 0.
+
+---
+
+## Known Limitations (After This Pass)
+
+* Crystal shards placed on Darkpine Waystone path for demo reachability; Crystal Cave also has nodes but may require separate travel
+* Milestone autosave writes slot 0 without overwrite prompt
+* Bandit Captain remains a late-demo challenge at (-18,-12)
+* No automated playtest harness — manual checklist required
+* Map remains placeholder art; no new regions
+* Inherited: no branching story, faction rep, anger decay, apology tasks, legacy merchant_errand
+
+---
+
+## Files Modified (Key)
+
+`camera_rig.gd`, `objective_router.gd`, `npc_mission_hooks.gd`, `save_manager.gd`, `game_hud.gd`, `region_content.gd`, `loot_manager.gd`, `item_database.gd`, `vertical_slice_flow.gd`
+
+---
+
+## Demo Packaging / RC Pass Summary
+
+Date: 2026-06-10
+
+Documentation-only pass for manual playtest / release-candidate readiness:
+
+* **PLAYTEST_README.md** — build/run, solo and co-op demo paths, controls (actual InputMap bindings), known limitations, save/reset paths, Steam Deck notes
+* **tests/production_export_settings_report.txt** — project/display/input/save review; no export_presets.cfg in repo
+* **tests/production_demo_release_candidate_report.txt** — 38-item RC checklist with honest manual vs code-verified status
+
+**Readiness recommendation:** Ready for manual playtest (editor runtime via `.\start game.ps1`). Standalone export not yet configured — add Windows/Linux presets before shipping a binary.
+
+---
+
+## Manual Playtest / Blocker Fix Pass Summary
+
+Date: 2026-06-16
+
+* **tests/manual_playtest_session_log.txt** — session log (interactive playtest NOT performed by agent; headless boot verification only)
+* Headless boot found compile blockers preventing new-game player spawn — fixed in 8 files
+* Post-fix: `verify_gameplay_boot.gd` exit 0; `.\start game.ps1` exit 0
+* **Manual playtest execution still required** for full solo/co-op demo path

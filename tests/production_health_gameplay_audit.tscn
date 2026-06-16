@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://production_health_audit"]
+
+[ext_resource type="Script" path="res://tests/production_health_gameplay_audit.gd" id="1"]
+
+[node name="ProductionHealthAudit" type="Node"]
+script = ExtResource("1")

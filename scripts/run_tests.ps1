@@ -102,10 +102,22 @@ $proc = New-Object System.Diagnostics.Process
 $proc.StartInfo = $psi
 $null = $proc.Start()
 
+$maxRunSeconds = 180
+$runDeadline = (Get-Date).AddSeconds($maxRunSeconds)
+$lastOutputAt = Get-Date
+
 while (-not $proc.HasExited) {
+    if ((Get-Date) -gt $runDeadline) {
+        try { $proc.Kill() } catch {}
+        Write-Host "[FAIL] Test runner exceeded ${maxRunSeconds}s - terminated"
+        $logBuffer.Add("[FAIL] Test runner exceeded ${maxRunSeconds}s - terminated") | Out-Null
+        $failCount++
+        break
+    }
     $stdoutLine = $proc.StandardOutput.ReadLine()
     while ($null -ne $stdoutLine) {
         Process-TestLine -Line $stdoutLine -PassCount ([ref]$passCount) -FailCount ([ref]$failCount) -LogBuffer $logBuffer
+        $lastOutputAt = Get-Date
         $stdoutLine = $proc.StandardOutput.ReadLine()
     }
 
@@ -128,6 +140,7 @@ while (-not $proc.HasExited) {
 }
 
 while ($true) {
+    if ($proc.HasExited) { break }
     $stdoutLine = $proc.StandardOutput.ReadLine()
     if ($null -eq $stdoutLine) { break }
     Process-TestLine -Line $stdoutLine -PassCount ([ref]$passCount) -FailCount ([ref]$failCount) -LogBuffer $logBuffer

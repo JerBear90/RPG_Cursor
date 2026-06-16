@@ -6,12 +6,12 @@ signal fast_travel_started(destination_id: String)
 
 var discovered: Array[String] = []
 var hearthhold_unlocked: bool = false
+var last_waystone_position: Vector3 = Vector3.ZERO
 
 
 func reset_for_new_game() -> void:
 	discovered.clear()
-	if hearthhold_unlocked:
-		discovered.append("hearthhold_camp")
+	hearthhold_unlocked = false
 
 
 func discover(waystone_id: String, world_position: Vector3 = Vector3.ZERO) -> void:
@@ -30,6 +30,8 @@ func discover(waystone_id: String, world_position: Vector3 = Vector3.ZERO) -> vo
 func can_fast_travel(destination_id: String) -> bool:
 	if GameManager.in_combat or GameManager.in_boss_fight:
 		return false
+	if DialogueManager.is_active() or GameManager.is_paused:
+		return false
 	if destination_id not in discovered:
 		return false
 	if destination_id == "hearthhold_camp" and not hearthhold_unlocked:
@@ -42,9 +44,14 @@ func can_fast_travel(destination_id: String) -> bool:
 func fast_travel(destination_id: String) -> bool:
 	if not can_fast_travel(destination_id):
 		return false
+	if GameManager.is_local_coop():
+		var leader := GameManager.get_player(0)
+		var yaw: float = (leader as Node3D).rotation.y if leader is Node3D else 0.0
+		GameManager.pull_distant_companions(last_waystone_position, yaw, GameManager.COOP_TRAVEL_RADIUS)
 	fast_travel_started.emit(destination_id)
+	WorldStateManager.set_fast_travel_destination(destination_id)
 	var scene_path := "res://scenes/levels/%s/%s.tscn" % [destination_id, destination_id]
-	SceneTransitionManager.change_scene(scene_path, "waystone_spawn")
+	SceneTransitionManager.change_scene(scene_path, "waystone_%s" % destination_id)
 	return true
 
 

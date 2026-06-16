@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3 uid="uid://tideboundsovereign001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+[ext_resource type="Script" path="res://scripts/enemies/bosses/tidebound_sovereign.gd" id="2"]
+
+[node name="TideboundSovereign" instance=ExtResource("1")]
+script = ExtResource("2")
+enemy_id = "tidebound_sovereign"
+display_name = "The Tidebound Sovereign"
+enemy_level = 16
+max_health = 580.0
+damage = 28.0
+move_speed = 3.2
+detection_range = 0.0
+attack_range = 3.4
+loot_table_id = "tidebound_sovereign"
+xp_reward = 280
+experience_reward = 260
+respawns = false
+head_bar_offset = 3.2
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Matt_SingleWeapon.gltf"
+
+[node name="StormCore" type="OmniLight3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0.15)
+light_color = Color(0.45, 0.72, 1, 1)
+light_energy = 1.1
+omni_range = 5.5
+
+[node name="CrownGlow" type="OmniLight3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.0, 0)
+light_color = Color(0.55, 0.45, 0.95, 1)
+light_energy = 0.65
+omni_range = 3.0

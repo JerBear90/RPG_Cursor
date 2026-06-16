@@ -11,9 +11,9 @@ size = Vector3(1, 1, 1)
 collision_layer = 1
 script = ExtResource("1")
 health = 28.0
-resource_id = "wood"
-resource_yield = 2
-drop_table_id = ""
+resource_id = ""
+resource_yield = 0
+drop_table_id = "destructible_crate"
 
 [node name="KenneyVisual" type="Node3D" parent="."]
 script = ExtResource("3")

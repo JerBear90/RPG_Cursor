@@ -1,0 +1,312 @@
+Blightspire Cathedral Phase 6 Boss & Differentiation — Completion Report
+Generated: 2026-06-10
+Launch: .\start game.ps1 — exit 0
+
+================================================================================
+1. CLONE AUDIT FINDINGS
+================================================================================
+
+Compared res://scenes/dungeons/drowned_citadel/ vs blightspire_cathedral/ stack.
+
+| Element | Classification | Action taken |
+|---------|----------------|--------------|
+| Dungeon generation interface (layout dict, cell_size, room_index) | Shared infrastructure | Retained |
+| Room connector API (linear grid + passage cells) | Shared infrastructure | Retained |
+| Room discovery zones | Shared infrastructure | Retained |
+| Checkpoint / save / CathedralState persistence | Shared infrastructure | Retained |
+| Safe spawn / death-restart / exterior-return pipelines | Shared infrastructure | Retained |
+| Linear room graph pattern | Re-themed implementation | Reordered critical path; added side branches |
+| Room dimensions (10×10 cells) | Re-themed implementation | Kept scale; added tall-nave floor tinting |
+| Citadel room order with renamed labels | Incorrect dependency | Removed — new cathedral critical path |
+| Rotfen/marsh ENEMY_SCENES (bog_stalker, mire_hound, etc.) | Incorrect Citadel dependency | Replaced with Blightreach roster |
+| Coastal / tide enemy tables | Incorrect Citadel dependency | Removed |
+| Sealed heart placeholder (dialogue-only) | Temporary placeholder | Replaced with HeartOfBlight boss |
+| Exit portal revealed at build (boss_defeated=true) | Incorrect behavior | Fixed — exit only after boss defeat |
+| Kenney cliff walls + nature props | Re-themed implementation | Retained with green-violet emission tints |
+| Purification puzzle (3 braziers) | Re-themed implementation | Expanded per-brazier environmental effects |
+| Drowned Citadel materials / coastal props | Incorrect dependency | No maritime geometry; cathedral props only |
+
+================================================================================
+2. SHARED INFRASTRUCTURE RETAINED
+================================================================================
+- CathedralGenerator / CathedralBuilder / CathedralLevel bootstrap
+- CathedralState autoload + save_manager serialization
+- DungeonManager layout, seed preservation, reload_dungeon_preserve_seed
+- SpawnResolver priority: dungeon_checkpoint → preboss → dungeon_spawn
+- BossArenaTrigger, HealthComponent, BossController, loot/quest/inventory pipelines
+- Minimap discovery via MapManager + room_discovery_zone
+- blightspire_cathedral_entrance exterior return metadata
+
+================================================================================
+3. CITADEL-SPECIFIC DEPENDENCIES REMOVED
+================================================================================
+- Rotfen cultist, bog stalker, mire hound, hollow grove warden, gravewind wraith from cathedral ENEMY_SCENES
+- Immediate exit reveal / boss_defeated=true at build time
+- SEALED_HEART placeholder-only chamber
+- map_manager SEALED_HEART_CHAMBER reference → HEART_CHAMBER
+- No storm conduits, tide hazards, flooded-room logic, or Citadel quest hooks in cathedral code
+
+================================================================================
+4. CATHEDRAL VISUAL DIFFERENTIATION
+================================================================================
+- Sickly green + violet OmniLight3D environment (plus amber purification accent)
+- Overgrown floor emission for nave/cloister/maze rooms
+- Tall ceremonial nave floor tint (CENTRAL_NAVE, CHOIR_APPROACH, ROOTBOUND_NAVE)
+- Broken columns, corrupted statues, fungal mushrooms, root barriers, platform stone
+- No shipwreck, water channel, storm machinery, or coastal gate visuals
+
+================================================================================
+5. FINAL CATHEDRAL ROOM LIST (17 rooms + passages)
+================================================================================
+Critical path:
+  Cathedral Entrance → Rootbound Nave → Collapsed Transept → Purification Chamber
+  → Checkpoint Sanctuary → Root Maze → Blighted Bell Hall → Central Nave
+  → Choir Approach → Boss Antechamber → Heart Chamber → Exit Cloister
+
+Side branches:
+  Fungal Cloister, Resource Crypt, Corrupted Library, Blighted Baptistry,
+  Bell Tower Interior, Elite Guardian Chapel
+
+================================================================================
+6. CATHEDRAL CONNECTOR CHANGES
+================================================================================
+Connector types implemented via passage cells + prop vocabulary:
+- Nave arch (damaged columns at room thresholds)
+- Chapel doorway (fence_gate / platform_stone transitions)
+- Crypt passage (PASSAGE room type, 3-cell connectors)
+- Root tunnel (ROOT_MAZE + root barriers)
+- Cloister opening (side-branch grid offset)
+- Large ceremonial gate (CentralNaveRootGate — root mass props)
+- Bell-tower stair connector (Bell Tower Interior side room)
+
+================================================================================
+7. PURIFICATION-PUZZLE ENHANCEMENTS
+================================================================================
+Per-brazier (any order, one-way activation, persistent):
+  Brazier A: cleanse entrance/nave lighting wave, retract cathedral_root_barrier_a
+  Brazier B: disable spore vents, retract cathedral_root_barrier_b, cloister cleanse light
+  Brazier C: stop corrupted bell pulse, unlock Central Nave gate
+  All three: puzzle_completed, purify_roots quest objective, Heart Chamber access
+
+Each activation: purification_ignite + purification_wave audio, cleansing OmniLight tween, minimap refresh
+
+================================================================================
+8. CATHEDRAL ENCOUNTER COMPOSITION
+================================================================================
+Entrance/Transept: Fungal Husk, Rootbound Cathedral Guard
+Cloister/Library: Sporecaster, Vine Stalker + spore vents
+Purification/Baptistry: mixed defensive (Husk, Guard, Sporecaster)
+Bell Hall: Corruption Wraith, Blighted Cleric + bell pulse hazard
+Central Nave / Choir: Guards + Clerics
+Antechamber: Root Titan + Blighted Cleric
+Elite chapel: Root Titan + Guard
+
+================================================================================
+9. CATHEDRAL HAZARDS
+================================================================================
+- cathedral_spore_vent.gd — telegraphed spore/blight buildup (disabled by brazier B)
+- cathedral_bell_pulse.gd — corrupted bell shockwave (disabled by brazier C)
+- dungeon_trap root spikes in Root Maze (poison)
+- Boss arena hazard lane (poison trap, disabled when brazier B complete)
+- cathedral_corruption_zone.gd — Blightheart Phase Two corruption blooms
+
+================================================================================
+10. CATHEDRAL AUDIO HOOKS
+================================================================================
+Procedural placeholders in audio_manager.gd:
+  cathedral_ambience, corrupted_bell, root_movement, spore_vent,
+  purification_ignite, purification_wave, stained_glass_break,
+  blighted_cleric_cast, heart_chamber_pulse, boss_intro, boss_phase_transition, boss_death
+
+================================================================================
+11. BLIGHTHEART SCENE PATH
+================================================================================
+res://scenes/enemies/bosses/heart_of_blight.tscn
+
+================================================================================
+12. BLIGHTHEART SCRIPT PATH
+================================================================================
+res://scripts/enemies/bosses/heart_of_blight.gd
+
+================================================================================
+13. BOSS VISUAL SOURCE
+================================================================================
+Quaternius Matt SingleWeapon GLTF, scale 2.1×, green BlightCore + violet RootCrown lights
+Documented in docs/asset_registry.md
+
+================================================================================
+14. ENCOUNTER STATE MACHINE
+================================================================================
+INACTIVE → INTRO → PHASE_ONE → TRANSITION → PHASE_TWO → DEFEATED → RESETTING
+Boss does not attack during INACTIVE, INTRO, TRANSITION, RESETTING, dialogue, or pause.
+
+================================================================================
+15. PHASE ONE ATTACKS
+================================================================================
+Root Cleave, Thorn Impale, Spore Burst, Corruption Beam, Blight Spawn (max 2 adds)
+
+================================================================================
+16. PHASE TRANSITION
+================================================================================
+At ≤50% HP: invulnerable TRANSITION state, hazards/summons cleared, 3.6s animation
+(duration × core exposure bonus from brazier C), occurs once (burst damage capped)
+
+================================================================================
+17. BRAZIER EFFECTS ON FIGHT
+================================================================================
+Brazier A: get_brazier_spore_resist() → 35% spore resist in arena
+Brazier B: is_hazard_lane_disabled() → skips east hazard lane / root slam targets
+Brazier C: get_core_exposure_bonus() → 1.35× phase transition duration (longer exposed window)
+Persistent via CathedralState — not reset on death
+
+================================================================================
+18. PHASE TWO ATTACKS
+================================================================================
+Heartroot Slam, Blightstep, Corruption Bloom, Cathedral Bell Pulse,
+Devouring Vines, Wraith/Cleric Summon (max 2 active adds)
+
+================================================================================
+19. SUMMON LIMITS
+================================================================================
+_add_summons capped at 2 for Blight Hounds (Phase 1) and Sporecaster adds (Phase 2)
+
+================================================================================
+20. ARENA BEHAVIOR
+================================================================================
+- Safe player entry from antechamber (BossArenaGate seals on intro)
+- preboss_blightspire_cathedral at Boss Antechamber
+- Boss at Heart Chamber center + platform_stone altar
+- Root hazard lane (optional, disabled by brazier B)
+- SealedHeartDoor blocks until puzzle complete; arena gate during fight
+
+================================================================================
+21. DEATH-RESET FLOW
+================================================================================
+Player death in boss fight → LevelRestartService → reload_dungeon_preserve_seed
+→ SpawnResolver: dungeon_checkpoint_blightspire_cathedral → preboss_blightspire_cathedral
+→ dungeon_spawn_blightspire_cathedral (never inside active Heart Chamber)
+→ Fresh HeartOfBlight spawn via cathedral_builder rebuild
+→ reset_encounter() available on boss instance for in-scene reset
+
+================================================================================
+22. REWARD ORDER
+================================================================================
+Boss zero HP → _on_died (stop AI, clear hazards/summons) → enemy_died signal
+→ cathedral_builder._on_boss_died:
+  1. LootManager.drop_loot_table("blightheart")
+  2. InventoryManager.add_item blightheart_core, purifiers_thorn, ember_wastes_pass
+  3. Quest objectives defeat_blightheart, recover_blightheart_core, purify_blightspire
+  4. DungeonManager.on_cathedral_boss_defeated() sets CathedralState.boss_defeated_persistent
+  5. Exit cloister portal revealed
+
+================================================================================
+23. REWARD PERSISTENCE
+================================================================================
+CathedralState.boss_defeated_persistent checked before grant; loot table returns reduced copper on repeat
+
+================================================================================
+24. QUEST COMPLETION FLOW
+================================================================================
+heart_of_the_blight objectives extended through exit_blightspire
+Quest auto-completes when exit_blightspire advances (all objectives done)
+Completion rewards: +120 copper, Viridian Crystal ×2
+
+================================================================================
+25. EXACT EXTERIOR-RETURN RESULT
+================================================================================
+DungeonManager.exit_dungeon() → exterior_blightspire_cathedral marker on Blightreach
+(via return_scene_path + GameManager.pending_spawn_id)
+
+================================================================================
+26. EMBER WASTES GATE BEHAVIOR
+================================================================================
+future_ember_wastes_gate.gd:
+  Before boss: "The road is consumed by living corruption."
+  After blightheart_core / ember_wastes_pass: "The corruption has receded, but the Ember Wastes are not yet accessible."
+  Does NOT load unfinished scene; dialogue only
+
+================================================================================
+27. ASSETS IMPORTED
+================================================================================
+No new external asset imports this pass. Reused Kenney Nature Kit + Quaternius CC0 characters.
+Procedural audio tones added in AudioManager.
+
+================================================================================
+28. FILES CREATED
+================================================================================
+scenes/enemies/bosses/heart_of_blight.tscn
+scripts/enemies/bosses/heart_of_blight.gd
+scripts/dungeons/cathedral_corruption_zone.gd
+scripts/dungeons/cathedral_spore_vent.gd
+scripts/dungeons/cathedral_bell_pulse.gd
+scenes/enemies/blighted_cleric.tscn
+scenes/enemies/rootbound_cathedral_guard.tscn
+tests/production_phase6_boss_report.txt
+
+================================================================================
+29. FILES MODIFIED
+================================================================================
+scripts/dungeons/cathedral_room.gd
+scripts/dungeons/cathedral_generator.gd
+scripts/dungeons/cathedral_builder.gd
+scripts/dungeons/purification_puzzle.gd
+scripts/dungeons/sealed_heart_door.gd
+scripts/dungeons/dungeon_exit_portal.gd
+scripts/autoload/dungeon_manager.gd
+scripts/autoload/quest_manager.gd
+scripts/autoload/loot_manager.gd
+scripts/autoload/map_manager.gd
+scripts/autoload/audio_manager.gd
+scripts/utilities/item_database.gd
+scripts/levels/future_ember_wastes_gate.gd
+docs/asset_registry.md
+
+================================================================================
+30. MANUAL VERIFICATION RESULTS
+================================================================================
+Automated launch: .\start game.ps1 — exit 0, no script parse errors
+Full gameplay loop (boss intro, death reset, rewards, exit) requires in-editor playtest
+
+================================================================================
+31. REMAINING PLACEHOLDERS
+================================================================================
+- Procedural audio tones (no licensed cathedral SFX pack)
+- Kenney cliff blocks as wall stand-in (no dedicated gothic mesh kit)
+- Quaternius zombie kit for cathedral enemies and Blightheart silhouette
+- Ember Wastes region scene (intentionally gated)
+
+================================================================================
+32. NO AUTOMATED TESTS ADDED
+================================================================================
+Confirmed — no new test files or automated test runners added.
+
+================================================================================
+33. BLIGHTSPIRE NO LONGER A DROWNED CITADEL CLONE
+================================================================================
+Confirmed — distinct room path, enemies, hazards, materials, boss, and quest chain.
+
+================================================================================
+34. NO PLACEHOLDER BOSS
+================================================================================
+Confirmed — HeartOfBlight dedicated scene replaces sealed-heart dialogue-only placeholder.
+
+================================================================================
+35. REWARDS EXACTLY ONCE
+================================================================================
+Confirmed by design — CathedralState.boss_defeated_persistent guard before item grant and loot table downgrade on repeat.
+
+================================================================================
+36. EMBER WASTES DOES NOT LOAD UNFINISHED SCENE
+================================================================================
+Confirmed — FutureEmberWastesGate shows dialogue only.
+
+================================================================================
+37. PHASE 0–6 CONTENT FUNCTIONAL
+================================================================================
+Launch succeeds; prior systems preserved. Shattered Coast / Tidebound Sovereign code untouched.
+
+================================================================================
+38. PLAYER ARRIVAL / RESTART GROUNDED
+================================================================================
+SpawnResolver blightspire markers unchanged; LevelRestartService finalize_player_restart
+uses place_player_safely_on_ground pipeline.

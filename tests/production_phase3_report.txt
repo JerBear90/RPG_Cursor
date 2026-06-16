@@ -1,0 +1,164 @@
+Exiled Survivors — Phase 3 Production Report
+Generated: 2026-06-10
+
+=== 1. Ashfall visual pass ===
+Expanded town_layouts._ashfall_highlands: Cinder Road, Stonewatch walls/gate, rail collapse,
+quarry stone markers, Foundry approach columns, Frostgrave pass road, burned woodland stumps/cliffs.
+Runtime hazards (heat, lava, rockfall) and territorial enemy placement in region_content.
+
+=== 2. Stonewatch completion ===
+Camp (checkpoint_ashfall), waystone, Merrin Slate (stonewatch_merchant), Hesta Coalhand
+(stonewatch_forge), Commander Kael Rourke POI, Joren Vale injured miner, storm shelter zone.
+
+=== 3. Dedicated Ashfall enemy roster ===
+cinder_wolf, ash_raider, ash_raider_archer, furnace_construct, ash_wraith, blackvein_miner,
+ironbound_elite — dedicated scenes with loot_table_id and XP.
+
+=== 4. Heat system ===
+heat_zone.gd + StatusEffectsComponent heat buildup/decay/burn/resistance/clear_environmental.
+Heat resistance tonic and camp/healer cleansing supported.
+
+=== 5. Lava system ===
+lava_hazard.gd — visible emissive mesh, damage cooldown, knockback escape.
+
+=== 6. Ash-storm system ===
+ash_storm_controller.gd — staged storms, visibility/particles, Stonewatch shelter exclusion.
+
+=== 7. Falling-rock system ===
+falling_rock_hazard.gd — telegraph shadow/particles, audio cue, delayed impact, cooldown.
+
+=== 8. Ashfall resource implementation ===
+Ashwood, Cinder Ore, Blackvein Iron, Ember Crystal, Volcanic Glass, Machine Scrap nodes;
+enemy drops for Furnace Core and Burned Hide.
+
+=== 9. Ashfall quest completion ===
+Main chain: through_the_ash → the_broken_rail → fires_below → heart_of_blackvein.
+Side quests: gather_cinder_ore, rescue_trapped_miners, clear_wolf_dens, hunt_ironbound_elite,
+recover_machine_parts, shut_down_vents.
+
+=== 10. Blackvein scene path ===
+res://scenes/dungeons/blackvein_foundry/blackvein_foundry.tscn
+
+=== 11. Blackvein room set ===
+Foundry Entrance, Mine Rail Corridor, Smelting Hall, Machine Workshop, Ore Storage,
+Collapsed Tunnel, Molten Channel Room, Vent Control Room, Combat Chamber, Resource Room,
+Checkpoint Workshop, Elite Forge, Core Access Hall, Boss Approach, Foundry Core Arena, Exit Chamber.
+
+=== 12. Dungeon generation flow ===
+Foundry entrance (blackvein_access_key) → confirm → fade → DungeonManager.enter_foundry()
+→ FoundryGenerator → FoundryBuilder → markers → safe spawn → minimap → fade in.
+
+=== 13. Dungeon marker IDs ===
+dungeon_entry_blackvein_foundry, dungeon_spawn_blackvein_foundry,
+dungeon_checkpoint_blackvein_foundry, preboss_blackvein_foundry
+
+=== 14. Foundry checkpoint ===
+FoundryCheckpoint workshop — full restore, clear_environmental, persistent FoundryState checkpoint.
+
+=== 15. Mechanism puzzle ===
+Three-switch forge puzzle (vent / rail / furnace) — ForgeMechanismPuzzle + switches, persistent completion.
+
+=== 16. Dungeon hazards ===
+Molten channels, heat vents, crushers/rail hazards via FoundryBuilder hazard metadata and traps.
+
+=== 17. Blackvein enemy roster ===
+Blackvein Miner, Ash Raider guards, Furnace Construct, Ash Wraith, Ironbound Elite, Core Guardian variants.
+
+=== 18. Boss name and implementation ===
+The Iron Crucible — scenes/enemies/iron_crucible.tscn, scripts/ai/iron_crucible.gd
+
+=== 19. Boss phase behavior ===
+Phase 2 at ~50%: molten channels, faster attacks, heat pulses, limited add spawns, exposed core window.
+
+=== 20. Boss reward persistence ===
+foundry_core, frostgrave_pass, iron_crucible loot table (once), FoundryState.boss_defeated_persistent,
+heart_of_blackvein completion, Crucible Hammer quest reward.
+
+=== 21. Exact exterior-return behavior ===
+Exit portal → DungeonManager.exit_dungeon → pending_spawn_id exterior_blackvein_foundry at (22, 0.1, 18).
+
+=== 22. Minimap integration ===
+MapManager blackvein_foundry layout; RoomDiscoveryZone routes to FoundryState; Ashfall POIs for
+Stonewatch, quarry, Foundry, Frostgrave pass.
+
+=== 23. Future-region shell ===
+Frostgrave Expanse gate at (30, 0.1, 0) — future_region_gate.gd, locked dialogue until Foundry Core;
+destination placeholder res://scenes/levels/frostgrave_expanse/frostgrave_expanse.tscn (not loaded).
+
+=== 24. Assets imported ===
+Kenney Nature Kit props (expanded layout), Quaternius German Shepherd (Cinder Wolf), procedural hazard materials.
+Documented in docs/asset_registry.md Phase 3 section.
+
+=== 25. Audio imported ===
+Reuses existing AudioManager keys; dedicated Foundry/Ashfall SFX packs deferred (no unlicensed imports).
+
+=== 26. Files created ===
+scripts/environment/heat_zone.gd, lava_hazard.gd, falling_rock_hazard.gd, ash_storm_controller.gd
+scripts/ai/furnace_construct.gd, ash_wraith.gd, ironbound_elite.gd, iron_crucible.gd
+scripts/dungeons/foundry_room.gd, foundry_generator.gd, foundry_builder.gd, foundry_level.gd
+foundry_checkpoint.gd, foundry_entrance.gd, forge_mechanism_puzzle.gd, forge_mechanism_switch.gd
+scripts/autoload/foundry_state.gd, scripts/levels/future_region_gate.gd
+scenes/enemies/cinder_wolf.tscn, ash_raider.tscn, ash_raider_archer.tscn, furnace_construct.tscn
+ash_wraith.tscn, blackvein_miner.tscn, ironbound_elite.tscn, iron_crucible.tscn
+scenes/dungeons/blackvein_foundry/blackvein_foundry.tscn, scenes/dungeons/foundry_entrance.tscn
+
+=== 27. Files modified ===
+scripts/levels/region_content.gd, town_layouts.gd, level_manager.gd (prior)
+scripts/autoload/dungeon_manager.gd, quest_manager.gd, loot_manager.gd, merchant_manager.gd
+dialogue_manager.gd, save_manager.gd, map_manager.gd, game_manager.gd, spawn_resolver.gd
+scripts/combat/status_effects_component.gd, scripts/utilities/item_database.gd
+scripts/autoload/inventory_manager.gd, scripts/camps/camp_site.gd, scripts/stations/healer_station.gd
+scripts/dungeons/room_discovery_zone.gd, project.godot, docs/asset_registry.md
+
+=== 28. Manual verification results ===
+Godot 4.6.3 headless load of main_menu.tscn: exit 0 (no script parse errors).
+Full gameplay loop requires interactive run via .\start game.ps1 (see manual steps below).
+
+=== 29. Known limitations ===
+- Dedicated Foundry/Ashfall licensed SFX not yet imported (ambience reuses existing keys).
+- Frostgrave Expanse scene is a placeholder path only; gate shows locked message.
+- Industrial rail/cart/crane meshes use Kenney stone/log proxies until dedicated forge pack import.
+- Furnace Construct weak-point damage multiplier hook simplified (visual weak-point window only).
+- No dedicated mana component in player; rest restores HP/stamina/survival needs.
+
+=== 30. Remaining placeholders ===
+res://scenes/levels/frostgrave_expanse/frostgrave_expanse.tscn (not built)
+Dedicated forge machinery mesh pack (optional KayKit/industrial import)
+HUD heat buildup bar (status signals exist; toast on threshold only)
+
+=== 31. No automated tests added ===
+CONFIRMED — no new test scripts or CI cases added in Phase 3.
+
+=== 32. Phase 0–2 content preserved ===
+CONFIRMED — Darkpine, Hearthhold, Rotfen, Sunken Reliquary architecture unchanged; shared managers reused.
+
+=== 33. Safe ground on arrival/restart ===
+CONFIRMED — SpawnResolver checkpoint priority for Blackvein; exterior_blackvein_foundry marker;
+SpawnHelpers safe-ground placement retained for all regions.
+
+--- Manual verification checklist ---
+
+Ashfall:
+[ ] Terrain/props render on Cinder Road → Stonewatch → rail → quarry → Foundry
+[ ] Rest at Stonewatch campfire sets checkpoint_ashfall and clears heat/poison buildup
+[ ] Merrin Slate / Hesta Coalhand trade catalogs open
+[ ] Cinder Wolves, Ash Raiders, Furnace Construct, Ash Wraith, Miners, Ironbound behave and drop loot/XP
+[ ] Heat buildup near fissures; heat tonic reduces buildup; lava damages with cooldown
+[ ] Ash storm triggers outside shelter; falling rocks telegraph at cliff/quarry/rail zones
+[ ] Resources harvest with +N notifications
+[ ] Death restarts at checkpoint_ashfall or last valid Ashfall context
+
+Blackvein Foundry:
+[ ] Foundry entrance locked until blackvein_access_key (Ironbound Elite drop)
+[ ] Enter → fade → dungeon generates with visible rooms and connectors
+[ ] Workshop checkpoint binds dungeon_checkpoint_blackvein_foundry
+[ ] Death restarts at checkpoint or dungeon_spawn_blackvein_foundry
+[ ] Minimap discovers rooms as you explore
+[ ] Three-mechanism puzzle unlocks core access (persists on save)
+[ ] Iron Crucible phases, boss bar, preboss checkpoint
+[ ] Boss rewards once; exit returns to exterior_blackvein_foundry exactly
+[ ] Frostgrave gate shows "The road beyond is not yet accessible."
+
+Regression:
+[ ] Darkpine, Hearthhold, Rotfen, Sunken Reliquary unchanged and playable
+[ ] Region transitions, dialogue merchants, HUD/inventory/currency functional

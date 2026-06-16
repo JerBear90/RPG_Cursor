@@ -2,6 +2,10 @@ class_name PlayerController
 extends CharacterBody3D
 ## Third-person movement, sprint, dodge, and jump integration.
 
+const _EnvironmentMovementModifier := preload("res://scripts/player/environment_movement_modifier.gd")
+const _StatusEffects := preload("res://scripts/combat/status_effects_component.gd")
+const _SpawnHelpers := preload("res://scripts/utilities/spawn_helpers.gd")
+
 signal state_changed(state: String)
 
 enum State { IDLE, MOVE, SPRINT, DODGE, ATTACK, BLOCK, STAGGER, DEAD }
@@ -76,12 +80,14 @@ func _on_stamina_changed(current: float, _maximum: float) -> void:
 
 
 func is_input_locked() -> bool:
-	return current_state == State.DEAD or DialogueManager.blocks_gameplay() or GameManager.is_paused
+	return current_state == State.DEAD or GameManager.death_input_locked or DialogueManager.blocks_gameplay() or GameManager.is_paused or MerchantManager.is_shop_open
 
 
 func _physics_process(delta: float) -> void:
 	if current_state == State.DEAD:
 		return
+	if GameManager.is_local_coop() and player_index > 0 and is_alive():
+		_recover_coop_fall()
 	var on_floor_now := is_on_floor()
 	if on_floor_now:
 		floor_snap_length = 0.25
@@ -106,7 +112,7 @@ func _physics_process(delta: float) -> void:
 func _try_jump() -> void:
 	if not is_on_floor():
 		return
-	if DialogueManager.blocks_gameplay():
+	if InputManager.gameplay_input_blocked():
 		return
 	if InputManager.is_action_just_pressed("jump", player_index):
 		velocity.y = jump_velocity
@@ -115,24 +121,54 @@ func _try_jump() -> void:
 func _apply_movement(delta: float, on_floor_now: bool) -> void:
 	var input_dir := InputManager.get_move_vector(player_index)
 	var control := 1.0 if on_floor_now else air_control
+	var env_mod: _EnvironmentMovementModifier = null
+	if has_node("EnvironmentMovementModifier"):
+		env_mod = get_node("EnvironmentMovementModifier") as _EnvironmentMovementModifier
+	var on_ice := on_floor_now and env_mod != null and env_mod.is_on_ice()
+	var on_wet := on_floor_now and env_mod != null and env_mod.is_on_wet_rock()
+	var on_slippery := on_ice or on_wet
 	if input_dir.length_squared() < 0.01:
 		_set_state(State.IDLE if on_floor_now else current_state)
-		var friction := move_speed * (1.0 if on_floor_now else 0.35)
+		var friction_rate := 1.0 if on_floor_now else 0.35
+		if on_slippery and env_mod:
+			friction_rate *= env_mod.get_ice_decel_multiplier() if on_ice else 0.55
+		var friction := move_speed * friction_rate * delta * 10.0
 		velocity.x = move_toward(velocity.x, 0.0, friction)
 		velocity.z = move_toward(velocity.z, 0.0, friction)
 		return
+	if player_index == 0:
+		TutorialPromptManager.try_show("movement")
 	var sprinting := on_floor_now and InputManager.is_action_pressed("sprint", player_index)
 	var can_sprint := _stamina != null and _stamina.current_stamina > 1.0
 	var speed := sprint_speed if sprinting and can_sprint else move_speed
 	speed *= control
+	if env_mod:
+		speed *= env_mod.get_speed_multiplier()
+	if has_node("StatusEffectsComponent"):
+		speed *= (get_node("StatusEffectsComponent") as _StatusEffects).get_move_speed_multiplier()
 	if sprinting and can_sprint and _stamina and on_floor_now:
 		_stamina.spend(10.0 * delta)
 	_set_state(State.SPRINT if sprinting and can_sprint and on_floor_now else State.MOVE)
 	var forward: Vector3 = _get_planar_forward()
 	var right: Vector3 = _get_planar_right()
 	var direction: Vector3 = (right * input_dir.x + forward * -input_dir.y).normalized()
-	velocity.x = direction.x * speed
-	velocity.z = direction.z * speed
+	var target := Vector3(direction.x * speed, 0.0, direction.z * speed)
+	if on_slippery and env_mod:
+		var accel := env_mod.get_ice_accel_multiplier() * delta * 11.0
+		var steer := env_mod.get_ice_steer_multiplier()
+		if on_wet and not on_ice:
+			accel = minf(accel * 1.35, 1.0)
+			steer = minf(steer * 1.15, 1.0)
+		var current_h := Vector2(velocity.x, velocity.z)
+		var target_h := Vector2(target.x, target.z)
+		var blended := current_h.lerp(target_h, accel * steer)
+		if blended.length() > speed:
+			blended = blended.normalized() * speed
+		velocity.x = blended.x
+		velocity.z = blended.y
+	else:
+		velocity.x = target.x
+		velocity.z = target.z
 
 
 func _apply_dodge_movement() -> void:
@@ -218,3 +254,17 @@ func _set_state(state: State) -> void:
 	if current_state != state:
 		current_state = state
 		state_changed.emit(State.keys()[state])
+
+
+func _recover_coop_fall() -> void:
+	if global_position.y > -20.0:
+		return
+	var leader := GameManager.get_player(0)
+	if leader == null or not is_instance_valid(leader) or leader == self:
+		return
+	if not leader.is_alive():
+		return
+	var offset := _SpawnHelpers.get_party_offset(player_index, leader.rotation.y)
+	global_position = leader.global_position + offset
+	velocity = Vector3.ZERO
+	refresh_spawn_protection()

@@ -29,6 +29,10 @@ const REFERENCED_GLBS: PackedStringArray = [
 	"mushroom_red.glb", "mushroom_tan.glb",
 	"flower_yellowA.glb", "flower_redA.glb", "flower_purpleA.glb",
 	"stump_old.glb", "stump_oldTall.glb", "hanging_moss.glb",
+	"pot_large.glb", "pot_small.glb",
+	"rock_smallFlatA.glb", "rock_smallFlatB.glb",
+	"mushroom_redGroup.glb", "mushroom_redTall.glb", "mushroom_tanTall.glb",
+	"campfire_stones.glb",
 ]
 
 

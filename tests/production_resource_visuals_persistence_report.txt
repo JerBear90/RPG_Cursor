@@ -1,0 +1,105 @@
+Resource Visuals, Persistence, Station Placement, and Tracking — Production Report
+==================================================================================
+Date: 2026-06-10
+Scope: Polish pass for survival/resource loop (Phase 0–8 preserved, no new regions)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0** (verified after this pass)
+
+---
+
+## Changes Summary
+
+### Resource Node Visual Placeholders
+* Added `scripts/resources/resource_node_visual_factory.gd` with 13 lightweight primitive mesh types
+* `ResourceNode` builds visuals via factory instead of generic colored spheres
+* Types: fallen log, tree stump, herb bush, berry bush, mushroom cluster, stone pile, ore vein, crystal node, scrap heap, bone pile, water spring, corrupted root, fire resin growth
+
+### Interaction Prompt Clarity
+* Gather prompts use readable labels (`Gather Herbs`, `Gather Crystal Shards`, etc.)
+* `CoopUiCopy.press_prompt()` wraps all interactable prompts (P1: Press E — … / P2: Press A — …)
+* Depleted nodes show `Depleted` only
+* Missing tool shows toast: `P1: Requires Pickaxe`
+
+### Depleted / Destroyed Persistence
+* `WorldStateManager` tracks `depleted_resource_nodes` and `destroyed_world_objects`
+* Serialized in save v3 `world_state` block; backward-safe defaults on missing keys
+* Important nodes use stable IDs (`region:node_id` format)
+* Persisted spawns: Darkpine fire resin, Rotfen mire crystal, Ashfall ember crystal, Frostgrave glacial crystal, Blightreach viridian crystal + corrupted root
+* Generic herbs/berries/stone and random crates/barrels remain non-persistent
+
+### Water Collector & Garden Plot
+* Scenes: `scenes/base/water_collector.tscn`, `scenes/base/garden_plot.tscn`
+* Placed in Hearthhold Camp (`Level/Stations`)
+* Level 0: interact opens upgrade menu with material requirements
+* Level 1+: Collect Water (dirty/purified by level) / Harvest Herbs (herbs/berries by level) with 45s cooldown
+* Upgrade consumes inventory + base storage; level persists via `BaseManager`
+
+### Missing Material & Tracking Polish
+* Upgrade/craft checks use `InventoryManager.get_combined_count()` (inventory + base storage)
+* Missing messages use `ItemDatabase.get_display_name()` and readable currency (`Need 2 Silver`)
+* Progress toasts for Workbench L2, Forge L2, Water Collector, Garden Plot, Pet Shelter, Mask Stand
+* Updates on P1/P2 gather, deposit, camp chest deposit-all, and inventory changes
+* Completion toast: `{Station} materials complete` + `Return to Hearthhold Camp`
+
+---
+
+## Manual Verification Checklist
+
+1. [ ] Solo New Game still behaves unchanged.
+2. [ ] Local Co-op still spawns both players safely.
+3. [ ] Resource nodes no longer use only generic colored spheres.
+4. [ ] Fallen log visual is readable.
+5. [ ] Herb bush visual is readable.
+6. [ ] Berry bush visual is readable.
+7. [ ] Mushroom cluster visual is readable.
+8. [ ] Ore vein visual is readable.
+9. [ ] Crystal node visual is readable.
+10. [ ] Scrap heap visual is readable.
+11. [ ] Bone pile visual is readable.
+12. [ ] Water spring visual is readable.
+13. [ ] Corrupted root visual is readable.
+14. [ ] Fire resin growth visual is readable.
+15. [ ] P1 prompt correctly identifies resource node.
+16. [ ] P2 prompt correctly identifies resource node.
+17. [ ] Missing tool prompt is readable.
+18. [ ] Depleted node does not spam invalid prompts.
+19. [ ] Important depleted resource persists after save/load.
+20. [ ] Important destroyed object persists after save/load.
+21. [ ] Common respawning nodes/destructibles still behave according to region rules.
+22. [ ] Water Collector exists in base area.
+23. [ ] Water Collector upgrade UI shows requirements.
+24. [ ] Water Collector upgrade consumes resources once.
+25. [ ] Water Collector level saves/loads.
+26. [ ] Garden Plot exists in base area.
+27. [ ] Garden Plot upgrade UI shows requirements.
+28. [ ] Garden Plot upgrade consumes resources once.
+29. [ ] Garden Plot level saves/loads.
+30. [ ] Missing material messages show display names.
+31. [ ] Currency requirement messages are readable.
+32. [ ] Workbench L2 tracking updates from P1 pickup.
+33. [ ] Workbench L2 tracking updates from P2 pickup.
+34. [ ] Forge L2 tracking still works.
+35. [ ] Water Collector tracking works.
+36. [ ] Garden Plot tracking works.
+37. [ ] Base storage resources persist after save/load.
+38. [ ] Shared inventory resources persist after save/load.
+39. [ ] Existing field revive still works.
+40. [ ] Existing Waystone travel still works.
+41. [ ] Existing boss fight still works.
+42. [ ] Existing camp chest deposit-all still works.
+43. [ ] Existing crafting still works.
+44. [ ] `.\start game.ps1` exits 0.
+
+---
+
+## Known Limitations (Post-Pass)
+
+* Resource visuals are primitive placeholders — final art still pending.
+* Water Collector / Garden Plot production uses a 45s cooldown (no rest-cycle timing yet).
+* Water Collector L2 / Garden Plot L2 upgrade costs not defined (L1 build only).
+* Pet Shelter and Mask Stand still use dialogue unlock at L1 rather than upgrade menu.
+* Important destructible persistence IDs not yet assigned to placed scene props (runtime flagged nodes only).
+* No automated tests added.

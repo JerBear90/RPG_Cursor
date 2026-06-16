@@ -11,9 +11,21 @@ static func spec_for_mesh(glb_name: String) -> Dictionary:
 	if name.contains("tree") or name.contains("log"):
 		return {"health": 42.0, "resource_id": "wood", "resource_yield": 3, "blocking": true}
 	if name.contains("rock") or name.contains("stone") or name.contains("cliff"):
-		return {"health": 55.0, "resource_id": "stone", "resource_yield": 2, "blocking": true}
+		return {"health": 55.0, "drop_table_id": "destructible_rock", "blocking": true}
+	if name.contains("barrel") or name.contains("keg"):
+		return {"health": 24.0, "drop_table_id": "destructible_barrel", "blocking": true}
 	if name.contains("crate") or name.contains("log_stack") or name.contains("campfire"):
-		return {"health": 28.0, "resource_id": "wood", "resource_yield": 2, "blocking": true}
+		return {"health": 28.0, "drop_table_id": "destructible_crate", "blocking": true}
+	if name.contains("cart") or name.contains("wagon") or name.contains("fence") or name.contains("bench"):
+		return {"health": 32.0, "drop_table_id": "destructible_furniture", "blocking": true}
+	if name.contains("scrap") or name.contains("metal") or name.contains("pipe"):
+		return {"health": 36.0, "drop_table_id": "destructible_scrap", "blocking": true}
+	if name.contains("bone") or name.contains("skull"):
+		return {"health": 22.0, "drop_table_id": "destructible_bone", "blocking": false}
+	if name.contains("crystal") or name.contains("gem"):
+		return {"health": 40.0, "drop_table_id": "destructible_crystal", "blocking": true}
+	if name.contains("root") or name.contains("corrupt"):
+		return {"health": 30.0, "drop_table_id": "destructible_corrupted_root", "blocking": false}
 	if name.contains("mushroom") or name.contains("flower") or name.contains("plant") or name.contains("bush") or name.contains("grass") or name.contains("fern"):
 		return {"health": 18.0, "resource_id": "herb_bundle", "resource_yield": 1, "blocking": false}
 	return {}
@@ -36,8 +48,8 @@ static func attach_if_destructible(visual: Node3D, glb_name: String) -> Node3D:
 	body.add_to_group("destructible")
 	body.set("health", float(spec.get("health", 30.0)))
 	body.set("resource_id", str(spec.get("resource_id", "")))
-	body.set("resource_yield", int(spec.get("resource_yield", 1)))
-	body.set("drop_table_id", "")
+	body.set("resource_yield", int(spec.get("resource_yield", 0)))
+	body.set("drop_table_id", str(spec.get("drop_table_id", "")))
 	var blocking := bool(spec.get("blocking", true))
 	if blocking:
 		body.collision_layer = 1

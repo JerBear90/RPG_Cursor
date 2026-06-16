@@ -1,13 +1,18 @@
 extends CanvasLayer
 ## In-game HUD plus controller-navigable overlay menus.
 
-const InventoryPanelScene := preload("res://scripts/ui/inventory_panel.gd")
+const _UiInputLabels = preload("res://ui/themes/ui_input_labels.gd")
+const _CoopUiCopy = preload("res://scripts/ui/coop_ui_copy.gd")
 const SkillTreePanelScene := preload("res://scripts/ui/skill_tree_panel.gd")
 const SpellWheelPanelScene := preload("res://scripts/ui/spell_wheel_panel.gd")
 const MerchantShopPanelScene := preload("res://scripts/ui/merchant_shop_panel.gd")
 const PetWheelPanelScene := preload("res://scripts/ui/pet_wheel_panel.gd")
 const _ItemUiTheme = preload("res://scripts/ui/item_ui_theme.gd")
 const MinimapScene = preload("res://ui/map/minimap.tscn")
+const WorldMapScene = preload("res://ui/map/world_map.tscn")
+const QuestTrackerScreenScene = preload("res://ui/map/quest_tracker_screen.tscn")
+const InventoryPanelScene := preload("res://scripts/ui/inventory_panel.gd")
+const NpcMissionRegistry := preload("res://scripts/autoload/npc_mission_registry.gd")
 const ActionBarHud = preload("res://scripts/ui/action_bar_hud.gd")
 const DialoguePanelScene = preload("res://ui/dialogue/dialogue_panel.tscn")
 const ResourceGainToastScript = preload("res://ui/hud/resource_gain_toast.gd")
@@ -41,30 +46,45 @@ var _spell_wheel_spells: Array[String] = []
 var _boss_name_label: Label
 var _toast_label: Label
 var _toast_timer: float = 0.0
+var _toast_throttle: Dictionary = {}
+const _TOAST_THROTTLE_MS := 900
 var _adrenaline_stars: Array[TextureRect] = []
 
 var _overlay: ColorRect
-var _dialogue_ui: DialoguePanel
+var _dialogue_ui: Control
 var _death_overlay: ColorRect
 var _death_title: Label
 var _death_countdown: Label
-var _resource_gain: ResourceGainToast
-var _xp_gain: XpGainToast
+var _resource_gain: Control
+var _xp_gain: Control
 var _death_active: bool = false
 var _menu_panel: PanelContainer
 var _menu_title: Label
 var _menu_list: ItemList
 var _menu_hint: Label
 var _inventory_panel: PanelContainer
+var _inventory_layer: Control
 var _skill_tree_panel: PanelContainer
 var _spell_wheel_panel: Control
 var _merchant_panel: PanelContainer
+var _merchant_layer: Control
 var _pet_wheel_panel: Control
+var _world_map_panel: WorldMapPanel
+var _quest_tracker_screen: PanelContainer
+var _pet_status_label: Label
 var _p2_vitals_label: Label
+var _p2_progress_label: Label
+var _p2_action_label: Label
+var _p2_feedback_text: String = ""
+var _p2_feedback_timer: float = 0.0
+var _p2_low_stamina_warned: bool = false
+var _p2_low_focus_warned: bool = false
 var _player2: Node
 var _minimap: Minimap
 var _action_bar: ActionBarHud
 var _player_hud: PlayerHud
+var _quest_dist_timer: float = 0.0
+const _QUEST_DIST_INTERVAL := 0.35
 
 
 func _ready() -> void:
@@ -77,14 +97,18 @@ func _ready() -> void:
 	_setup_arpg_hud()
 	_build_overlay_ui()
 	QuestManager.tracked_quest_changed.connect(_update_quest)
-	QuestManager.quest_updated.connect(func(_id): _update_quest(""))
+	QuestManager.quest_updated.connect(_on_quest_updated)
+	QuestManager.quest_started.connect(_on_quest_started)
 	CurrencyManager.currency_changed.connect(_update_currency)
 	InventoryManager.inventory_changed.connect(_on_inventory_changed)
 	DialogueManager.dialogue_line_shown.connect(_on_dialogue_line)
 	DialogueManager.dialogue_choices_shown.connect(_on_dialogue_choices)
+	DialogueManager.dialogue_footer_labels.connect(_on_dialogue_footer_labels)
+	DialogueManager.dialogue_focus_choice.connect(_on_dialogue_focus_choice)
 	DialogueManager.dialogue_started.connect(_on_dialogue_started)
 	DialogueManager.dialogue_ended.connect(_on_dialogue_ended)
 	ResourceFeedbackManager.resources_obtained.connect(_on_resources_obtained)
+	ResourceFeedbackManager.pickup_toast.connect(_on_pickup_toast)
 	CombatExperienceManager.combat_xp_gained.connect(_on_combat_xp_gained)
 	if not GameManager.player_died.is_connected(_on_player_died):
 		GameManager.player_died.connect(_on_player_died)
@@ -95,9 +119,8 @@ func _ready() -> void:
 	GameManager.combat_state_changed.connect(_on_combat_state_changed)
 	DungeonManager.dungeon_entered.connect(func(_layout): _update_map_stub(); _rebind_hud_player())
 	DungeonManager.dungeon_exited.connect(func(): _update_map_stub(); _rebind_hud_player())
-	GameManager.region_changed.connect(func(_id): _rebind_hud_player())
-	CraftingManager.craft_completed.connect(func(recipe_id): show_toast("Crafted %s" % recipe_id.replace("_", " ")))
-	CraftingManager.craft_failed.connect(func(reason): show_toast("Craft failed: %s" % reason))
+	GameManager.region_changed.connect(func(_id): _reset_coop_menu_state(); _rebind_hud_player())
+	CraftingManager.craft_failed.connect(func(reason): show_toast("Craft failed: %s" % reason, 2.5, "", "notification", "", NotificationToast.Priority.CRITICAL))
 	call_deferred("_bind_player")
 	if not GameManager.player_spawned.is_connected(_on_player_spawned):
 		GameManager.player_spawned.connect(_on_player_spawned)
@@ -162,94 +185,175 @@ func _process(delta: float) -> void:
 		_update_bars()
 		_update_spell_label()
 		_update_ability_hud()
-		_update_quest_distance()
+		_quest_dist_timer -= delta
+		if _quest_dist_timer <= 0.0:
+			_quest_dist_timer = _QUEST_DIST_INTERVAL
+			_update_quest_distance()
 	_update_boss_bar()
 	_update_p2_vitals()
+	_update_p2_progress()
+	_update_p2_combat_hud()
+	_update_p1_coop_prompts()
+	if _p2_feedback_timer > 0.0:
+		_p2_feedback_timer -= delta
 	if _toast_timer > 0.0:
 		_toast_timer -= delta
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause"):
+	if DialogueManager.is_active():
+		return
+	if _active_menu != "" and GameManager.is_local_coop() and not _coop_allows_menu_input(event):
+		return
+	if _owner_action_pressed(event, "pause"):
 		if _active_menu == "pause":
 			_close_menu()
 		elif _active_menu == "" and not DialogueManager.is_active():
+			_assign_menu_owner(event)
 			_open_pause_menu()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("open_inventory"):
+	elif _owner_action_pressed(event, "open_inventory"):
 		if _active_menu == "inventory":
 			_close_inventory_panel()
 		elif _active_menu == "":
+			_assign_menu_owner(event)
 			_open_inventory_panel()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("open_map"):
+	elif _owner_action_pressed(event, "open_map"):
 		if _active_menu == "map":
-			_close_menu()
+			_close_world_map_panel()
 		elif _active_menu == "":
-			_open_map_menu()
+			_assign_menu_owner(event)
+			_open_world_map_panel()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("open_skill_tree"):
+	elif _owner_action_pressed(event, "open_skill_tree"):
 		if _active_menu == "skill_tree":
 			_close_skill_tree_panel()
 		elif _active_menu == "":
+			_assign_menu_owner(event)
 			_open_skill_tree_panel()
 		get_viewport().set_input_as_handled()
 	elif _active_menu == "spell_wheel":
-		if event.is_action_pressed("cycle_quick_left"):
+		if _owner_action_pressed(event, "cycle_quick_left"):
 			_cycle_spell_wheel(-1)
 			get_viewport().set_input_as_handled()
-		elif event.is_action_pressed("cycle_quick_right"):
+		elif _owner_action_pressed(event, "cycle_quick_right"):
 			_cycle_spell_wheel(1)
 			get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("open_quest_tracker"):
+	elif _owner_action_pressed(event, "open_quest_tracker"):
 		if _active_menu == "quests":
-			_close_menu()
+			_close_quest_tracker_panel()
 		elif _active_menu == "":
-			_open_quest_journal_menu()
+			_assign_menu_owner(event)
+			_open_quest_tracker_panel()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("open_pet_wheel"):
+	elif _active_menu == "" and _owner_action_pressed(event, "cycle_quick_left"):
+		QuestManager.cycle_tracked_quest(-1)
+		_update_quest(QuestManager.tracked_quest_id)
+		get_viewport().set_input_as_handled()
+	elif _active_menu == "" and _owner_action_pressed(event, "cycle_quick_right"):
+		QuestManager.cycle_tracked_quest(1)
+		_update_quest(QuestManager.tracked_quest_id)
+		get_viewport().set_input_as_handled()
+	elif _active_menu == "quests" and _owner_action_pressed(event, "cycle_quick_left"):
+		QuestManager.cycle_tracked_quest(-1)
+		if _quest_tracker_screen:
+			_quest_tracker_screen.refresh()
+		get_viewport().set_input_as_handled()
+	elif _active_menu == "quests" and _owner_action_pressed(event, "cycle_quick_right"):
+		QuestManager.cycle_tracked_quest(1)
+		if _quest_tracker_screen:
+			_quest_tracker_screen.refresh()
+		get_viewport().set_input_as_handled()
+	elif _owner_action_pressed(event, "open_pet_wheel"):
 		if _active_menu == "pet_wheel":
 			_close_pet_wheel()
-		elif _active_menu == "" and PetManager.has_pet("ash_hound"):
+		elif _active_menu == "" and PetManager.is_party_pet_active():
+			_assign_menu_owner(event)
 			_open_pet_wheel()
 		get_viewport().set_input_as_handled()
 	elif _active_menu == "pet_wheel":
-		if event.is_action_pressed("cycle_quick_left"):
+		if _owner_action_pressed(event, "cycle_quick_left"):
 			_pet_wheel_panel.cycle_selection(-1)
 			get_viewport().set_input_as_handled()
-		elif event.is_action_pressed("cycle_quick_right"):
+		elif _owner_action_pressed(event, "cycle_quick_right"):
 			_pet_wheel_panel.cycle_selection(1)
 			get_viewport().set_input_as_handled()
-		elif event.is_action_pressed("confirm"):
+		elif _owner_action_pressed(event, "confirm"):
 			_pet_wheel_panel.confirm_selection()
 			get_viewport().set_input_as_handled()
-	elif DialogueManager.is_active():
-		if event.is_action_pressed("confirm") and DialogueManager.can_accept_advance():
-			DialogueManager.advance()
-			get_viewport().set_input_as_handled()
-		elif event.is_action_pressed("cancel"):
-			DialogueManager.cancel()
-			get_viewport().set_input_as_handled()
-	elif _active_menu != "" and event.is_action_pressed("cancel"):
+	elif _active_menu != "" and _owner_action_pressed(event, "cancel"):
 		if _active_menu == "inventory":
 			_close_inventory_panel()
 		elif _active_menu == "skill_tree":
 			_close_skill_tree_panel()
 		elif _active_menu == "merchant":
-			_close_merchant_panel()
+			pass
 		elif _active_menu == "pet_wheel":
 			_close_pet_wheel()
+		elif _active_menu == "map":
+			_close_world_map_panel()
+		elif _active_menu == "quests":
+			_close_quest_tracker_panel()
 		else:
 			_close_menu()
 		get_viewport().set_input_as_handled()
-	elif _active_menu != "" and event.is_action_pressed("confirm"):
-		_menu_confirm()
+	elif _active_menu != "" and _owner_action_pressed(event, "confirm"):
+		if _active_menu == "quests":
+			if _quest_tracker_screen:
+				_quest_tracker_screen.handle_confirm()
+		elif _active_menu == "map":
+			pass
+		elif _active_menu != "merchant":
+			_menu_confirm()
 		get_viewport().set_input_as_handled()
 
 
-func show_toast(text: String, duration: float = 3.0, description: String = "", icon_key: String = "notification") -> void:
+func show_toast(
+	text: String,
+	duration: float = 3.0,
+	description: String = "",
+	icon_key: String = "notification",
+	reward: String = "",
+	priority: int = NotificationToast.Priority.NORMAL
+) -> void:
+	if priority >= NotificationToast.Priority.NORMAL:
+		var key := "%s|%s" % [text, description]
+		var now := Time.get_ticks_msec()
+		if _toast_throttle.has(key) and now - int(_toast_throttle[key]) < _TOAST_THROTTLE_MS:
+			return
+		_toast_throttle[key] = now
 	if _player_hud:
-		_player_hud.show_toast(text, duration, description, icon_key)
+		_player_hud.show_toast(text, duration, description, icon_key, reward, priority)
+
+
+func is_fullscreen_menu_open() -> bool:
+	if _active_menu != "":
+		return true
+	if _world_map_panel and _world_map_panel.visible:
+		return true
+	if _quest_tracker_screen and _quest_tracker_screen.visible:
+		return true
+	if _inventory_panel and _inventory_panel.visible:
+		return true
+	if _skill_tree_panel and _skill_tree_panel.visible:
+		return true
+	if _merchant_layer and _merchant_layer.visible:
+		return true
+	return false
+
+
+func _reset_coop_menu_state() -> void:
+	if _inventory_panel and _inventory_panel.visible:
+		_close_inventory_panel()
+	elif _skill_tree_panel and _skill_tree_panel.visible:
+		_close_skill_tree_panel()
+	elif _active_menu != "":
+		_close_menu()
+	GameManager.menu_owner_index = 0
+	for i in 2:
+		GameManager.set_coop_player_prompt(i, "")
+	set_interact_prompt("")
 
 
 func set_interact_prompt(text: String) -> void:
@@ -291,9 +395,69 @@ func open_waystone_menu() -> void:
 
 
 func open_crafting_menu(station_id: String) -> void:
+	if _active_menu != "":
+		return
 	_crafting_station_id = station_id
 	_populate_crafting_list()
 	_show_menu("crafting", "Crafting — %s" % station_id.capitalize())
+
+
+func open_camp_chest_menu() -> void:
+	if _active_menu != "" and _active_menu != "camp_chest":
+		return
+	_populate_camp_chest_list()
+	if _active_menu != "camp_chest":
+		_show_menu("camp_chest", "Camp Chest — Send to Hearthhold")
+	else:
+		_refresh_menu_hint()
+		if _menu_list.item_count > 0:
+			_menu_list.select(0)
+		_menu_list.grab_focus()
+
+
+func _populate_camp_chest_list() -> void:
+	_menu_list.clear()
+	_menu_list.add_item("Close")
+	if _camp_chest_has_depositable_resources():
+		var all_idx := _menu_list.add_item("Deposit All Resources")
+		_menu_list.set_item_metadata(all_idx, {"action": "camp_deposit_all"})
+	for entry in InventoryManager.items:
+		var check := InventoryManager.can_deposit_to_base(entry.id)
+		var status := "OK" if check.ok else str(check.reason)
+		var label := "Deposit %s x%d — %s" % [entry.id.replace("_", " "), entry.quantity, status]
+		var idx := _menu_list.add_item(label)
+		_menu_list.set_item_metadata(idx, {"action": "camp_deposit", "id": entry.id, "qty": entry.quantity})
+	if _menu_list.item_count <= 1:
+		_menu_list.add_item("(Nothing to send)")
+
+
+func _camp_chest_has_depositable_resources() -> bool:
+	for entry in InventoryManager.items:
+		if str(ItemDatabase.get_item(entry.id).get("type", "")) != "material":
+			continue
+		if InventoryManager.can_deposit_to_base(entry.id).ok:
+			return true
+	return false
+
+
+func open_storage_menu() -> void:
+	if _active_menu != "":
+		return
+	_menu_list.clear()
+	_menu_list.add_item("Close")
+	_menu_list.add_item("--- Deposit (inventory → base) ---")
+	for entry in InventoryManager.items:
+		var check := InventoryManager.can_deposit_to_base(entry.id)
+		var status := "OK" if check.ok else str(check.reason)
+		var idx := _menu_list.add_item("Deposit %s x%d — %s" % [entry.id.replace("_", " "), entry.quantity, status])
+		_menu_list.set_item_metadata(idx, {"action": "deposit", "id": entry.id, "qty": entry.quantity})
+	_menu_list.add_item("--- Withdraw (base → inventory) ---")
+	for entry in InventoryManager.base_storage:
+		var widx := _menu_list.add_item("Withdraw %s x%d" % [entry.id.replace("_", " "), entry.quantity])
+		_menu_list.set_item_metadata(widx, {"action": "withdraw", "id": entry.id, "qty": entry.quantity})
+	if _menu_list.item_count <= 1:
+		_menu_list.add_item("(Storage empty)")
+	_show_menu("storage", "Item Box")
 
 
 func open_merchant_menu(npc_id: String = "silent_merchant", anger_state: String = "calm") -> void:
@@ -335,12 +499,51 @@ func _close_pet_wheel() -> void:
 		_pet_wheel_panel.hide_wheel()
 
 
+func _update_pet_status() -> void:
+	if _pet_status_label == null:
+		return
+	if not PetManager.is_party_pet_active():
+		_pet_status_label.visible = false
+		return
+	var pet_name := PetManager.get_pet_display_name(PetManager.active_pet_id)
+	var cmd := PetManager.get_party_command().capitalize()
+	var hp_text := ""
+	if PetManager.active_pet_instance and is_instance_valid(PetManager.active_pet_instance):
+		var pet := PetManager.active_pet_instance
+		if pet.has_method("is_downed") and pet.is_downed():
+			_pet_status_label.text = "%s | Downed | %s" % [pet_name, cmd]
+		elif pet.has_method("serialize_stats"):
+			var saved: Dictionary = pet.serialize_stats()
+			hp_text = "%d / %d" % [int(saved.get("current_hp", 0)), int(saved.get("max_hp", 60))]
+			_pet_status_label.text = "%s | HP %s | %s" % [pet_name, hp_text, cmd]
+		else:
+			_pet_status_label.text = "%s | %s" % [pet_name, cmd]
+	else:
+		var saved: Dictionary = PetManager.pet_stats_saved.get(PetManager.active_pet_id, {})
+		if bool(saved.get("downed", false)):
+			_pet_status_label.text = "%s | Downed | %s" % [pet_name, cmd]
+		else:
+			hp_text = "%d / %d" % [int(saved.get("current_hp", 60)), int(saved.get("max_hp", 60))]
+			_pet_status_label.text = "%s | HP %s | %s" % [pet_name, hp_text, cmd]
+	_pet_status_label.visible = true
+
+
+func _on_pet_command_changed(_command_id: String) -> void:
+	_update_pet_status()
+
+
+func _on_pet_spawned_hud(_pet: Node3D) -> void:
+	_update_pet_status()
+
+
 func _on_pet_command_selected(command_id: String) -> void:
-	var idx := 0
-	if _player and _player is PlayerController:
-		idx = (_player as PlayerController).player_index
-	PetManager.set_pet_command(idx, command_id)
-	show_toast("Ash Hound: %s" % command_id.capitalize())
+	PetManager.set_party_command(command_id)
+	var pet_name := PetManager.get_pet_display_name(PetManager.active_pet_id)
+	var label: String = _pet_wheel_panel.get_command_label(command_id) if _pet_wheel_panel.has_method("get_command_label") else command_id.capitalize()
+	show_toast("Pet: %s" % label, 1.5)
+	if command_id == "recall":
+		show_toast("Pet Recalled", 1.5)
+	_update_pet_status()
 	_close_pet_wheel()
 
 
@@ -375,9 +578,13 @@ func _handle_mask_selection(index: int) -> void:
 func _open_inventory_panel() -> void:
 	if _player == null:
 		return
+	TutorialPromptManager.try_show("inventory")
 	_active_menu = "inventory"
 	_overlay.visible = true
 	_menu_panel.visible = false
+	if _inventory_layer:
+		_inventory_layer.visible = true
+		_inventory_layer.mouse_filter = Control.MOUSE_FILTER_STOP
 	get_tree().paused = true
 	_inventory_panel.open(_player)
 
@@ -406,20 +613,38 @@ func _open_merchant_panel() -> void:
 	_active_menu = "merchant"
 	_overlay.visible = true
 	_menu_panel.visible = false
-	get_tree().paused = true
+	if _merchant_layer:
+		_merchant_layer.visible = true
+		_merchant_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	GameManager.is_paused = true
 	_merchant_panel.open(_merchant_npc_id, _merchant_anger_state)
 
 
 func _close_merchant_panel() -> void:
 	_merchant_panel.close()
-	_on_panel_closed()
+
+
+func _on_merchant_panel_closed() -> void:
+	if _active_menu == "merchant":
+		GameManager.is_paused = false
+		_active_menu = ""
+		_overlay.visible = false
+		if _merchant_layer:
+			_merchant_layer.visible = false
+			_merchant_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _on_panel_closed() -> void:
-	if _active_menu in ["inventory", "skill_tree", "merchant"]:
-		_active_menu = ""
-		_overlay.visible = false
-		get_tree().paused = false
+	if _active_menu not in ["inventory", "skill_tree"]:
+		return
+	var closing_inventory := _active_menu == "inventory"
+	_active_menu = ""
+	_overlay.visible = false
+	get_tree().paused = false
+	GameManager.menu_owner_index = 0
+	if closing_inventory and _inventory_layer:
+		_inventory_layer.visible = false
+		_inventory_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _on_spell_wheel_selected(index: int) -> void:
@@ -520,11 +745,28 @@ func _build_p2_vitals() -> void:
 	var top_left := get_node_or_null("HudRoot/TopLeft/VitalsPanel/Margin/VBox") as VBoxContainer
 	if top_left == null:
 		return
+	var ui_scale := maxf(1.0, SettingsManager.ui_scale)
+	var sep := HSeparator.new()
+	sep.name = "P2HudSeparator"
+	sep.custom_minimum_size = Vector2(0, int(10 * ui_scale))
+	top_left.add_child(sep)
+	_p2_progress_label = Label.new()
+	_p2_progress_label.name = "P2ProgressLabel"
+	_p2_progress_label.add_theme_font_size_override("font_size", int(20 * ui_scale))
+	_p2_progress_label.text = ""
+	top_left.add_child(_p2_progress_label)
 	_p2_vitals_label = Label.new()
 	_p2_vitals_label.name = "P2VitalsLabel"
-	_p2_vitals_label.add_theme_font_size_override("font_size", 14)
+	_p2_vitals_label.add_theme_font_size_override("font_size", int(20 * ui_scale))
 	_p2_vitals_label.text = ""
 	top_left.add_child(_p2_vitals_label)
+	_p2_action_label = Label.new()
+	_p2_action_label.name = "P2ActionLabel"
+	_p2_action_label.add_theme_font_size_override("font_size", int(20 * ui_scale))
+	_p2_action_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_p2_action_label.custom_minimum_size = Vector2(320 * ui_scale, 0)
+	_p2_action_label.text = ""
+	top_left.add_child(_p2_action_label)
 
 
 func _on_player_spawned(player: Node, index: int) -> void:
@@ -536,22 +778,81 @@ func _on_player_spawned(player: Node, index: int) -> void:
 			var health := player.get_node("HealthComponent") as HealthComponent
 			if not health.health_changed.is_connected(_on_p2_health_changed):
 				health.health_changed.connect(_on_p2_health_changed)
+			if not health.damaged.is_connected(_on_p2_damaged):
+				health.damaged.connect(_on_p2_damaged)
+		if player.has_node("FocusComponent"):
+			var focus := player.get_node("FocusComponent") as FocusComponent
+			if not focus.focus_changed.is_connected(_on_p2_focus_changed):
+				focus.focus_changed.connect(_on_p2_focus_changed)
+		if player.has_node("StaminaComponent"):
+			var stamina := player.get_node("StaminaComponent") as StaminaComponent
+			if not stamina.stamina_changed.is_connected(_on_p2_stamina_changed):
+				stamina.stamina_changed.connect(_on_p2_stamina_changed)
+		if player.has_node("StatsComponent"):
+			var stats := player.get_node("StatsComponent") as StatsComponent
+			if not stats.level_changed.is_connected(_on_p2_level_changed):
+				stats.level_changed.connect(_on_p2_level_changed)
+			if not stats.experience_changed.is_connected(_on_p2_experience_changed):
+				stats.experience_changed.connect(_on_p2_experience_changed)
+			_update_p2_progress()
+		if player.has_node("Spellcaster"):
+			var spellcaster := player.get_node("Spellcaster")
+			if spellcaster.has_signal("cast_failed") and not spellcaster.cast_failed.is_connected(_on_p2_spell_cast_failed):
+				spellcaster.cast_failed.connect(_on_p2_spell_cast_failed)
+			if spellcaster.has_signal("spell_cast") and not spellcaster.spell_cast.is_connected(_on_p2_spell_cast):
+				spellcaster.spell_cast.connect(_on_p2_spell_cast)
+		if _player_hud and _player_hud.has_method("bind_player2_status"):
+			_player_hud.bind_player2_status(player)
 
 
 func _on_p2_health_changed(current: float, maximum: float) -> void:
 	_update_p2_vitals()
+	if maximum > 0.0 and current >= maximum * 0.99 and _p2_feedback_text.begins_with("P2 Downed"):
+		show_p2_feedback("P2 Revived", 2.0)
+
+
+func _on_p2_damaged(_damage: DamageData, remaining: float) -> void:
+	if remaining > 0.0:
+		show_p2_feedback("P2 Hit", 1.2)
+
+
+func _on_p2_focus_changed(current: float, maximum: float) -> void:
+	_update_p2_vitals()
+	if maximum > 0.0 and current / maximum > 0.12:
+		_p2_low_focus_warned = false
+	elif not _p2_low_focus_warned and maximum > 0.0:
+		show_p2_feedback("P2 No Focus", 1.5)
+		_p2_low_focus_warned = true
+
+
+func _on_p2_stamina_changed(current: float, maximum: float) -> void:
+	_update_p2_vitals()
+	if maximum > 0.0 and current / maximum > 0.12:
+		_p2_low_stamina_warned = false
+	elif not _p2_low_stamina_warned and maximum > 0.0:
+		show_p2_feedback("P2 Low Stamina", 1.5)
+		_p2_low_stamina_warned = true
 
 
 func _update_p2_vitals() -> void:
 	if _p2_vitals_label == null:
 		return
-	if _player2 == null or not is_instance_valid(_player2):
+	if not GameManager.is_local_coop():
+		_p2_vitals_label.visible = false
 		_p2_vitals_label.text = ""
 		return
+	if _player2 == null or not is_instance_valid(_player2):
+		_p2_vitals_label.text = ""
+		_p2_vitals_label.visible = false
+		return
+	_p2_vitals_label.visible = true
 	var hp := 0.0
 	var hp_max := 100.0
 	var st := 0.0
 	var st_max := 100.0
+	var mp := 0.0
+	var mp_max := 100.0
+	var dead: bool = _player2.has_method("is_alive") and not bool(_player2.call("is_alive"))
 	if _player2.has_node("HealthComponent"):
 		var health := _player2.get_node("HealthComponent") as HealthComponent
 		hp = health.current_health
@@ -560,7 +861,71 @@ func _update_p2_vitals() -> void:
 		var stamina := _player2.get_node("StaminaComponent") as StaminaComponent
 		st = stamina.current_stamina
 		st_max = stamina.max_stamina
-	_p2_vitals_label.text = "P2  HP %d/%d  ST %d/%d" % [int(hp), int(hp_max), int(st), int(st_max)]
+	if _player2.has_node("FocusComponent"):
+		var focus := _player2.get_node("FocusComponent") as FocusComponent
+		mp = focus.current_focus
+		mp_max = focus.max_focus
+	var state := " DOWN" if dead else ""
+	_p2_vitals_label.text = "P2%s  HP %d/%d  MP %d/%d  ST %d/%d" % [
+		state, int(hp), int(hp_max), int(mp), int(mp_max), int(st), int(st_max)
+	]
+
+
+func _update_p2_combat_hud() -> void:
+	if _p2_action_label == null:
+		return
+	if not GameManager.is_local_coop():
+		_p2_action_label.visible = false
+		_p2_action_label.text = ""
+		return
+	if _player2 == null or not is_instance_valid(_player2):
+		_p2_action_label.text = ""
+		_p2_action_label.visible = false
+		return
+	_p2_action_label.visible = true
+	if _p2_feedback_timer > 0.0 and _p2_feedback_text != "":
+		_p2_action_label.text = _p2_feedback_text
+		return
+	var coop_prompt := GameManager.get_coop_player_prompt(1)
+	if coop_prompt != "":
+		_p2_action_label.text = coop_prompt
+		return
+	if _player2.has_method("is_alive") and not _player2.is_alive():
+		_p2_action_label.text = _CoopUiCopy.downed_waiting(1)
+		return
+	var device := InputManager.DEVICE_GAMEPAD
+	var parts: PackedStringArray = ["P2"]
+	parts.append("%s Light" % _binding_label("p2_light_attack", device))
+	parts.append("%s Heavy" % _binding_label("p2_heavy_attack", device))
+	parts.append("%s Spell" % _binding_label("p2_quick_spell", device))
+	parts.append("%s Dodge" % _binding_label("p2_dodge", device))
+	if GameManager.interacting_player_index == 1:
+		parts.append("%s Interact" % _binding_label("p2_interact", device))
+	_p2_action_label.text = " | ".join(parts)
+
+
+func _update_p1_coop_prompts() -> void:
+	if not GameManager.is_local_coop():
+		return
+	var p1_prompt := GameManager.get_coop_player_prompt(0)
+	if p1_prompt != "":
+		set_interact_prompt(p1_prompt)
+		return
+	if _player and is_instance_valid(_player) and _player.has_method("is_alive") and not _player.is_alive():
+		set_interact_prompt("Player 1 Downed | Waiting for Revive")
+
+
+func _binding_label(action: String, device: int) -> String:
+	var key := _UiInputLabels.get_primary_binding_text(StringName(action), device)
+	if key == "":
+		match action:
+			"p2_light_attack": key = "U"
+			"p2_heavy_attack": key = "O"
+			"p2_quick_spell": key = "8"
+			"p2_dodge": key = "P"
+			"p2_interact": key = "Enter"
+			_: key = "?"
+	return key
 
 
 func _build_adrenaline_pips() -> void:
@@ -607,28 +972,25 @@ func _update_adrenaline_pips(stamina_percent: float) -> void:
 
 
 func _update_quest_distance() -> void:
-	if _player == null:
-		return
-	var best := INF
-	for node in get_tree().get_nodes_in_group("quest_destination"):
-		if _player is Node3D and node is Node3D:
-			var d: float = (_player as Node3D).global_position.distance_to((node as Node3D).global_position)
-			best = minf(best, d)
-	var dist_text := ""
-	if best < INF:
-		dist_text = "%d m" % int(best)
+	var dist_text := ObjectiveRouter.get_distance_label(get_tree())
+	var lines := _quest_objective_lines()
+	var title := QuestManager.get_tracked_display_title()
+	var quest_type := "MISSION" if QuestManager.tracked_quest_id in NpcMissionRegistry.MISSIONS else "QUEST"
+	if QuestManager.tracked_quest_id.contains("main") or QuestManager.tracked_quest_id.contains("ashes"):
+		quest_type = "MAIN QUEST"
 	if quest_distance_label:
 		quest_distance_label.visible = false
 	var tracker := get_node_or_null("HudRoot/SafeArea/Shell/TopRight/RightSideContainer/QuestTracker") as QuestTrackerPanel
-	if tracker and QuestManager.tracked_quest_id != "":
-		var title := QuestManager.tracked_quest_id.replace("_", " ").capitalize()
-		var quest_type := "MAIN QUEST" if QuestManager.tracked_quest_id.contains("main") or QuestManager.tracked_quest_id.contains("ashes") else "QUEST"
-		var lines := _quest_objective_lines()
+	if QuestManager.tracked_quest_id == "" or not QuestManager.active_quests.has(QuestManager.tracked_quest_id):
+		if tracker:
+			tracker.clear()
+		elif _player_hud:
+			_player_hud.clear_quest()
+		return
+	if tracker:
 		tracker.set_from_objective_lines(title, lines, dist_text, quest_type)
-	elif _player_hud and QuestManager.tracked_quest_id != "":
-		var title := QuestManager.tracked_quest_id.replace("_", " ").capitalize()
-		var quest_type := "MAIN QUEST" if QuestManager.tracked_quest_id.contains("main") or QuestManager.tracked_quest_id.contains("ashes") else "QUEST"
-		_player_hud.update_quest(title, _quest_objective_lines(), dist_text, quest_type)
+	elif _player_hud:
+		_player_hud.update_quest(title, lines, dist_text, quest_type)
 
 
 func _build_overlay_ui() -> void:
@@ -640,9 +1002,11 @@ func _build_overlay_ui() -> void:
 	add_child(_overlay)
 	move_child(_overlay, 0)
 
-	_dialogue_ui = DialoguePanelScene.instantiate() as DialoguePanel
+	_dialogue_ui = DialoguePanelScene.instantiate() as Control
 	add_child(_dialogue_ui)
 	move_child(_dialogue_ui, get_child_count() - 1)
+	if _dialogue_ui is Control:
+		DialogueManager.bind_panel(_dialogue_ui)
 
 	_death_overlay = ColorRect.new()
 	_death_overlay.color = Color(0.02, 0.02, 0.03, 0.0)
@@ -702,8 +1066,9 @@ func _build_overlay_ui() -> void:
 	_menu_list.item_selected.connect(_on_menu_item_selected)
 	menu_vbox.add_child(_menu_list)
 	_menu_hint = Label.new()
-	_menu_hint.text = "A: Select   B: Close"
+	_menu_hint.text = "A Confirm | B Cancel"
 	_menu_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_menu_hint.add_theme_font_size_override("font_size", 20)
 	menu_vbox.add_child(_menu_hint)
 
 	_boss_name_label = Label.new()
@@ -714,11 +1079,43 @@ func _build_overlay_ui() -> void:
 	_boss_name_label.visible = false
 	add_child(_boss_name_label)
 
+	_inventory_layer = Control.new()
+	_inventory_layer.name = "InventoryLayer"
+	_inventory_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_inventory_layer.offset_left = 0.0
+	_inventory_layer.offset_top = 0.0
+	_inventory_layer.offset_right = 0.0
+	_inventory_layer.offset_bottom = 0.0
+	_inventory_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_inventory_layer.visible = false
+	add_child(_inventory_layer)
+
+	var inventory_safe := MarginContainer.new()
+	inventory_safe.name = "InventorySafeArea"
+	inventory_safe.set_anchors_preset(Control.PRESET_FULL_RECT)
+	inventory_safe.offset_left = 0.0
+	inventory_safe.offset_top = 0.0
+	inventory_safe.offset_right = 0.0
+	inventory_safe.offset_bottom = 0.0
+	inventory_safe.add_theme_constant_override("margin_left", UiMetrics.SPACE_SAFE)
+	inventory_safe.add_theme_constant_override("margin_top", UiMetrics.SPACE_SAFE + 16)
+	inventory_safe.add_theme_constant_override("margin_right", UiMetrics.SPACE_SAFE)
+	inventory_safe.add_theme_constant_override("margin_bottom", UiMetrics.SPACE_SAFE + 48)
+	_inventory_layer.add_child(inventory_safe)
+
+	var inventory_center := CenterContainer.new()
+	inventory_center.name = "InventoryCenter"
+	inventory_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inventory_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	inventory_safe.add_child(inventory_center)
+
 	_inventory_panel = InventoryPanelScene.new()
+	_inventory_panel.name = "InventoryPanel"
 	_inventory_panel.visible = false
-	_inventory_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_inventory_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_inventory_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_inventory_panel.closed.connect(_on_panel_closed)
-	add_child(_inventory_panel)
+	inventory_center.add_child(_inventory_panel)
 
 	_skill_tree_panel = SkillTreePanelScene.new()
 	_skill_tree_panel.visible = false
@@ -731,16 +1128,76 @@ func _build_overlay_ui() -> void:
 	_spell_wheel_panel.spell_selected.connect(_on_spell_wheel_selected)
 	add_child(_spell_wheel_panel)
 
+	_merchant_layer = Control.new()
+	_merchant_layer.name = "MerchantLayer"
+	_merchant_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_merchant_layer.offset_left = 0.0
+	_merchant_layer.offset_top = 0.0
+	_merchant_layer.offset_right = 0.0
+	_merchant_layer.offset_bottom = 0.0
+	_merchant_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_merchant_layer.visible = false
+	add_child(_merchant_layer)
+
+	var merchant_safe := MarginContainer.new()
+	merchant_safe.name = "MerchantSafeArea"
+	merchant_safe.set_anchors_preset(Control.PRESET_FULL_RECT)
+	merchant_safe.offset_left = 0.0
+	merchant_safe.offset_top = 0.0
+	merchant_safe.offset_right = 0.0
+	merchant_safe.offset_bottom = 0.0
+	merchant_safe.add_theme_constant_override("margin_left", UiMetrics.SPACE_SAFE)
+	merchant_safe.add_theme_constant_override("margin_top", UiMetrics.SPACE_SAFE + 16)
+	merchant_safe.add_theme_constant_override("margin_right", UiMetrics.SPACE_SAFE)
+	merchant_safe.add_theme_constant_override("margin_bottom", UiMetrics.SPACE_SAFE + 48)
+	_merchant_layer.add_child(merchant_safe)
+
+	var merchant_center := CenterContainer.new()
+	merchant_center.name = "MerchantCenter"
+	merchant_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	merchant_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	merchant_safe.add_child(merchant_center)
+
 	_merchant_panel = MerchantShopPanelScene.new()
+	_merchant_panel.name = "MerchantShopPanel"
 	_merchant_panel.visible = false
-	_merchant_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_merchant_panel.closed.connect(_on_panel_closed)
-	add_child(_merchant_panel)
+	_merchant_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_merchant_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_merchant_panel.closed.connect(_on_merchant_panel_closed)
+	merchant_center.add_child(_merchant_panel)
 
 	_pet_wheel_panel = PetWheelPanelScene.new()
 	_pet_wheel_panel.visible = false
 	_pet_wheel_panel.command_selected.connect(_on_pet_command_selected)
 	add_child(_pet_wheel_panel)
+	_pet_status_label = Label.new()
+	_pet_status_label.visible = false
+	_pet_status_label.add_theme_font_size_override("font_size", 14)
+	_pet_status_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_pet_status_label.offset_left = 16
+	_pet_status_label.offset_top = 96
+	add_child(_pet_status_label)
+	if not PetManager.pet_stats_changed.is_connected(_update_pet_status):
+		PetManager.pet_stats_changed.connect(_update_pet_status)
+	if not PetManager.pet_command_changed.is_connected(_on_pet_command_changed):
+		PetManager.pet_command_changed.connect(_on_pet_command_changed)
+	if not PetManager.pet_spawned.is_connected(_on_pet_spawned_hud):
+		PetManager.pet_spawned.connect(_on_pet_spawned_hud)
+
+	var map_center := CenterContainer.new()
+	map_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(map_center)
+	_world_map_panel = WorldMapScene.instantiate() as WorldMapPanel
+	_world_map_panel.visible = false
+	map_center.add_child(_world_map_panel)
+
+	var quest_center := CenterContainer.new()
+	quest_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(quest_center)
+	_quest_tracker_screen = QuestTrackerScreenScene.instantiate() as PanelContainer
+	_quest_tracker_screen.visible = false
+	_quest_tracker_screen.open_map_requested.connect(_open_world_map_from_quest_tracker)
+	quest_center.add_child(_quest_tracker_screen)
 
 
 func _build_toast() -> void:
@@ -788,6 +1245,8 @@ func _bind_player_node(player: Node) -> void:
 			spellcaster.spell_changed.connect(_on_spell_changed)
 		if spellcaster.has_signal("cast_failed") and not spellcaster.cast_failed.is_connected(_on_spell_cast_failed):
 			spellcaster.cast_failed.connect(_on_spell_cast_failed)
+		if spellcaster.has_signal("spell_cast") and not spellcaster.spell_cast.is_connected(_on_spell_cast):
+			spellcaster.spell_cast.connect(_on_spell_cast)
 	_update_bars()
 	if player.has_node("StaminaComponent"):
 		var stamina := player.get_node("StaminaComponent") as StaminaComponent
@@ -878,6 +1337,34 @@ func _on_spell_cast_failed(reason: String) -> void:
 	if reason == "focus" and _player_hud:
 		_player_hud.flash_mana_insufficient()
 		_player_hud.set_slot_insufficient(2, true)
+	var msg := _spell_fail_message(reason, 0)
+	if msg != "":
+		show_toast(msg, 1.5)
+
+
+func _on_spell_cast(_spell_id: String, display_name: String) -> void:
+	if GameManager.is_local_coop():
+		show_toast("P1 cast %s" % display_name, 1.5)
+	else:
+		show_toast("Cast %s" % display_name, 1.5)
+	_update_spell_label()
+
+
+func _on_p2_spell_cast(_spell_id: String, display_name: String) -> void:
+	show_p2_feedback("P2 cast %s" % display_name, 1.5)
+
+
+func _spell_fail_message(reason: String, player_index: int) -> String:
+	var prefix := "P2 " if player_index == 1 else ("P1 " if GameManager.is_local_coop() else "")
+	match reason:
+		"focus":
+			return "%sNo Focus" % prefix
+		"cooldown":
+			return "%sSpell Cooldown" % prefix
+		"locked":
+			return "%sSpell Locked" % prefix
+		_:
+			return "%sSpell Unavailable" % prefix if prefix != "" else ""
 
 
 func _on_boss_phase_changed(phase: int) -> void:
@@ -926,7 +1413,37 @@ func _on_level_changed(level: int) -> void:
 		var stats := _player.get_node("StatsComponent") as StatsComponent
 		_update_level_label(stats)
 		_update_xp_bar(stats)
-		show_toast("Level Up!", 2.5, "Reached level %d" % level, "experience")
+	if GameManager.is_local_coop():
+		show_toast("P1 Level Up!", 2.5, "Reached level %d" % level, "experience", "", NotificationToast.Priority.IMPORTANT)
+	else:
+		show_toast("Level Up!", 2.5, "Reached level %d" % level, "experience", "", NotificationToast.Priority.IMPORTANT)
+
+
+func _on_p2_level_changed(level: int) -> void:
+	_update_p2_progress()
+	if GameManager.is_local_coop():
+		show_toast("P2 Level Up!", 2.5, "Reached level %d" % level, "experience", "", NotificationToast.Priority.IMPORTANT)
+
+
+func _on_p2_experience_changed(_current: int, _required: int) -> void:
+	_update_p2_progress()
+
+
+func _update_p2_progress() -> void:
+	if _p2_progress_label == null:
+		return
+	if not GameManager.is_local_coop():
+		_p2_progress_label.visible = false
+		_p2_progress_label.text = ""
+		return
+	if _player2 == null or not is_instance_valid(_player2) or not _player2.has_node("StatsComponent"):
+		_p2_progress_label.visible = false
+		_p2_progress_label.text = ""
+		return
+	var stats := _player2.get_node("StatsComponent") as StatsComponent
+	_p2_progress_label.visible = true
+	var needed := stats.get_exp_to_next_level()
+	_p2_progress_label.text = "P2 Lv %d | XP %d / %d" % [stats.level, stats.experience, needed]
 
 
 func _on_experience_changed(_current: int, _required: int) -> void:
@@ -934,11 +1451,20 @@ func _on_experience_changed(_current: int, _required: int) -> void:
 		_update_xp_bar(_player.get_node("StatsComponent") as StatsComponent)
 
 
-func _on_combat_xp_gained(amount: int, label: String, is_kill: bool) -> void:
+func _on_combat_xp_gained(amount: int, label: String, is_kill: bool, player_index: int = 0) -> void:
+	var display := label
+	if GameManager.is_local_coop():
+		display = "P%d %s" % [player_index + 1, label]
 	if _xp_gain:
-		_xp_gain.show_xp(amount, label, is_kill)
-	if _player and _player.has_node("StatsComponent"):
+		_xp_gain.show_xp(amount, display, is_kill)
+	var earner := GameManager.get_player(player_index)
+	if earner and earner.has_node("StatsComponent"):
+		if player_index == 0 or not GameManager.is_local_coop():
+			_update_xp_bar(earner.get_node("StatsComponent") as StatsComponent)
+	elif _player and _player.has_node("StatsComponent"):
 		_update_xp_bar(_player.get_node("StatsComponent") as StatsComponent)
+	if player_index == 1:
+		_update_p2_progress()
 
 
 func _on_stats_changed() -> void:
@@ -964,7 +1490,28 @@ func _update_level_label(stats: StatsComponent) -> void:
 
 
 func _on_quest_rewarded(quest_id: String, summary: String) -> void:
-	show_toast("Quest complete: %s (%s)" % [quest_id.replace("_", " ").capitalize(), summary], 4.0)
+	var quest_name := quest_id.replace("_", " ").capitalize()
+	var reward_text := NotificationToast.format_reward_text(summary).replace("\n", ", ")
+	var detail := quest_name if reward_text.is_empty() else "%s - %s" % [quest_name, reward_text]
+	show_toast("Quest complete:", 4.0, detail, "notification", "", NotificationToast.Priority.IMPORTANT)
+
+
+func _on_quest_started(quest_id: String) -> void:
+	if quest_id in NpcMissionRegistry.MISSIONS:
+		return
+	var title := quest_id.replace("_", " ").capitalize()
+	show_toast("New Quest", 3.0, title, "notification", "", NotificationToast.Priority.IMPORTANT)
+
+
+func _on_quest_updated(quest_id: String) -> void:
+	_update_quest(quest_id)
+	if quest_id in NpcMissionRegistry.MISSIONS:
+		return
+	if quest_id == "" or not QuestManager.active_quests.has(quest_id):
+		return
+	var summary := QuestManager.get_quest_summary(quest_id)
+	if summary != "":
+		show_toast("Quest Updated", 2.5, summary, "notification", "", NotificationToast.Priority.IMPORTANT)
 
 
 func _on_quest_completed(quest_id: String) -> void:
@@ -1014,18 +1561,17 @@ func _update_quest(_id: String) -> void:
 		if quest_label:
 			quest_label.text = ""
 		return
-	var qid: String = QuestManager.tracked_quest_id
-	var title := qid.replace("_", " ").capitalize()
-	var quest_type := "MAIN QUEST" if qid.contains("main") or qid.contains("ashes") else "QUEST"
+	var title := QuestManager.get_tracked_display_title()
+	var quest_type := "MISSION" if QuestManager.tracked_quest_id in NpcMissionRegistry.MISSIONS else "QUEST"
+	if QuestManager.tracked_quest_id.contains("main") or QuestManager.tracked_quest_id.contains("ashes"):
+		quest_type = "MAIN QUEST"
 	var lines := _quest_objective_lines()
 	if quest_title_label:
-		quest_title_label.text = title
+		quest_title_label.text = "Tracked: %s" % title
 	if quest_label:
 		quest_label.text = "\n".join(lines)
-	if tracker:
-		tracker.set_from_objective_lines(title, lines, "", quest_type)
-	elif _player_hud:
-		_player_hud.update_quest(title, lines, "", quest_type)
+	_update_quest_distance()
+	ObjectiveRouter.refresh_waypoint()
 
 
 func _quest_objective_lines() -> PackedStringArray:
@@ -1052,6 +1598,7 @@ func _update_currency() -> void:
 func _on_inventory_changed() -> void:
 	if _active_menu == "inventory" and _inventory_panel.visible:
 		_inventory_panel.open(_player)
+	BaseManager.notify_inventory_or_storage_changed()
 
 
 func _on_dialogue_started(_npc_id: String) -> void:
@@ -1061,12 +1608,25 @@ func _on_dialogue_started(_npc_id: String) -> void:
 
 func _on_dialogue_line(speaker: String, text: String) -> void:
 	if _dialogue_ui:
-		_dialogue_ui.show_line(speaker, text)
+		var show_footer := not DialogueManager.has_pending_choices()
+		_dialogue_ui.show_line(speaker, text, show_footer, show_footer)
+		var labels := DialogueManager.get_footer_labels()
+		_dialogue_ui.apply_footer_labels(labels.confirm, labels.cancel)
 
 
 func _on_dialogue_choices(options: Array[String]) -> void:
 	if _dialogue_ui:
 		_dialogue_ui.show_choices(options)
+
+
+func _on_dialogue_footer_labels(confirm_label: String, cancel_label: String) -> void:
+	if _dialogue_ui:
+		_dialogue_ui.apply_footer_labels(confirm_label, cancel_label)
+
+
+func _on_dialogue_focus_choice(delta: int) -> void:
+	if _dialogue_ui:
+		_dialogue_ui.focus_choice(delta)
 
 
 func _on_dialogue_ended() -> void:
@@ -1099,20 +1659,51 @@ func _fade_from_black(duration: float = 0.35) -> void:
 func _on_resources_obtained(rewards: Dictionary) -> void:
 	if _resource_gain:
 		_resource_gain.show_rewards(rewards)
+	if not rewards.is_empty():
+		TutorialPromptManager.try_show("gather")
 
 
-func _on_player_died(_player: Node, _index: int) -> void:
-	if _active_menu != "":
-		_close_menu()
+func _on_pickup_toast(message: String) -> void:
+	show_toast(message, 2.0, "", "notification", "", NotificationToast.Priority.NORMAL)
+	if message.contains("picked up"):
+		var parts := message.split(" picked up ")
+		if parts.size() == 2:
+			var item_part := parts[1]
+			var item_id := item_part.split(" x")[0].replace(" ", "_").to_lower()
+			BaseManager.notify_tracked_material_pickup(item_id, 1)
+
+
+func show_p2_feedback(text: String, duration: float = 2.0) -> void:
+	_p2_feedback_text = text
+	_p2_feedback_timer = duration
+
+
+func _on_p2_spell_cast_failed(reason: String) -> void:
+	var msg := _spell_fail_message(reason, 1)
+	if msg != "":
+		show_p2_feedback(msg, 1.5)
+
+
+func _on_player_died(player: Node, index: int) -> void:
+	if index == 1 and GameManager.is_local_coop():
+		show_p2_feedback(_CoopUiCopy.downed_waiting(1), 3.0)
+		show_toast("%s Downed" % _CoopUiCopy.player_long(1), 2.5, "", "notification", "", NotificationToast.Priority.CRITICAL)
+	elif index == 0 and GameManager.is_local_coop():
+		show_toast("%s Downed" % _CoopUiCopy.player_long(0), 2.5, "", "notification", "", NotificationToast.Priority.CRITICAL)
+	_reset_coop_menu_state()
 	if DialogueManager.is_active():
 		DialogueManager.cancel()
+	if MerchantManager.is_shop_open:
+		MerchantManager.notify_shop_closed()
+	get_tree().paused = false
+	GameManager.is_paused = false
 	set_interact_prompt("")
 	set_execution_prompt(false)
 
 
 func begin_death_sequence() -> void:
 	if _death_active:
-		return
+		force_reset_death_overlay()
 	_death_active = true
 	_death_overlay.visible = true
 	_death_title.modulate.a = 0.0
@@ -1121,11 +1712,20 @@ func begin_death_sequence() -> void:
 	tween.tween_property(_death_overlay, "color:a", 0.72, 0.3)
 	await get_tree().create_timer(0.3).timeout
 	_death_title.modulate.a = 1.0
-	_death_countdown.text = "Respawning in 2"
+	_death_countdown.text = "Restarting in 2"
 	_death_countdown.modulate.a = 1.0
 	await get_tree().create_timer(1.0).timeout
-	_death_countdown.text = "Respawning in 1"
+	_death_countdown.text = "Restarting in 1"
 	await get_tree().create_timer(1.0).timeout
+
+
+func hold_death_blackout() -> void:
+	if _death_overlay == null:
+		return
+	_death_countdown.text = "Restarting..."
+	var tween := create_tween()
+	tween.tween_property(_death_overlay, "color", Color(0.02, 0.02, 0.03, 1.0), 0.35)
+	await tween.finished
 
 
 func finish_death_sequence() -> void:
@@ -1137,6 +1737,17 @@ func finish_death_sequence() -> void:
 	_death_active = false
 
 
+func force_reset_death_overlay() -> void:
+	if _death_overlay:
+		_death_overlay.visible = false
+		_death_overlay.color = Color(0.02, 0.02, 0.03, 0.0)
+	_death_active = false
+	if _death_title:
+		_death_title.modulate.a = 0.0
+	if _death_countdown:
+		_death_countdown.modulate.a = 0.0
+
+
 func _open_pause_menu() -> void:
 	_menu_list.clear()
 	_menu_list.add_item("Resume")
@@ -1146,16 +1757,63 @@ func _open_pause_menu() -> void:
 	_show_menu("pause", "Paused")
 
 
+func _open_quest_tracker_panel() -> void:
+	TutorialPromptManager.try_show("quest_tracker")
+	_active_menu = "quests"
+	_overlay.visible = true
+	_menu_panel.visible = false
+	GameManager.is_paused = true
+	get_tree().paused = true
+	_refresh_menu_hint()
+	if _quest_tracker_screen:
+		_quest_tracker_screen.visible = true
+		_quest_tracker_screen.refresh()
+
+
+func _close_quest_tracker_panel() -> void:
+	if _quest_tracker_screen:
+		_quest_tracker_screen.visible = false
+	_active_menu = ""
+	_overlay.visible = false
+	GameManager.menu_owner_index = 0
+	GameManager.is_paused = false
+	get_tree().paused = false
+
+
+func _open_world_map_panel() -> void:
+	TutorialPromptManager.try_show("map")
+	_active_menu = "map"
+	_overlay.visible = true
+	_menu_panel.visible = false
+	GameManager.is_paused = true
+	get_tree().paused = true
+	_refresh_menu_hint()
+	if _world_map_panel:
+		_world_map_panel.visible = true
+		_world_map_panel.refresh()
+
+
+func _close_world_map_panel() -> void:
+	if _world_map_panel:
+		_world_map_panel.visible = false
+	_active_menu = ""
+	_overlay.visible = false
+	GameManager.menu_owner_index = 0
+	GameManager.is_paused = false
+	get_tree().paused = false
+
+
+func _open_world_map_from_quest_tracker() -> void:
+	_close_quest_tracker_panel()
+	_open_world_map_panel()
+
+
 func _open_quest_journal_menu() -> void:
-	_menu_list.clear()
-	_menu_list.add_item("Close")
-	for quest_id in QuestManager.get_active_quest_list():
-		var prefix := "> " if quest_id == QuestManager.tracked_quest_id else "  "
-		var idx := _menu_list.add_item("%s%s" % [prefix, QuestManager.get_quest_summary(quest_id)])
-		_menu_list.set_item_metadata(idx, quest_id)
-	if _menu_list.item_count <= 1:
-		_menu_list.add_item("(No active quests)")
-	_show_menu("quests", "Quest Journal")
+	_open_quest_tracker_panel()
+
+
+func _open_map_menu() -> void:
+	_open_world_map_panel()
 
 
 func _open_settings_menu() -> void:
@@ -1197,39 +1855,10 @@ func _open_waystone_menu() -> void:
 		_menu_list.set_item_metadata(idx, dest)
 	if _menu_list.item_count <= 1:
 		_menu_list.add_item("(No destinations available)")
-	_show_menu("waystone", "Waystone Travel")
-
-
-func _open_map_menu() -> void:
-	_menu_list.clear()
-	_menu_list.add_item("Close")
-	_menu_list.add_item("--- Active Quests ---")
-	for quest_id in QuestManager.get_active_quest_list():
-		_menu_list.add_item(QuestManager.get_quest_summary(quest_id))
-	_menu_list.add_item("--- Regions ---")
-	for region_id in MapManager.regions.keys():
-		var state: int = MapManager.regions[region_id]
-		var state_name: String = MapManager.RegionState.keys()[state]
-		if state == MapManager.RegionState.UNDISCOVERED:
-			state_name = "???"
-		var layout := MapManager.get_region_layout(region_id)
-		var suffix := ""
-		if layout.get("kind") == "island":
-			suffix = " [Island]"
-		elif layout.get("kind") == "camp":
-			suffix = " [Camp]"
-		_menu_list.add_item("%s%s — %s" % [region_id.replace("_", " ").capitalize(), suffix, state_name])
-	if _player:
-		_menu_list.add_item("Position: %s" % MapManager.get_map_position_label(_player.global_position))
-	var region_id := GameManager.current_region_id
-	if region_id != "":
-		_menu_list.add_item("--- Fog (@=you . =explored ? =unknown) ---")
-		for line in MapManager.get_fog_grid_lines(region_id):
-			_menu_list.add_item(line)
-		for icon in MapManager.icons:
-			if icon.get("label", "") != "":
-				_menu_list.add_item("Icon: %s" % icon.label)
-	_show_menu("map", "World Map")
+	var title := "Waystone Travel"
+	if GameManager.is_local_coop():
+		title = "Waystone Travel — Both players will travel"
+	_show_menu("waystone", title)
 
 
 func _populate_crafting_list() -> void:
@@ -1240,17 +1869,73 @@ func _populate_crafting_list() -> void:
 		var check := CraftingManager.can_craft(recipe_id, _crafting_station_id)
 		var status: String = "OK" if check.ok else str(check.reason)
 		_menu_list.add_item("%s — %s" % [recipe_id, status])
+	if _crafting_station_id in ["workbench", "forge"]:
+		_populate_equipment_station_actions()
 	if BaseManager.can_upgrade(_crafting_station_id):
 		var uidx := _menu_list.add_item("Upgrade station")
 		_menu_list.set_item_metadata(uidx, _crafting_station_id)
 
 
+func _populate_equipment_station_actions() -> void:
+	_menu_list.add_item("--- Equipment ---")
+	for entry in EquipmentManager.get_repairable_instances():
+		var iid := str(entry.get("instance_id", ""))
+		if iid == "":
+			continue
+		var gear_name := EquipmentManager.get_display_name(entry)
+		var cur := int(entry.get("current_durability", 0))
+		var max_d := int(entry.get("max_durability", 0))
+		if cur < max_d:
+			var check := EquipmentManager.can_repair_with_resources(iid)
+			var status := "OK" if check.ok else str(check.reason)
+			var ridx := _menu_list.add_item("Repair %s (%d/%d) — %s" % [gear_name, cur, max_d, status])
+			_menu_list.set_item_metadata(ridx, {"action": "repair", "instance_id": iid})
+		var item_type: String = str(ItemDatabase.get_item(str(entry.id)).get("type", ""))
+		if item_type == "weapon" and _crafting_station_id == "workbench":
+			var ucheck := EquipmentManager.can_upgrade_weapon(iid)
+			var ustatus := "OK" if ucheck.ok else str(ucheck.reason)
+			var uidx := _menu_list.add_item("Upgrade %s — %s" % [gear_name, ustatus])
+			_menu_list.set_item_metadata(uidx, {"action": "upgrade_weapon", "instance_id": iid})
+		if item_type == "armor" and _crafting_station_id == "forge":
+			var rcheck := EquipmentManager.can_reinforce_armor(iid)
+			var rstatus := "OK" if rcheck.ok else str(rcheck.reason)
+			var ridx2 := _menu_list.add_item("Reinforce %s — %s" % [gear_name, rstatus])
+			_menu_list.set_item_metadata(ridx2, {"action": "reinforce_armor", "instance_id": iid})
+		if _crafting_station_id == "forge" and ItemDatabase.can_have_sockets(str(entry.id)):
+			var scheck := EquipmentManager.can_prepare_socket(iid)
+			var sstatus := "OK" if scheck.ok else str(scheck.reason)
+			var sidx := _menu_list.add_item("Prepare Socket %s — %s" % [gear_name, sstatus])
+			_menu_list.set_item_metadata(sidx, {"action": "prepare_socket", "instance_id": iid})
+			entry.socketed_gems = EquipmentManager._sync_socket_array(entry)
+			for s in entry.socketed_gems.size():
+				var gem_id := str(entry.socketed_gems[s])
+				if gem_id != "":
+					var gname := GemEffectManager.get_display_name(gem_id)
+					var rm := _menu_list.add_item("Remove %s from %s (Recover 50c)" % [gname, gear_name])
+					_menu_list.set_item_metadata(rm, {"action": "remove_gem_recover", "instance_id": iid, "socket_index": s})
+					var sh := _menu_list.add_item("Shatter %s from %s" % [gname, gear_name])
+					_menu_list.set_item_metadata(sh, {"action": "remove_gem_shatter", "instance_id": iid, "socket_index": s})
+				elif int(entry.get("socket_count", 0)) > 0:
+					for inv_gem in EquipmentManager.get_inventory_gems():
+						var gdisplay := GemEffectManager.get_display_name(inv_gem)
+						var compat := EquipmentManager.can_insert_gem(iid, inv_gem, s)
+						var cstatus := "OK" if compat.ok else str(compat.reason)
+						var ins := _menu_list.add_item("Socket %s into %s — %s" % [gdisplay, gear_name, cstatus])
+						_menu_list.set_item_metadata(ins, {"action": "insert_gem", "instance_id": iid, "gem_id": inv_gem, "socket_index": s})
+
+
 func _show_menu(menu_id: String, title: String) -> void:
+	if _active_menu != "" and _active_menu != menu_id:
+		return
 	_active_menu = menu_id
+	if GameManager.interacting_player_index >= 0 and _active_menu != "pause":
+		GameManager.menu_owner_index = GameManager.interacting_player_index
 	_menu_title.text = title
+	_refresh_menu_hint()
 	_menu_panel.visible = true
 	_overlay.visible = true
 	if menu_id != "spell_wheel":
+		GameManager.is_paused = true
 		get_tree().paused = true
 	_menu_list.grab_focus()
 	if _menu_list.item_count > 0:
@@ -1261,7 +1946,25 @@ func _close_menu() -> void:
 	_active_menu = ""
 	_menu_panel.visible = false
 	_overlay.visible = false
+	GameManager.menu_owner_index = 0
+	GameManager.is_paused = false
 	get_tree().paused = false
+
+
+func _refresh_menu_hint() -> void:
+	if _menu_hint == null:
+		return
+	if GameManager.is_local_coop():
+		var owner := GameManager.menu_owner_index
+		_menu_hint.text = "%s | %s" % [
+			_CoopUiCopy.menu_controlled_by(owner),
+			_CoopUiCopy.menu_footer(owner),
+		]
+	else:
+		_menu_hint.text = "%s Confirm | %s Cancel" % [
+			_CoopUiCopy.binding("confirm", 0),
+			_CoopUiCopy.binding("cancel", 0),
+		]
 
 
 func _menu_confirm() -> void:
@@ -1275,6 +1978,8 @@ func _menu_confirm() -> void:
 			_handle_pause_selection(text)
 		"storage":
 			_handle_storage_selection(index)
+		"camp_chest":
+			_handle_camp_chest_selection(index)
 		"upgrade":
 			_handle_upgrade_selection(index)
 		"waystone":
@@ -1324,7 +2029,71 @@ func _handle_waystone_selection(text: String) -> void:
 	if dest_id == "":
 		return
 	_close_menu()
+	_execute_waystone_travel(dest_id)
+
+
+func _execute_waystone_travel(dest_id: String) -> void:
+	var block := _waystone_travel_block_reason()
+	if block != "":
+		show_toast(block, 2.5, "", "notification", "", NotificationToast.Priority.CRITICAL)
+		return
+	if not WaystoneManager.can_fast_travel(dest_id):
+		show_toast("Destination unavailable", 2.5, "", "notification", "", NotificationToast.Priority.CRITICAL)
+		return
+	_show_waystone_travel_toasts()
+	_reset_coop_menu_state()
+	GameManager.death_input_locked = true
+	await _fade_to_black(0.35)
 	WaystoneManager.fast_travel(dest_id)
+
+
+func _waystone_travel_block_reason() -> String:
+	if is_fullscreen_menu_open():
+		return "Close current menu before traveling"
+	if GameManager.in_boss_fight:
+		return "Cannot travel during boss fight"
+	if GameManager.in_combat:
+		return "Cannot travel during combat"
+	if DialogueManager.is_active():
+		return "Cannot travel during dialogue"
+	if GameManager.is_paused:
+		return "Close current menu before traveling"
+	return ""
+
+
+func _show_waystone_travel_toasts() -> void:
+	if not GameManager.is_local_coop():
+		return
+	var anchor := WaystoneManager.last_waystone_position
+	var downed := GameManager.get_downed_players()
+	if downed.size() > 0:
+		var downed_player: Node = downed[0]
+		var idx := 1
+		if downed_player is PlayerController:
+			idx = (downed_player as PlayerController).player_index
+		show_toast(
+			"Both players will travel",
+			2.5,
+			"Downed ally will revive at destination",
+			"notification",
+			"",
+			NotificationToast.Priority.IMPORTANT
+		)
+		return
+	var distant := GameManager.get_distant_living_player_indices(anchor)
+	if distant.is_empty():
+		return
+	var lines: PackedStringArray = []
+	for idx in distant:
+		lines.append("%s will be pulled to the Waystone" % _CoopUiCopy.player_long(idx))
+	show_toast(
+		"Both players will travel",
+		2.5,
+		", ".join(lines),
+		"notification",
+		"",
+		NotificationToast.Priority.IMPORTANT
+	)
 
 
 func _handle_quest_journal_selection(index: int) -> void:
@@ -1395,9 +2164,15 @@ func _handle_spell_wheel_selection(index: int) -> void:
 
 
 func _handle_crafting_selection(text: String) -> void:
+	if text.begins_with("---"):
+		return
+	var sel := _menu_list.get_selected_items()
+	var index := sel[0] if sel.size() > 0 else -1
+	var meta: Variant = _menu_list.get_item_metadata(index) if index >= 0 else null
+	if meta is Dictionary and meta.has("action"):
+		_handle_equipment_station_action(meta)
+		return
 	if text == "Upgrade station":
-		var sel := _menu_list.get_selected_items()
-		var index := sel[0] if sel.size() > 0 else -1
 		var station_id: String = _menu_list.get_item_metadata(index) if index >= 0 else _crafting_station_id
 		if BaseManager.upgrade_station(station_id):
 			_populate_crafting_list()
@@ -1406,36 +2181,68 @@ func _handle_crafting_selection(text: String) -> void:
 		return
 	var recipe_id := text.split(" — ")[0]
 	if CraftingManager.craft(recipe_id, _crafting_station_id):
+		var crafted := recipe_id.replace("_", " ").capitalize()
+		if GameManager.is_local_coop():
+			var owner := GameManager.menu_owner_index
+			show_toast("%s crafted %s" % [_CoopUiCopy.player_tag(owner), crafted], 2.5, "", "notification", "", NotificationToast.Priority.NORMAL)
+		else:
+			show_toast("Crafted %s" % crafted, 2.5, "", "notification", "", NotificationToast.Priority.NORMAL)
 		_populate_crafting_list()
+
+
+func _handle_equipment_station_action(meta: Dictionary) -> void:
+	var action: String = str(meta.get("action", ""))
+	var instance_id: String = str(meta.get("instance_id", ""))
+	var result: Dictionary = {}
+	match action:
+		"repair":
+			result = EquipmentManager.repair_with_resources(instance_id)
+			if result.ok:
+				EquipmentManager.show_gear_toast("repaired %s" % result.name, NotificationToast.Priority.IMPORTANT)
+		"upgrade_weapon":
+			result = EquipmentManager.upgrade_weapon(instance_id)
+			if result.ok:
+				EquipmentManager.show_gear_toast("upgraded %s to +%d" % [result.name, int(result.level)], NotificationToast.Priority.IMPORTANT)
+		"reinforce_armor":
+			result = EquipmentManager.reinforce_armor(instance_id)
+			if result.ok:
+				EquipmentManager.show_gear_toast("reinforced %s to +%d" % [result.name, int(result.level)], NotificationToast.Priority.IMPORTANT)
+		"prepare_socket":
+			result = EquipmentManager.prepare_socket(instance_id)
+			if result.ok:
+				EquipmentManager.show_gear_toast("prepared a socket on %s" % result.name, NotificationToast.Priority.IMPORTANT)
+		"insert_gem":
+			result = EquipmentManager.insert_gem(instance_id, str(meta.get("gem_id", "")), int(meta.get("socket_index", -1)))
+			if result.ok:
+				EquipmentManager.show_gear_toast("socketed %s into %s" % [result.gem_name, result.gear_name], NotificationToast.Priority.IMPORTANT)
+		"remove_gem_recover":
+			result = EquipmentManager.remove_gem(instance_id, int(meta.get("socket_index", 0)), true)
+			if result.ok:
+				EquipmentManager.show_gear_toast("%s removed from %s" % [result.gem_name, result.gear_name], NotificationToast.Priority.IMPORTANT)
+		"remove_gem_shatter":
+			result = EquipmentManager.remove_gem(instance_id, int(meta.get("socket_index", 0)), false)
+			if result.ok:
+				EquipmentManager.show_gear_toast("%s shattered during removal" % result.gem_name, NotificationToast.Priority.IMPORTANT)
+	if not result.is_empty() and not result.get("ok", false) and str(result.get("reason", "")) != "":
+		EquipmentManager.show_gear_toast(str(result.reason), NotificationToast.Priority.IMPORTANT)
+	if result.get("ok", false):
+		for player in GameManager.get_alive_players():
+			PlayerProgress._apply_equipment_stats(player)
+	_populate_crafting_list()
 
 
 func open_upgrade_menu(station_id: String) -> void:
 	_menu_list.clear()
 	_menu_list.add_item("Close")
 	var level := BaseManager.get_station_level(station_id)
-	_menu_list.add_item("%s — Level %d" % [station_id.capitalize(), level])
+	var station_name := station_id.replace("_", " ").capitalize()
+	_menu_list.add_item("%s — Level %d" % [station_name, level])
+	var requirements := BaseManager.get_missing_materials_summary(station_id)
+	_menu_list.add_item(requirements)
 	if BaseManager.can_upgrade(station_id):
-		var idx := _menu_list.add_item("Upgrade %s" % station_id.capitalize())
+		var idx := _menu_list.add_item("Upgrade %s" % station_name)
 		_menu_list.set_item_metadata(idx, station_id)
-	else:
-		_menu_list.add_item("(Max level or missing materials)")
-	_show_menu("upgrade", "Station Upgrade")
-
-
-func open_storage_menu() -> void:
-	_menu_list.clear()
-	_menu_list.add_item("Close")
-	_menu_list.add_item("--- Deposit (inventory → base) ---")
-	for entry in InventoryManager.items:
-		var idx := _menu_list.add_item("Deposit %s x%d" % [entry.id, entry.quantity])
-		_menu_list.set_item_metadata(idx, {"action": "deposit", "id": entry.id, "qty": entry.quantity})
-	_menu_list.add_item("--- Withdraw (base → inventory) ---")
-	for entry in InventoryManager.base_storage:
-		var widx := _menu_list.add_item("Withdraw %s x%d" % [entry.id, entry.quantity])
-		_menu_list.set_item_metadata(widx, {"action": "withdraw", "id": entry.id, "qty": entry.quantity})
-	if _menu_list.item_count <= 1:
-		_menu_list.add_item("(Storage empty)")
-	_show_menu("storage", "Item Box")
+	_show_menu("upgrade", "%s Upgrade" % station_name)
 
 
 func _handle_upgrade_selection(index: int) -> void:
@@ -1443,6 +2250,12 @@ func _handle_upgrade_selection(index: int) -> void:
 	if station_id == null or typeof(station_id) != TYPE_STRING:
 		return
 	if BaseManager.upgrade_station(station_id):
+		var level := BaseManager.get_station_level(station_id)
+		var station_name := str(station_id).replace("_", " ").capitalize()
+		if GameManager.is_local_coop():
+			show_toast("%s upgraded %s to Level %d" % [_CoopUiCopy.player_tag(GameManager.menu_owner_index), station_name, level], 2.5, "", "notification", "", NotificationToast.Priority.IMPORTANT)
+		else:
+			show_toast("%s upgraded to Level %d" % [station_name, level], 2.5, "", "notification", "", NotificationToast.Priority.IMPORTANT)
 		open_upgrade_menu(station_id)
 
 
@@ -1453,9 +2266,111 @@ func _handle_storage_selection(index: int) -> void:
 	var data: Dictionary = meta
 	match data.get("action"):
 		"deposit":
-			InventoryManager.deposit_to_base(data.id, mini(data.qty, 1))
+			_apply_storage_deposit(str(data.id), 1)
 		"withdraw":
-			InventoryManager.withdraw_from_base(data.id, mini(data.qty, 1))
+			if InventoryManager.withdraw_from_base(data.id, mini(data.qty, 1)):
+				var name := str(data.id).replace("_", " ").capitalize()
+				show_toast("Withdrawn from storage", 2.5, "%s x1" % name, "notification")
 	open_storage_menu()
 
+
+func _handle_camp_chest_selection(index: int) -> void:
+	var text := _menu_list.get_item_text(index)
+	if text == "Close":
+		_close_menu()
+		return
+	var meta: Variant = _menu_list.get_item_metadata(index)
+	if meta == null or typeof(meta) != TYPE_DICTIONARY:
+		return
+	var data: Dictionary = meta
+	match str(data.get("action", "")):
+		"camp_deposit_all":
+			_deposit_all_camp_resources()
+		"camp_deposit":
+			var qty := int(data.get("qty", 1))
+			_apply_storage_deposit(str(data.id), qty)
+	open_camp_chest_menu()
+
+
+func _deposit_all_camp_resources() -> void:
+	var result := InventoryManager.deposit_all_eligible_materials()
+	if not result.ok:
+		show_toast("No resources to deposit", 2.0, "", "notification", "", NotificationToast.Priority.NORMAL)
+		return
+	var parts: PackedStringArray = []
+	for entry in result.items:
+		var item_id: String = str(entry.get("id", ""))
+		var qty: int = int(entry.get("quantity", 0))
+		if item_id == "" or qty <= 0:
+			continue
+		parts.append("%s x%d" % [item_id.replace("_", " "), qty])
+	if parts.is_empty():
+		return
+	for entry in result.items:
+		BaseManager.notify_tracked_material_change(str(entry.get("id", "")), int(entry.get("quantity", 0)), -1)
+	show_toast(
+		"Sent resources to Hearthhold",
+		3.0,
+		", ".join(parts),
+		"notification",
+		"",
+		NotificationToast.Priority.IMPORTANT
+	)
+	AchievementManager.unlock("not_just_a_box")
+
+
+func _apply_storage_deposit(item_id: String, quantity: int) -> void:
+	var result := InventoryManager.try_send_to_base(item_id, quantity)
+	if result.ok:
+		var name := ItemDatabase.get_display_name(item_id)
+		show_toast("Sent to Hearthhold Storage", 2.5, "%s x%d" % [name, int(result.quantity)], "notification", "", NotificationToast.Priority.IMPORTANT)
+		BaseManager.notify_tracked_material_change(item_id, int(result.quantity), -1)
+		AchievementManager.unlock("not_just_a_box")
+	else:
+		_show_storage_block_toast(str(result.get("reason", "Cannot store item")))
+
+
+func _show_storage_block_toast(reason: String) -> void:
+	match reason:
+		"Quest item":
+			show_toast("Quest item cannot be stored", 2.5, "", "notification", "", NotificationToast.Priority.CRITICAL)
+		"Currently equipped":
+			show_toast("Cannot store equipped item", 2.5, "", "notification", "", NotificationToast.Priority.CRITICAL)
+		"Item is locked":
+			show_toast("Cannot store locked item", 2.5, "", "notification", "", NotificationToast.Priority.CRITICAL)
+		_:
+			show_toast(reason, 2.5, "", "notification", "", NotificationToast.Priority.CRITICAL)
+
+
+func _opening_player_index(event: InputEvent) -> int:
+	if not GameManager.is_local_coop():
+		return 0
+	for action in event.get_actions():
+		if str(action).begins_with("p2_"):
+			return 1
+	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		if event.device >= 1:
+			return 1
+	return 0
+
+
+func _assign_menu_owner(event: InputEvent) -> void:
+	GameManager.menu_owner_index = _opening_player_index(event)
+	_refresh_menu_hint()
+
+
+func _coop_allows_menu_input(event: InputEvent) -> bool:
+	return _opening_player_index(event) == GameManager.menu_owner_index
+
+
+func _owner_action_pressed(event: InputEvent, action: String) -> bool:
+	if not event.is_pressed():
+		return false
+	var owner := GameManager.menu_owner_index if GameManager.is_local_coop() and _active_menu != "" else _opening_player_index(event)
+	if owner == 0:
+		return event.is_action_pressed(action)
+	var p2_action := "p2_%s" % action
+	if InputMap.has_action(p2_action) and event.is_action_pressed(p2_action):
+		return true
+	return false
 

@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://saltfanghound001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="SaltfangHound" instance=ExtResource("1")]
+enemy_id = "saltfang_hound"
+display_name = "Saltfang Hound"
+enemy_level = 6
+max_health = 38.0
+damage = 11.0
+move_speed = 7.0
+detection_range = 16.0
+attack_range = 2.2
+loot_table_id = "saltfang_hound"
+xp_reward = 28
+experience_reward = 21
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Pug.gltf"

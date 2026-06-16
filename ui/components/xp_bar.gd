@@ -2,10 +2,16 @@ extends Control
 class_name XpBar
 ## Experience bar beneath the ability row — framed, animated, hover detail.
 
+## Matches SkillRow width: 6 slots @ 48px + 5 gaps @ 6px.
+const OUTER_WIDTH := (
+	UiMetrics.ABILITY_SLOT_SIZE * UiMetrics.ABILITY_SLOT_COUNT
+	+ 6.0 * (UiMetrics.ABILITY_SLOT_COUNT - 1)
+)
+const FRAME_PAD_H := 12.0
+
 @onready var _frame: PanelContainer = %XpFrame
-@onready var _bar: ThinBar = %XpFill
+@onready var _bar: ProgressBar = %XpFill
 @onready var _hover_label: Label = %XpHoverLabel
-@onready var _glow: ColorRect = %XpGlow
 
 var _display: float = 0.0
 var _target: float = 0.0
@@ -15,22 +21,60 @@ var _hover: bool = false
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
-	custom_minimum_size = Vector2(UiMetrics.ABILITY_SLOT_SIZE * UiMetrics.ABILITY_SLOT_COUNT + UiMetrics.SPACE_SM * (UiMetrics.ABILITY_SLOT_COUNT - 1), 0)
+	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	custom_minimum_size = Vector2(OUTER_WIDTH, maxf(UiMetrics.BAR_XP + 8.0, 18.0))
 	if _frame:
-		_frame.add_theme_stylebox_override("panel", ArpgTheme.make_panel(UiColors.PANEL_BG_DEEP, UiColors.BORDER_MUTED, UiMetrics.RADIUS_SM))
-	if _bar:
-		_bar.set_bar_color(UiColors.XP_FILL)
-		_bar.set_bar_height(UiMetrics.BAR_XP)
-		_bar.max_value = _max
-		_bar.value = _display
+		var panel_style := ArpgTheme.make_panel(UiColors.PANEL_BG_DEEP, UiColors.BORDER_MUTED, UiMetrics.RADIUS_SM)
+		panel_style.content_margin_left = 0
+		panel_style.content_margin_top = 0
+		panel_style.content_margin_right = 0
+		panel_style.content_margin_bottom = 0
+		_frame.add_theme_stylebox_override("panel", panel_style)
+	_configure_fill_bar()
 	if _hover_label:
 		ArpgTheme.style_label(_hover_label, UiMetrics.FONT_META, UiColors.TEXT_QUEST)
 		_hover_label.visible = false
-	if _glow:
-		_glow.color = Color(UiColors.XP_FILL.r, UiColors.XP_FILL.g, UiColors.XP_FILL.b, 0.0)
-		_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
+
+
+func _configure_fill_bar() -> void:
+	if _bar == null:
+		return
+	_bar.min_value = 0.0
+	_bar.max_value = _max
+	_bar.value = _display
+	_bar.show_percentage = false
+	_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_bar.size_flags_vertical = Control.SIZE_FILL
+	_bar.custom_minimum_size = Vector2(0, UiMetrics.BAR_XP)
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.08, 0.09, 0.11, 0.95)
+	track.set_corner_radius_all(2)
+	track.set_content_margin_all(0)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = UiColors.XP_FILL
+	fill.set_corner_radius_all(2)
+	fill.set_content_margin_all(0)
+	_bar.add_theme_stylebox_override("background", track)
+	_bar.add_theme_stylebox_override("fill", fill)
+
+
+func get_outer_width() -> float:
+	return size.x if size.x > 0.0 else OUTER_WIDTH
+
+
+func get_inner_track_width() -> float:
+	if _bar and _bar.size.x > 0.0:
+		return _bar.size.x
+	return maxf(OUTER_WIDTH - FRAME_PAD_H, 0.0)
+
+
+func get_fill_width() -> float:
+	var inner := get_inner_track_width()
+	if _max <= 0.0:
+		return 0.0
+	return inner * clampf(_display / _max, 0.0, 1.0)
 
 
 func set_values(current: float, maximum: float, animate: bool = true) -> void:
@@ -80,8 +124,8 @@ func _on_mouse_exited() -> void:
 
 
 func _flash_gain() -> void:
-	if _glow == null:
+	if _bar == null:
 		return
 	var tween := create_tween()
-	_glow.color = Color(UiColors.XP_FILL.r, UiColors.XP_FILL.g, UiColors.XP_FILL.b, 0.35)
-	tween.tween_property(_glow, "color:a", 0.0, 0.45)
+	_bar.modulate = Color(1.15, 1.05, 0.85, 1.0)
+	tween.tween_property(_bar, "modulate", Color.WHITE, 0.45)

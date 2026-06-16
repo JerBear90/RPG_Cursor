@@ -124,20 +124,4 @@ static func _get_player(tree: SceneTree) -> Node3D:
 
 
 static func get_tracked_objective_position(tree: SceneTree) -> Vector3:
-	var best := Vector3.ZERO
-	var found := false
-	var best_dist := INF
-	var player := _get_player(tree)
-	for node in tree.get_nodes_in_group("quest_destination"):
-		if node is Node3D:
-			var pos := (node as Node3D).global_position
-			if player == null:
-				return pos
-			var d := player.global_position.distance_to(pos)
-			if not found or d < best_dist:
-				best = pos
-				best_dist = d
-				found = true
-	if MapManager.has_waypoint():
-		return MapManager.get_waypoint_position()
-	return best if found else Vector3.ZERO
+	return ObjectiveRouter.get_tracked_position(tree)

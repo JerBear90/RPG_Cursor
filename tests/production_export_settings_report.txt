@@ -1,0 +1,206 @@
+Production Export Settings Review
+==================================
+Date: 2026-06-10
+Scope: Documentation-only pass — no export presets created or modified
+
+## Summary
+
+The project is configured for Godot 4.6 editor/runtime play via `start game.ps1`.
+No `export_presets.cfg` exists in the repository. Windows/Linux standalone builds
+are not yet defined in version control.
+
+---
+
+## Project Identity
+
+| Setting | Value |
+|---------|-------|
+| Project name | Exiled Survivors |
+| Description | Dark post-apocalyptic fantasy survival Action RPG — shared-screen co-op prototype |
+| Godot version | 4.6 (Forward Plus) |
+| Main scene | res://scenes/main_menu/main_menu.tscn |
+| Config icon | res://icon.svg |
+
+---
+
+## Display / Window
+
+| Setting | Value | Notes |
+|---------|-------|-------|
+| Viewport width | 1280 | Matches Steam Deck native width |
+| Viewport height | 800 | 16:10 aspect |
+| Window mode | 2 (Maximized) | Desktop launches maximized, not exclusive fullscreen |
+| Stretch mode | canvas_items | UI scales with viewport |
+| Stretch aspect | expand | Fills non-16:10 displays |
+
+Runtime video settings (SettingsManager, user://settings.cfg):
+- VSync: default ON
+- Frame cap: default 60 FPS (options 30/40/60/120/0 uncapped)
+- Steam Deck preset: 40 FPS cap, UI scale 1.15, sensitivity 0.85
+
+---
+
+## Export Presets Found
+
+None. `export_presets.cfg` is absent from the repo root.
+
+## Missing Export Presets (Recommended Next Steps)
+
+1. **Windows Desktop**
+   - Template: Godot 4.6 export templates (matching editor version)
+   - Embed PCK or separate; include `res://` resources
+   - Test save path: user:// maps to %APPDATA%\Godot\app_userdata\Exiled Survivors\
+
+2. **Linux / Steam Deck**
+   - Same template family; x86_64
+   - Set executable name `ExiledSurvivors.x86_64`
+   - Document Proton vs native Linux testing
+   - Consider default fullscreen or borderless for Deck
+
+3. **Optional: Export filters**
+   - Exclude `.git`, `tests/`, editor-only scripts if any
+   - Verify `art/` import cache ships or re-imports on first run
+
+4. **Post-export smoke**
+   - Main menu → Solo New Game → spawn Darkpine
+   - Save slot 0 write/read
+   - Controller 1 + controller 2 in local co-op
+
+Do NOT ship an export until presets are committed and a headless/export CI step is chosen.
+
+---
+
+## Input Map Review
+
+Keyboard and gamepad actions are defined in project.godot. Co-op P2 actions are
+created at runtime in InputManager (`p2_*` prefix, gamepad device 1).
+
+| Check | Status |
+|-------|--------|
+| WASD + mouse combat | Present |
+| Gamepad move/look sticks | Present |
+| Interact E / gamepad X | Present |
+| Block F / LB | Present |
+| Dodge Ctrl+Alt / B | Present (Space is jump, not dodge) |
+| Spell Q+3 / LT | Present |
+| Inventory I / View | Present |
+| Map M / D-pad Up | Present |
+| Pause Esc / Start | Present |
+| P2 keyboard arrows + U/O/P | Runtime |
+| P2 gamepad device 1 | Runtime |
+| open_quest_tracker | Empty — keyboard-only reserved |
+| open_skill_tree | Empty — keyboard-only reserved |
+| open_pet_wheel | D-pad Down (gamepad only) |
+
+Saved binding overrides: user://controls.cfg (scheme version 2)
+
+Conflict note: heavy_attack uses K; InputDefaults documents K for skill tree but
+open_skill_tree is not bound in the InputMap.
+
+---
+
+## Save Path (Exported Build)
+
+SaveManager uses user://saves/slot_{0,1,2}.json
+
+| Platform | Resolved path |
+|----------|---------------|
+| Windows | %APPDATA%\Godot\app_userdata\Exiled Survivors\saves\ |
+| Linux | ~/.local/share/godot/app_userdata/Exiled Survivors/saves/ |
+| macOS | ~/Library/Application Support/Godot/app_userdata/Exiled Survivors/saves/ |
+
+This path is standard Godot user:// behavior and should work in exported builds
+without code changes. Verify once after first Windows/Linux export.
+
+Settings: user://settings.cfg
+Controls: user://controls.cfg
+
+---
+
+## Autoloads / Required Resources
+
+All gameplay autoloads are registered in project.godot (GameManager, SaveManager,
+QuestManager, ObjectiveRouter, TutorialPromptManager, VerticalSliceFlow, etc.).
+Main menu scene chains to game scenes under res://scenes/.
+
+No obvious missing main-scene dependencies found in static review.
+
+---
+
+## Project Settings Risks
+
+| Risk | Severity | Detail |
+|------|----------|--------|
+| No export presets in repo | Medium | Testers must use Godot + start game.ps1 |
+| Maximized window mode | Low | May differ on Deck; use in-game settings |
+| Unbound quest/skill hotkeys | Low | Documented in PLAYTEST_README.md |
+| Milestone autosave slot 0 | Low | Can surprise testers; documented |
+| Godot path hardcoded in start game.ps1 | Low | Machine-specific default; -GodotPath override exists |
+| Forward Plus renderer | Info | GPU requirement for target platforms |
+| Placeholder art in repo | Info | Export size acceptable; not certification-ready visuals |
+
+---
+
+## Target Resolution Notes
+
+- Design target: **1280×800** (Steam Deck)
+- Stretch expand allows 16:9 and ultrawide with letterboxing/pillarboxing handled by canvas_items stretch
+- UI scale accessible in Settings (Steam Deck preset bumps to 1.15)
+
+---
+
+## Controller / Steam Deck Notes
+
+- Single shared camera co-op; not split-screen
+- Second controller required for P2 gamepad co-op
+- Deck preset available in pause → Settings
+- Map on D-pad Up avoids View button conflict with inventory
+- Interact on X matches Dark Souls–style layout; A confirms menus
+
+---
+
+## Recommendation
+
+Document-only pass complete. Before a public demo binary:
+
+1. Add and commit export_presets.cfg (Windows + Linux)
+2. Run one exported build through the RC checklist in production_demo_release_candidate_report.txt
+3. Confirm user:// save paths on exported executables
+4. Optionally add a release build script (not in scope for this pass)
+
+Current playtest path: `.\start game.ps1` (editor runtime, exit 0 on launch).
+
+---
+
+## Export Setup Preparation
+
+### Windows Playtest Build
+
+Recommended future preset:
+
+* Platform: Windows Desktop
+* Architecture: x86_64
+* Output folder: `builds/windows/`
+* Output file: `ExiledSurvivors_Demo.exe`
+* Build type: Debug or Release Debug for early testers
+
+### Linux / Steam Deck Playtest Build
+
+Recommended future preset:
+
+* Platform: Linux/X11
+* Architecture: x86_64
+* Output folder: `builds/linux/`
+* Output file: `ExiledSurvivors_Demo.x86_64`
+* Resolution target: 1280x800
+* Controller-first verification required
+
+### Export Risks
+
+* Export templates may need installation (Godot 4.6 matching editor).
+* Save path must be rechecked in exported builds (`user://saves/`).
+* Resource paths should use `res://` and `user://` only.
+* Linux/Steam Deck paths are case-sensitive.
+* Controller mappings must be retested in exported builds (P2 device index 1).
+* `start game.ps1` is not the exported build path — document `.exe` / `.x86_64` launch for external testers.
+* No export was performed this session; `export_presets.cfg` still absent.

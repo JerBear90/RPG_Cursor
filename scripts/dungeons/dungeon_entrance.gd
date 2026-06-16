@@ -8,6 +8,7 @@ extends InteractableBase
 
 var _entering: bool = false
 var _pending_confirm: bool = false
+var _pending_npc_id: String = ""
 
 
 func _ready() -> void:
@@ -20,6 +21,9 @@ func _ready() -> void:
 		DialogueManager.dialogue_ended.connect(_on_dialogue_ended)
 
 
+const _INTERACT_OPTS := {"from_interact": true}
+
+
 func _on_interact(_player: Node) -> void:
 	if _entering:
 		return
@@ -27,31 +31,44 @@ func _on_interact(_player: Node) -> void:
 	if not DungeonManager.can_enter(nearby):
 		DialogueManager.start_dialogue("dungeon_blocked", [
 			{"speaker": "Ruined Hatch", "text": "Wait for your ally — both exiles must stand at the hatch."},
-		])
+		], [], _INTERACT_OPTS)
 		return
 	_pending_confirm = true
+	_pending_npc_id = "dungeon_enter"
 	DialogueManager.start_dialogue("dungeon_enter", [
 		{
 			"speaker": "ENTER DUNGEON",
 			"text": "%s\n\nEnter this dungeon?" % dungeon_display_name,
 		},
-	], ["Enter", "Cancel"])
+	], ["Enter", "Cancel"], {
+		"from_interact": true,
+		"confirm_label": "Enter",
+		"cancel_label": "Cancel",
+	})
 
 
 func _on_dialogue_choice(index: int) -> void:
+	var npc_id := _pending_npc_id if _pending_npc_id != "" else DialogueManager.get_current_npc_id()
 	if not _pending_confirm or _entering:
 		return
-	if DialogueManager.get_current_npc_id() != "dungeon_enter":
+	if npc_id != "dungeon_enter":
 		return
 	_pending_confirm = false
+	_pending_npc_id = ""
 	if index != 0:
 		return
 	_entering = true
+	WorldStateManager.set_exterior_entrance(
+		"exterior_abandoned_mine",
+		entrance_region_id,
+		global_position + Vector3(0, 0.1, 2.0)
+	)
 	_enter_sequence()
 
 
 func _on_dialogue_ended() -> void:
 	_pending_confirm = false
+	_pending_npc_id = ""
 
 
 func _enter_sequence() -> void:

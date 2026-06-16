@@ -4,6 +4,8 @@ class_name PlayerHud
 
 const AbilitySlotScene := preload("res://ui/components/ability_slot.tscn")
 const InputLabels := preload("res://ui/themes/ui_input_labels.gd")
+const ThinBarScene := preload("res://ui/components/thin_bar.gd")
+const _StatusEffects = preload("res://scripts/combat/status_effects_component.gd")
 const MINIMAP_LIVE_DIAG := false
 
 const ABILITY_SLOT_DEFS: Array[Dictionary] = [
@@ -14,6 +16,8 @@ const ABILITY_SLOT_DEFS: Array[Dictionary] = [
 	{"action": "block", "name": "Block", "id": "block", "cost": -1},
 	{"action": "interact", "name": "Interact", "id": "interact", "cost": -1},
 ]
+
+const _PlayerHealthDebug = preload("res://scripts/debug/player_health_debug.gd")
 
 @onready var _safe: MarginContainer = %SafeArea
 @onready var _shell: Control = %Shell
@@ -33,6 +37,17 @@ var minimap: Control
 var _minimap_diag_style: StyleBoxFlat
 var _bound_player: Node
 var _health_bind_warned: bool = false
+var _cold_bar: ThinBar
+var _blight_bar: ThinBar
+var _heat_bar: ThinBar
+var _dehydration_bar: ThinBar
+var _bound_status: _StatusEffects
+var _blight_status: _StatusEffects
+var _desert_status: _StatusEffects
+var _dread_bar: ThinBar
+var _shadow_bar: ThinBar
+var _dominion_status: _StatusEffects
+var _player2_status: _StatusEffects
 
 
 func _ready() -> void:
@@ -52,6 +67,24 @@ func _ready() -> void:
 	if not get_viewport().size_changed.is_connected(_on_viewport_resized):
 		get_viewport().size_changed.connect(_on_viewport_resized)
 	call_deferred("_apply_safe_margins")
+	if InputManager.has_signal("device_changed") and not InputManager.device_changed.is_connected(_on_input_device_changed):
+		InputManager.device_changed.connect(_on_input_device_changed)
+	if InputManager.has_signal("bindings_changed") and not InputManager.bindings_changed.is_connected(_refresh_ability_binding_labels):
+		InputManager.bindings_changed.connect(_refresh_ability_binding_labels)
+	if not GameManager.player_spawned.is_connected(_on_game_player_spawned):
+		GameManager.player_spawned.connect(_on_game_player_spawned)
+	call_deferred("_try_bind_spawned_player")
+
+
+func _on_game_player_spawned(player: Node, index: int) -> void:
+	if index == 0:
+		bind_player_health(player)
+
+
+func _try_bind_spawned_player() -> void:
+	var player := GameManager.get_player(0)
+	if player and is_instance_valid(player):
+		bind_player_health(player)
 
 
 func _ensure_root_full_rect() -> void:
@@ -172,13 +205,25 @@ func _build_ability_slots() -> void:
 	for spec in ABILITY_SLOT_DEFS:
 		var slot := AbilitySlotScene.instantiate() as AbilitySlot
 		var action: String = spec.action
-		var kb: String = InputLabels.get_action_label(action, true)
-		var pad: String = InputLabels.get_action_label(action, false)
+		var kb: String = InputLabels.get_primary_binding_text(StringName(action), InputManager.DEVICE_KEYBOARD)
+		var pad: String = InputLabels.get_primary_binding_text(StringName(action), InputManager.DEVICE_GAMEPAD)
 		slot.configure(spec.name, kb, spec.id, spec.cost, pad)
-		if action == "block" and kb == "":
-			slot.set_locked(true)
 		_skill_row.add_child(slot)
 		_ability_slots.append(slot)
+	_refresh_ability_binding_labels()
+
+
+func _on_input_device_changed(device: int) -> void:
+	_refresh_ability_binding_labels(device)
+
+
+func _refresh_ability_binding_labels(device: int = -1) -> void:
+	var active_device := device if device >= 0 else InputManager.current_device
+	for i in _ability_slots.size():
+		var action: String = ABILITY_SLOT_DEFS[i].action
+		var kb: String = InputLabels.get_primary_binding_text(StringName(action), InputManager.DEVICE_KEYBOARD)
+		var pad: String = InputLabels.get_primary_binding_text(StringName(action), InputManager.DEVICE_GAMEPAD)
+		_ability_slots[i].update_binding_labels(kb, pad, active_device)
 
 
 func update_ability_slot(index: int, display_name: String, ability_id: String, mana_cost: int, action: String = "") -> void:
@@ -186,8 +231,8 @@ func update_ability_slot(index: int, display_name: String, ability_id: String, m
 		return
 	var slot := _ability_slots[index]
 	var act: String = action if action != "" else str(ABILITY_SLOT_DEFS[index].action)
-	var kb: String = InputLabels.get_action_label(act, true)
-	var pad: String = InputLabels.get_action_label(act, false)
+	var kb: String = InputLabels.get_primary_binding_text(StringName(act), InputManager.DEVICE_KEYBOARD)
+	var pad: String = InputLabels.get_primary_binding_text(StringName(act), InputManager.DEVICE_GAMEPAD)
 	slot.configure(display_name, kb, ability_id, mana_cost, pad)
 
 
@@ -217,6 +262,7 @@ func update_spell_slot(spell_label: String, mana_cost: int = 8) -> void:
 
 
 func set_hp_values(current: float, maximum: float, animate: bool = true) -> void:
+	_PlayerHealthDebug.log_hud_update("set_hp_values", current, maximum)
 	var frame := _ensure_health_frame()
 	if frame:
 		frame.set_values(current, maximum, animate)
@@ -227,19 +273,45 @@ func set_hp_values(current: float, maximum: float, animate: bool = true) -> void
 
 func bind_player_health(player: Node) -> void:
 	if player == null or not is_instance_valid(player):
+		push_error("Health HUD binding failed: invalid player.")
 		return
-	_bound_player = player
 	var component := player.get_node_or_null("HealthComponent") as HealthComponent
 	if component == null:
-		push_error("Cannot bind HUD: active player has no HealthComponent")
+		component = player.find_child("HealthComponent", true, false) as HealthComponent
+	if component == null:
+		push_error("Health HUD binding failed: HealthComponent missing on %s" % player.get_path())
 		return
+	if is_instance_valid(_bound_health_component) and _bound_health_component != component:
+		if _bound_health_component.health_changed.is_connected(_on_health_changed):
+			_bound_health_component.health_changed.disconnect(_on_health_changed)
+	_bound_player = player
 	bind_health_component(component)
+	_log_health_bind(player, component)
+
+
+func _log_health_bind(player: Node, component: HealthComponent) -> void:
+	if not _PlayerHealthDebug.DEBUG_PLAYER_HEALTH:
+		return
+	print(
+		"=== HEALTH HUD BINDING ===\n"
+		+ "Active player path: %s\n" % player.get_path()
+		+ "Active player ID: %d\n" % player.get_instance_id()
+		+ "Active HealthComponent path: %s\n" % component.get_path()
+		+ "Active HealthComponent ID: %d\n" % component.get_instance_id()
+		+ "HUD path: %s\n" % get_path()
+		+ "VitalFrame path: %s\n" % (_ensure_health_frame().get_path() if _ensure_health_frame() else "<missing>")
+		+ "HUD-bound health ID: %d\n" % component.get_instance_id()
+		+ "Initial synchronized health: %s / %s\n" % [component.current_health, component.max_health]
+		+ "=========================="
+	)
 
 
 func bind_health_component(component: HealthComponent) -> void:
 	if component == null or not is_instance_valid(component):
 		return
 	if _bound_health_component == component:
+		if not component.health_changed.is_connected(_on_health_changed):
+			component.health_changed.connect(_on_health_changed)
 		_sync_health_display()
 		return
 	_unbind_health_component()
@@ -247,7 +319,7 @@ func bind_health_component(component: HealthComponent) -> void:
 	_bound_health_component = component
 	if not health_component.health_changed.is_connected(_on_health_changed):
 		health_component.health_changed.connect(_on_health_changed)
-	_sync_health_display()
+	_on_health_changed(health_component.current_health, health_component.max_health)
 
 
 func _sync_health_display() -> void:
@@ -308,9 +380,419 @@ func bind_to_player(player: Node) -> void:
 		var stats := player.get_node("StatsComponent") as StatsComponent
 		set_level(stats.level)
 		set_xp_values(float(stats.experience), float(stats.get_exp_to_next_level()))
+	_bind_cold_indicator(player)
+	_bind_blight_indicator(player)
+	_bind_desert_indicators(player)
+	_bind_dominion_indicators(player)
+
+
+func _bind_desert_indicators(player: Node) -> void:
+	_unbind_desert_indicators()
+	if not player.has_node("StatusEffectsComponent"):
+		return
+	var status := player.get_node("StatusEffectsComponent") as _StatusEffects
+	if status == null:
+		return
+	_desert_status = status
+	var needs_row := get_node_or_null("SafeArea/Shell/BottomLeft/PlayerStats/NeedsRow") as HBoxContainer
+	if needs_row == null:
+		return
+	if _heat_bar == null:
+		_heat_bar = ThinBarScene.new()
+		_heat_bar.name = "HeatExposureBar"
+		_heat_bar.visible = false
+		_heat_bar.set_bar_color(Color(0.92, 0.48, 0.22))
+		_heat_bar.set_bar_height(3.0)
+		_heat_bar.tooltip_text = "Heat exposure"
+		needs_row.add_child(_heat_bar)
+	if _dehydration_bar == null:
+		_dehydration_bar = ThinBarScene.new()
+		_dehydration_bar.name = "DehydrationBar"
+		_dehydration_bar.visible = false
+		_dehydration_bar.set_bar_color(Color(0.55, 0.72, 0.92))
+		_dehydration_bar.set_bar_height(3.0)
+		_dehydration_bar.tooltip_text = "Dehydration"
+		needs_row.add_child(_dehydration_bar)
+	if not status.heat_buildup_changed.is_connected(_on_heat_buildup_changed):
+		status.heat_buildup_changed.connect(_on_heat_buildup_changed)
+	if not status.heat_applied.is_connected(_on_heat_applied):
+		status.heat_applied.connect(_on_heat_applied)
+	if not status.heat_cleared.is_connected(_on_heat_cleared):
+		status.heat_cleared.connect(_on_heat_cleared)
+	if not status.dehydration_buildup_changed.is_connected(_on_dehydration_buildup_changed):
+		status.dehydration_buildup_changed.connect(_on_dehydration_buildup_changed)
+	if not status.dehydration_applied.is_connected(_on_dehydration_applied):
+		status.dehydration_applied.connect(_on_dehydration_applied)
+	if not status.dehydration_cleared.is_connected(_on_dehydration_cleared):
+		status.dehydration_cleared.connect(_on_dehydration_cleared)
+	_on_heat_buildup_changed(status.heat_buildup, status.heat_threshold)
+	_on_dehydration_buildup_changed(status.dehydration_buildup, status.dehydration_threshold)
+
+
+func _unbind_desert_indicators() -> void:
+	if _desert_status != null and is_instance_valid(_desert_status):
+		if _desert_status.heat_buildup_changed.is_connected(_on_heat_buildup_changed):
+			_desert_status.heat_buildup_changed.disconnect(_on_heat_buildup_changed)
+		if _desert_status.heat_applied.is_connected(_on_heat_applied):
+			_desert_status.heat_applied.disconnect(_on_heat_applied)
+		if _desert_status.heat_cleared.is_connected(_on_heat_cleared):
+			_desert_status.heat_cleared.disconnect(_on_heat_cleared)
+		if _desert_status.dehydration_buildup_changed.is_connected(_on_dehydration_buildup_changed):
+			_desert_status.dehydration_buildup_changed.disconnect(_on_dehydration_buildup_changed)
+		if _desert_status.dehydration_applied.is_connected(_on_dehydration_applied):
+			_desert_status.dehydration_applied.disconnect(_on_dehydration_applied)
+		if _desert_status.dehydration_cleared.is_connected(_on_dehydration_cleared):
+			_desert_status.dehydration_cleared.disconnect(_on_dehydration_cleared)
+	_desert_status = null
+
+
+func _on_heat_buildup_changed(current: float, threshold: float) -> void:
+	if _heat_bar == null:
+		return
+	var in_desert := GameManager.current_region_id in ["ember_wastes", "pyreheart_ziggurat"]
+	var should_show := in_desert and (current > 1.0 or (_desert_status != null and _desert_status.heat_active))
+	_heat_bar.visible = should_show
+	if not should_show:
+		return
+	var ratio := clampf(current / maxf(threshold, 1.0), 0.0, 1.0)
+	_heat_bar.max_value = threshold
+	_heat_bar.value = current
+	if ratio >= 0.85:
+		_heat_bar.set_bar_color(Color(0.95, 0.35, 0.18))
+	elif ratio >= 0.55:
+		_heat_bar.set_bar_color(Color(0.92, 0.48, 0.22))
+	else:
+		_heat_bar.set_bar_color(Color(0.85, 0.58, 0.28))
+
+
+func _on_heat_applied() -> void:
+	if _heat_bar:
+		_heat_bar.set_bar_color(Color(0.98, 0.32, 0.15))
+		_heat_bar.visible = true
+
+
+func _on_heat_cleared() -> void:
+	if _heat_bar and (_desert_status == null or _desert_status.heat_buildup <= 1.0):
+		_heat_bar.visible = false
+		_heat_bar.value = 0.0
+
+
+func _on_dehydration_buildup_changed(current: float, threshold: float) -> void:
+	if _dehydration_bar == null:
+		return
+	var in_desert := GameManager.current_region_id in ["ember_wastes", "pyreheart_ziggurat"]
+	var should_show := in_desert and (current > 1.0 or (_desert_status != null and _desert_status.dehydration_active))
+	_dehydration_bar.visible = should_show
+	if not should_show:
+		return
+	var ratio := clampf(current / maxf(threshold, 1.0), 0.0, 1.0)
+	_dehydration_bar.max_value = threshold
+	_dehydration_bar.value = current
+	if ratio >= 0.85:
+		_dehydration_bar.set_bar_color(Color(0.45, 0.68, 0.95))
+	elif ratio >= 0.55:
+		_dehydration_bar.set_bar_color(Color(0.55, 0.72, 0.92))
+	else:
+		_dehydration_bar.set_bar_color(Color(0.62, 0.78, 0.88))
+
+
+func _on_dehydration_applied() -> void:
+	if _dehydration_bar:
+		_dehydration_bar.set_bar_color(Color(0.4, 0.65, 0.98))
+		_dehydration_bar.visible = true
+
+
+func _on_dehydration_cleared() -> void:
+	if _dehydration_bar and (_desert_status == null or _desert_status.dehydration_buildup <= 1.0):
+		_dehydration_bar.visible = false
+		_dehydration_bar.value = 0.0
+
+
+func _bind_blight_indicator(player: Node) -> void:
+	_unbind_blight_indicator()
+	if not player.has_node("StatusEffectsComponent"):
+		return
+	var status := player.get_node("StatusEffectsComponent") as _StatusEffects
+	if status == null:
+		return
+	_blight_status = status
+	if _blight_bar == null:
+		var needs_row := get_node_or_null("SafeArea/Shell/BottomLeft/PlayerStats/NeedsRow") as HBoxContainer
+		if needs_row == null:
+			return
+		_blight_bar = ThinBarScene.new()
+		_blight_bar.name = "BlightExposureBar"
+		_blight_bar.visible = false
+		_blight_bar.set_bar_color(Color(0.55, 0.82, 0.35))
+		_blight_bar.set_bar_height(3.0)
+		_blight_bar.tooltip_text = "Blight exposure"
+		needs_row.add_child(_blight_bar)
+	if not status.blight_buildup_changed.is_connected(_on_blight_buildup_changed):
+		status.blight_buildup_changed.connect(_on_blight_buildup_changed)
+	if not status.blight_applied.is_connected(_on_blight_applied):
+		status.blight_applied.connect(_on_blight_applied)
+	if not status.blight_cleared.is_connected(_on_blight_cleared):
+		status.blight_cleared.connect(_on_blight_cleared)
+	if not status.corruption_applied.is_connected(_on_corruption_applied):
+		status.corruption_applied.connect(_on_corruption_applied)
+	if not status.corruption_cleared.is_connected(_on_corruption_cleared):
+		status.corruption_cleared.connect(_on_corruption_cleared)
+	_on_blight_buildup_changed(status.blight_buildup, status.blight_threshold)
+
+
+func _unbind_blight_indicator() -> void:
+	if _blight_status != null and is_instance_valid(_blight_status):
+		if _blight_status.blight_buildup_changed.is_connected(_on_blight_buildup_changed):
+			_blight_status.blight_buildup_changed.disconnect(_on_blight_buildup_changed)
+		if _blight_status.blight_applied.is_connected(_on_blight_applied):
+			_blight_status.blight_applied.disconnect(_on_blight_applied)
+		if _blight_status.blight_cleared.is_connected(_on_blight_cleared):
+			_blight_status.blight_cleared.disconnect(_on_blight_cleared)
+		if _blight_status.corruption_applied.is_connected(_on_corruption_applied):
+			_blight_status.corruption_applied.disconnect(_on_corruption_applied)
+		if _blight_status.corruption_cleared.is_connected(_on_corruption_cleared):
+			_blight_status.corruption_cleared.disconnect(_on_corruption_cleared)
+	_blight_status = null
+
+
+func _on_blight_buildup_changed(current: float, threshold: float) -> void:
+	if _blight_bar == null:
+		return
+	var in_blight := GameManager.current_region_id in ["blightreach", "blightspire_cathedral"]
+	var should_show := in_blight and (current > 1.0 or (_blight_status != null and _blight_status.blight_exposure_active))
+	_blight_bar.visible = should_show
+	if not should_show:
+		return
+	var ratio := clampf(current / maxf(threshold, 1.0), 0.0, 1.0)
+	_blight_bar.max_value = threshold
+	_blight_bar.value = current
+	if _blight_status != null and _blight_status.corruption_active:
+		_blight_bar.set_bar_color(Color(0.72, 0.35, 0.92))
+	elif ratio >= 0.85:
+		_blight_bar.set_bar_color(Color(0.65, 0.9, 0.42))
+	elif ratio >= 0.55:
+		_blight_bar.set_bar_color(Color(0.55, 0.78, 0.38))
+	else:
+		_blight_bar.set_bar_color(Color(0.45, 0.65, 0.32))
+
+
+func _on_blight_applied() -> void:
+	if _blight_bar:
+		_blight_bar.set_bar_color(Color(0.7, 0.92, 0.45))
+		_blight_bar.visible = true
+
+
+func _on_blight_cleared() -> void:
+	if _blight_bar and (_blight_status == null or _blight_status.blight_buildup <= 1.0):
+		_blight_bar.visible = false
+		_blight_bar.value = 0.0
+
+
+func _on_corruption_applied() -> void:
+	if _blight_bar:
+		_blight_bar.set_bar_color(Color(0.78, 0.4, 0.95))
+		_blight_bar.visible = true
+
+
+func _on_corruption_cleared() -> void:
+	_on_blight_buildup_changed(_blight_status.blight_buildup if _blight_status else 0.0, _blight_status.blight_threshold if _blight_status else 100.0)
+
+
+func bind_player2_status(player: Node) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	if player.has_node("StatusEffectsComponent"):
+		_player2_status = player.get_node("StatusEffectsComponent") as _StatusEffects
+
+
+func _bind_dominion_indicators(player: Node) -> void:
+	_unbind_dominion_indicators()
+	if not player.has_node("StatusEffectsComponent"):
+		return
+	var status := player.get_node("StatusEffectsComponent") as _StatusEffects
+	if status == null:
+		return
+	_dominion_status = status
+	var needs_row := get_node_or_null("SafeArea/Shell/BottomLeft/PlayerStats/NeedsRow") as HBoxContainer
+	if needs_row == null:
+		return
+	if _dread_bar == null:
+		_dread_bar = ThinBarScene.new()
+		_dread_bar.name = "DreadExposureBar"
+		_dread_bar.visible = false
+		_dread_bar.set_bar_color(Color(0.55, 0.42, 0.88))
+		_dread_bar.set_bar_height(3.0)
+		_dread_bar.tooltip_text = "Dread"
+		needs_row.add_child(_dread_bar)
+	if _shadow_bar == null:
+		_shadow_bar = ThinBarScene.new()
+		_shadow_bar.name = "ShadowExposureBar"
+		_shadow_bar.visible = false
+		_shadow_bar.set_bar_color(Color(0.32, 0.28, 0.62))
+		_shadow_bar.set_bar_height(3.0)
+		_shadow_bar.tooltip_text = "Shadow exposure"
+		needs_row.add_child(_shadow_bar)
+	if not status.dread_buildup_changed.is_connected(_on_dread_buildup_changed):
+		status.dread_buildup_changed.connect(_on_dread_buildup_changed)
+	if not status.dread_applied.is_connected(_on_dread_applied):
+		status.dread_applied.connect(_on_dread_applied)
+	if not status.dread_cleared.is_connected(_on_dread_cleared):
+		status.dread_cleared.connect(_on_dread_cleared)
+	if not status.shadow_buildup_changed.is_connected(_on_shadow_buildup_changed):
+		status.shadow_buildup_changed.connect(_on_shadow_buildup_changed)
+	if not status.shadow_applied.is_connected(_on_shadow_applied):
+		status.shadow_applied.connect(_on_shadow_applied)
+	if not status.shadow_cleared.is_connected(_on_shadow_cleared):
+		status.shadow_cleared.connect(_on_shadow_cleared)
+	_on_dread_buildup_changed(status.dread_buildup, status.dread_threshold)
+	_on_shadow_buildup_changed(status.shadow_buildup, status.shadow_threshold)
+
+
+func _unbind_dominion_indicators() -> void:
+	if _dominion_status != null and is_instance_valid(_dominion_status):
+		if _dominion_status.dread_buildup_changed.is_connected(_on_dread_buildup_changed):
+			_dominion_status.dread_buildup_changed.disconnect(_on_dread_buildup_changed)
+		if _dominion_status.dread_applied.is_connected(_on_dread_applied):
+			_dominion_status.dread_applied.disconnect(_on_dread_applied)
+		if _dominion_status.dread_cleared.is_connected(_on_dread_cleared):
+			_dominion_status.dread_cleared.disconnect(_on_dread_cleared)
+		if _dominion_status.shadow_buildup_changed.is_connected(_on_shadow_buildup_changed):
+			_dominion_status.shadow_buildup_changed.disconnect(_on_shadow_buildup_changed)
+		if _dominion_status.shadow_applied.is_connected(_on_shadow_applied):
+			_dominion_status.shadow_applied.disconnect(_on_shadow_applied)
+		if _dominion_status.shadow_cleared.is_connected(_on_shadow_cleared):
+			_dominion_status.shadow_cleared.disconnect(_on_shadow_cleared)
+	_dominion_status = null
+
+
+func _in_dominion_region() -> bool:
+	return GameManager.current_region_id in ["sunless_dominion", "eclipse_sanctum"] \
+		or DungeonManager.current_dungeon_id == "eclipse_sanctum"
+
+
+func _on_dread_buildup_changed(current: float, threshold: float) -> void:
+	if _dread_bar == null:
+		return
+	var show := _in_dominion_region() and (current > 1.0 or (_dominion_status != null and _dominion_status.dread_active))
+	_dread_bar.visible = show
+	if not show:
+		return
+	var ratio := current / maxf(threshold, 1.0)
+	_dread_bar.value = clampf(ratio * 100.0, 0.0, 100.0)
+	if ratio >= 0.85:
+		_dread_bar.set_bar_color(Color(0.78, 0.35, 0.95))
+	elif ratio >= 0.55:
+		_dread_bar.set_bar_color(Color(0.62, 0.42, 0.88))
+	else:
+		_dread_bar.set_bar_color(Color(0.55, 0.42, 0.88))
+
+
+func _on_dread_applied() -> void:
+	if _dread_bar:
+		_dread_bar.set_bar_color(Color(0.78, 0.35, 0.95))
+		_dread_bar.visible = true
+
+
+func _on_dread_cleared() -> void:
+	if _dread_bar and (_dominion_status == null or _dominion_status.dread_buildup <= 1.0):
+		_dread_bar.visible = false
+		_dread_bar.value = 0.0
+
+
+func _on_shadow_buildup_changed(current: float, threshold: float) -> void:
+	if _shadow_bar == null:
+		return
+	var show := _in_dominion_region() and (current > 1.0 or (_dominion_status != null and _dominion_status.shadow_active))
+	_shadow_bar.visible = show
+	if not show:
+		return
+	var ratio := current / maxf(threshold, 1.0)
+	_shadow_bar.value = clampf(ratio * 100.0, 0.0, 100.0)
+
+
+func _on_shadow_applied() -> void:
+	if _shadow_bar:
+		_shadow_bar.set_bar_color(Color(0.45, 0.32, 0.82))
+		_shadow_bar.visible = true
+
+
+func _on_shadow_cleared() -> void:
+	if _shadow_bar and (_dominion_status == null or _dominion_status.shadow_buildup <= 1.0):
+		_shadow_bar.visible = false
+		_shadow_bar.value = 0.0
+
+
+func _bind_cold_indicator(player: Node) -> void:
+	_unbind_cold_indicator()
+	_unbind_blight_indicator()
+	if not player.has_node("StatusEffectsComponent"):
+		return
+	_bound_status = player.get_node("StatusEffectsComponent") as _StatusEffects
+	if _bound_status == null:
+		return
+	if _cold_bar == null:
+		var needs_row := get_node_or_null("SafeArea/Shell/BottomLeft/PlayerStats/NeedsRow") as HBoxContainer
+		if needs_row == null:
+			return
+		_cold_bar = ThinBarScene.new()
+		_cold_bar.name = "ColdExposureBar"
+		_cold_bar.visible = false
+		_cold_bar.set_bar_color(Color(0.45, 0.78, 1.0))
+		_cold_bar.set_bar_height(3.0)
+		_cold_bar.tooltip_text = "Cold exposure"
+		needs_row.add_child(_cold_bar)
+	if not _bound_status.cold_buildup_changed.is_connected(_on_cold_buildup_changed):
+		_bound_status.cold_buildup_changed.connect(_on_cold_buildup_changed)
+	if not _bound_status.cold_applied.is_connected(_on_cold_applied):
+		_bound_status.cold_applied.connect(_on_cold_applied)
+	if not _bound_status.cold_cleared.is_connected(_on_cold_cleared):
+		_bound_status.cold_cleared.connect(_on_cold_cleared)
+	_on_cold_buildup_changed(_bound_status.cold_buildup, _bound_status.cold_threshold)
+
+
+func _unbind_cold_indicator() -> void:
+	if _bound_status != null and is_instance_valid(_bound_status):
+		if _bound_status.cold_buildup_changed.is_connected(_on_cold_buildup_changed):
+			_bound_status.cold_buildup_changed.disconnect(_on_cold_buildup_changed)
+		if _bound_status.cold_applied.is_connected(_on_cold_applied):
+			_bound_status.cold_applied.disconnect(_on_cold_applied)
+		if _bound_status.cold_cleared.is_connected(_on_cold_cleared):
+			_bound_status.cold_cleared.disconnect(_on_cold_cleared)
+	_bound_status = null
+
+
+func _on_cold_buildup_changed(current: float, threshold: float) -> void:
+	if _cold_bar == null:
+		return
+	var should_show := current > 1.0 or (_bound_status != null and _bound_status.cold_active)
+	_cold_bar.visible = should_show
+	if not should_show:
+		return
+	var ratio := clampf(current / maxf(threshold, 1.0), 0.0, 1.0)
+	_cold_bar.max_value = threshold
+	_cold_bar.value = current
+	if ratio >= 0.85:
+		_cold_bar.set_bar_color(Color(0.55, 0.85, 1.0))
+	elif ratio >= 0.55:
+		_cold_bar.set_bar_color(Color(0.45, 0.72, 0.98))
+	else:
+		_cold_bar.set_bar_color(Color(0.35, 0.58, 0.82))
+
+
+func _on_cold_applied() -> void:
+	if _cold_bar:
+		_cold_bar.set_bar_color(Color(0.7, 0.92, 1.0))
+		_cold_bar.visible = true
+
+
+func _on_cold_cleared() -> void:
+	if _cold_bar:
+		_cold_bar.visible = false
+		_cold_bar.value = 0.0
 
 
 func _on_health_changed(current: float, maximum: float) -> void:
+	_PlayerHealthDebug.log_hud_update("health_changed callback", current, maximum)
 	set_hp_values(current, maximum, false)
 
 
@@ -323,6 +805,9 @@ func _on_bound_stamina_changed(current: float, maximum: float) -> void:
 
 
 func _unbind_player() -> void:
+	_unbind_cold_indicator()
+	_unbind_blight_indicator()
+	_unbind_desert_indicators()
 	_unbind_health_component()
 	if _bound_player == null or not is_instance_valid(_bound_player):
 		_bound_player = null
@@ -363,9 +848,16 @@ func flash_mana_insufficient() -> void:
 		mana_frame.flash_insufficient_resource()
 
 
-func show_toast(text: String, duration: float = 3.0, description: String = "", icon_key: String = "notification") -> void:
+func show_toast(
+	text: String,
+	duration: float = 3.0,
+	description: String = "",
+	icon_key: String = "notification",
+	reward: String = "",
+	priority: int = 1
+) -> void:
 	if _toast:
-		_toast.show_message(text, duration, description, icon_key)
+		_toast.show_message(text, duration, description, icon_key, reward, priority)
 
 
 func set_interact_prompt(raw: String) -> void:

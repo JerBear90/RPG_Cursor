@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://sporecaster001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="Sporecaster" instance=ExtResource("1")]
+enemy_id = "sporecaster"
+display_name = "Sporecaster"
+enemy_level = 7
+max_health = 46.0
+damage = 13.0
+move_speed = 4.2
+detection_range = 18.0
+attack_range = 12.0
+loot_table_id = "sporecaster"
+xp_reward = 36
+experience_reward = 26
+is_ranged = true
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Zombie.gltf"

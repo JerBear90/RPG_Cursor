@@ -1,0 +1,290 @@
+Phase 6 — Blightreach & Blightspire Cathedral Foundation
+Generated: 2026-06-10
+
+================================================================================
+1. Phase 5 production verification findings
+================================================================================
+- .\start game.ps1 exits 0 with no script errors after Phase 6 integration.
+- Shattered Coast, Tidewatch, coastal weather/exposure, Drowned Citadel, Tidebound Sovereign, and return-to-exterior flows preserved.
+- Blightreach gate on Shattered Coast upgraded from FutureBlightreachGate dialogue shell to RegionTransitionGate via level_manager._spawn_region_gates().
+- Unlock requires the_sunken_crown completed AND tidebound_crown in inventory (authoritative check runs before generic quest gate logic).
+
+================================================================================
+2. Blightreach scene path
+================================================================================
+res://scenes/levels/blightreach/blightreach.tscn
+
+================================================================================
+3. Blightreach environment
+================================================================================
+- level_manager.gd region with island_terrain terrain_mode=blighted
+- Sickly green/violet sky, fog, directional light
+- No water extent (inland corrupted woodland, not marsh)
+- BlightSurgeController weather cycle
+- BlightreachEnvironmentZones: Lastwall shelter, blight zones, spore clouds, toxic pools
+
+================================================================================
+4. Subregions (town_layouts + props)
+================================================================================
+Coastal Pass, Withered Farmlands, Lastwall Enclave, Rootbound Road, Sporewood side areas,
+Blighted Village, Fallen Abbey, Blightspire Approach, Blightspire Cathedral exterior,
+Future Ember Wastes road shell
+
+================================================================================
+5. Spawn-marker IDs
+================================================================================
+region_start_blightreach
+shattered_coast_arrival_blightreach
+checkpoint_blightreach
+town_lastwall
+camp_lastwall
+waystone_blightreach
+blightspire_cathedral_exterior
+exterior_blightspire_cathedral
+blightreach_return_shattered_coast
+future_region_departure_blightreach
+
+Restart priority: checkpoint_blightreach → camp_lastwall → town_lastwall → waystone_blightreach → region_start_blightreach
+
+================================================================================
+6. Shattered Coast ↔ Blightreach transition result
+================================================================================
+shattered_coast_to_blightreach → blightreach.tscn @ shattered_coast_arrival_blightreach
+blightreach_to_shattered_coast → shattered_coast.tscn @ blightreach_return_shattered_coast
+Gates spawned by level_manager; confirmation dialogue via RegionTransitionGate/DialogueManager.
+
+================================================================================
+7. Lastwall implementation
+================================================================================
+Fortified settlement at origin: stone platform, fences, tents, campfire, cleared roads.
+BlightShelterZone (14m) blocks environmental blight buildup inside walls.
+
+================================================================================
+8. NPCs and services
+================================================================================
+Warden Mara Kest — main quest POI (into_the_blight)
+Doctor Eldric Venn — lastwall_apothecary merchant + spore filter POI
+Tessa Thorn — lastwall_merchant
+Garran Rootbreaker — lastwall_blightsmith
+Sister Valea — HealerStation (blight cleanse via clear_environmental)
+Scout Orris — side quest POI
+LastwallCamp — rest, checkpoint_blightreach binding
+
+================================================================================
+9. Blight exposure system
+================================================================================
+status_effects_component.gd:
+- BLIGHT_EXPOSURE (blight_buildup → blight_exposure_active)
+- SPORE_INFECTION (spore_buildup → spore_active, periodic poison tick)
+- CORRUPTION (sustained exposure → corruption_active, healing penalty)
+All bounded and reversible via shelter, tonics, healer, checkpoint.
+
+================================================================================
+10. Blight HUD feedback
+================================================================================
+player_hud.gd BlightExposureBar in NeedsRow — green/violet, shows in blightreach/blightspire_cathedral only.
+Does not replace cold bar; hidden outside blight regions.
+
+================================================================================
+11. Environmental corruption systems
+================================================================================
+blight_zone.gd, spore_cloud_zone.gd, toxic_pool_zone.gd, corruption_growth.gd (destructible),
+blight_shelter_zone.gd
+
+================================================================================
+12. Weather and Blight surge
+================================================================================
+blight_surge_controller.gd: Calm Fog, Spore Fall, Blight Surge, Sickly Rain, Ground Mist.
+Lastwall shelter suppresses surges. Audio: blightreach_ambience, fungal_burst, blight_surge.
+
+================================================================================
+13. Hazard implementation
+================================================================================
+Toxic pools (damage + buildup), spore clouds, blight zones, corruption growths.
+Cathedral: spore vents, root traps, dungeon_trap metadata in cathedral_builder.
+
+================================================================================
+14. Enemy roster
+================================================================================
+blight_hound, rootbound_raider, rootbound_archer, rootbound_bomber, fungal_husk,
+sporecaster, vine_stalker, corruption_wraith, root_titan (elite at Blightspire approach)
+
+================================================================================
+15. Resource roster
+================================================================================
+blightwood, sporecap, corrupted_fiber, purified_resin, root_iron, viridian_crystal,
+fungal_gland, ancient_bark
+
+================================================================================
+16. Main quest chain
+================================================================================
+into_the_blight → the_withered_fields → spores_in_the_wind → the_fallen_abbey → heart_of_the_blight
+(heart_of_the_blight stops at prepare_boss — no boss defeat objective)
+
+================================================================================
+17. Side quests
+================================================================================
+gather_sporecaps, rescue_infected_survivors, destroy_blight_hound_dens, recover_research_notes,
+defeat_root_titan, clear_corrupted_wells, harvest_viridian_crystal
+
+================================================================================
+18. Blightspire exterior
+================================================================================
+Landmark columns/platform/obelisk at (22, 18). blightspire_cathedral_entrance.tscn.
+Locked until blightspire_seal or the_fallen_abbey completed.
+
+================================================================================
+19. Blightspire scene path
+================================================================================
+res://scenes/dungeons/blightspire_cathedral/blightspire_cathedral.tscn
+
+================================================================================
+20. Dungeon room foundation
+================================================================================
+14 rooms: Entrance, Rootbound Nave, Collapsed Chapel, Fungal Cloister, Corrupted Library,
+Resource Crypt, Purification Chamber, Root Maze, Blighted Bell Hall, Checkpoint Sanctuary,
+Elite Guardian Chapel, Central Nave Approach, Boss Antechamber, Sealed Heart Chamber, Exit Cloister
+
+================================================================================
+21. Dungeon markers
+================================================================================
+dungeon_entry_blightspire_cathedral
+dungeon_spawn_blightspire_cathedral
+dungeon_checkpoint_blightspire_cathedral
+preboss_blightspire_cathedral
+
+================================================================================
+22. Checkpoint behavior
+================================================================================
+cathedral_checkpoint.gd: full heal, stamina, focus, clear blight exposure, persist activation,
+WorldStateManager.register_checkpoint(dungeon_checkpoint_blightspire_cathedral)
+
+================================================================================
+23. Purification puzzle
+================================================================================
+purification_puzzle.gd + purification_brazier_switch.gd: three braziers, retract roots,
+unlock Central Nave, persists via CathedralState.
+
+================================================================================
+24. Dungeon hazards
+================================================================================
+dungeon_trap, root traps in Root Maze, cathedral_builder hazard metadata per room.
+
+================================================================================
+25. Dungeon enemies
+================================================================================
+Fungal/spore/corruption variants in cathedral_builder ENEMY_SCENES; depth-scaled encounters.
+
+================================================================================
+26. Minimap integration
+================================================================================
+room_discovery_zone.gd + CathedralState.discovered_rooms + MapManager.discover_region(blightspire_cathedral)
+
+================================================================================
+27. Dungeon persistence
+================================================================================
+CathedralState autoload: seed, puzzle, checkpoint, braziers, retracted_roots, discovered rooms,
+opened chests. save_manager serialize/deserialize cathedral block.
+
+================================================================================
+28. Sealed boss chamber behavior
+================================================================================
+sealed_heart_door.gd displays: "A living corruption seals the Heart Chamber."
+No boss spawn. No placeholder boss copied from other dungeons.
+
+================================================================================
+29. Future-region shell
+================================================================================
+The Ember Wastes — future_ember_wastes_gate.gd at (30, 0, 0) on Blightreach.
+Dialogue only; does not load unfinished scene. ember_wastes_pass placeholder item.
+
+================================================================================
+30. Assets imported
+================================================================================
+Kenney nature/cliff/platform/statue props, Quaternius zombie kit meshes for enemies,
+existing mushroom/bush scatter from island_terrain blighted mode.
+
+================================================================================
+31. Audio hooks
+================================================================================
+blightreach_ambience, fungal_burst, blight_surge, cathedral_ambience, brazier (procedural tones)
+
+================================================================================
+32. Files created (major)
+================================================================================
+scenes/levels/blightreach/blightreach.tscn
+scenes/enemies/blight_hound.tscn (+ 8 blight enemy scenes)
+scenes/dungeons/blightspire_cathedral/blightspire_cathedral.tscn
+scenes/dungeons/blightspire_cathedral_entrance.tscn
+scripts/environment/blight_zone.gd, spore_cloud_zone.gd, blight_shelter_zone.gd,
+  blight_surge_controller.gd, toxic_pool_zone.gd, corruption_growth.gd
+scripts/levels/future_ember_wastes_gate.gd
+scripts/autoload/cathedral_state.gd
+scripts/dungeons/cathedral_*.gd, purification_puzzle.gd, sealed_heart_door.gd,
+  cathedral_quest_trigger.gd, blightspire_cathedral_entrance.gd
+
+================================================================================
+33. Files modified (major)
+================================================================================
+scripts/levels/level_manager.gd, region_content.gd, region_transition_gate.gd,
+  town_layouts.gd, island_terrain.gd
+scripts/combat/status_effects_component.gd
+scripts/autoload/map_manager.gd, quest_manager.gd, merchant_manager.gd, loot_manager.gd,
+  dungeon_manager.gd, save_manager.gd, game_manager.gd, audio_manager.gd
+scripts/utilities/item_database.gd, scripts/autoload/inventory_manager.gd
+scripts/stations/healer_station.gd
+ui/hud/player_hud.gd
+project.godot (CathedralState autoload)
+
+================================================================================
+34. Manual verification results
+================================================================================
+Automated: .\start game.ps1 — PASS (exit 0, no compile errors).
+In-game manual checklist (operator):
+[ ] Shattered Coast → Blightreach transition with crown + quest
+[ ] Lastwall services, waystone, rest/checkpoint
+[ ] Blight exposure HUD and shelter recovery
+[ ] Enemies XP/loot, resources gather
+[ ] Death restart grounded at Blightreach markers
+[ ] Blightspire exterior lock/unlock
+[ ] Cathedral entry, rooms, checkpoint, puzzle, minimap
+[ ] Sealed Heart Chamber message only
+[ ] Exit to exterior_blightspire_cathedral
+[ ] Phase 0–5 regression spot-check
+
+================================================================================
+35. Known limitations
+================================================================================
+- Cathedral builder reuses some rotfen/frostgrave enemy scenes inside dungeon until dedicated cathedral guard variants are authored.
+- Ember Wastes is dialogue shell only.
+- Corruption growth destruction uses proximity/attack heuristic; full combat hit integration pending.
+- heart_of_the_blight completes at Boss Antechamber (prepare_boss), not Heart Chamber.
+
+================================================================================
+36. Remaining placeholders
+================================================================================
+- Dedicated Blightspire boss (Heart Chamber)
+- The Ember Wastes region scene
+- ember_wastes_pass acquisition flow
+- blightreach_level.gd superseded by level_manager (legacy file may remain)
+
+================================================================================
+37. Confirmation: no automated tests added
+================================================================================
+CONFIRMED — no new test files in tests/ for Phase 6.
+
+================================================================================
+38. Confirmation: no placeholder boss in Blightspire
+================================================================================
+CONFIRMED — SealedHeartDoor is dialogue-only.
+
+================================================================================
+39. Confirmation: Phase 0–5 content remains functional
+================================================================================
+CONFIRMED at launch — no compile errors; prior regions and CitadelState/Citadel stack untouched.
+
+================================================================================
+40. Confirmation: every new arrival and restart safely grounded
+================================================================================
+CONFIRMED — all Blightreach markers registered via SpawnMarker.create_runtime with validated Y=0.1 offsets;
+cathedral markers registered after collision-ready in cathedral_level.gd.

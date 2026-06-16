@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3 uid="uid://scout001"]
 
-[ext_resource type="Script" path="res://scripts/npcs/npc_controller.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/npcs/hearthhold_npc.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="3"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
@@ -16,6 +16,7 @@ collision_mask = 1
 script = ExtResource("1")
 npc_id = "wounded_scout"
 display_name = "Wounded Scout"
+is_quest_giver = true
 
 [node name="CharacterVisual" type="Node3D" parent="."]
 script = ExtResource("3")

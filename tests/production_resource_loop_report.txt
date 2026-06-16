@@ -1,0 +1,242 @@
+Destructible World / Resource Gathering / Crafting Loop — Production Report
+======================================================================
+Date: 2026-06-10
+Scope: Core survival/resource loop for existing regions (Phase 0–8 preserved)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0**
+
+---
+
+## Resource Loop Overview
+
+Explore → destroy props → gather nodes → shared inventory → deposit at camp/base → craft → upgrade stations → prepare for next region.
+
+---
+
+## Destructible Objects
+
+### Core System
+
+* `DestructibleObject` — HP-based break via combat hurtbox; one-time `_destroyed` guard prevents duplicate drops
+* Direct grant path uses `ResourceFeedbackManager.notify_player_pickup()` with attacker attribution
+* Loot table path uses `LootManager.drop_loot_table()` → world pickups with co-op P1/P2 toasts
+
+### Drop Tables (LootManager)
+
+| Table ID | Drops |
+|----------|-------|
+| `destructible_crate` | Wood 1–3, Nails 0–2, Copper 0–8, small food chance |
+| `destructible_barrel` | Wood 1–2, Waterskin, Cloth, Copper |
+| `destructible_furniture` | Wood 2–4, Cloth 0–2, Nails 0–2 |
+| `destructible_scrap` | Iron Scrap 1–4, Wire, Bolts, rare Weapon Parts |
+| `destructible_bone` | Bone 1–4, Hide, rare Charm Fragment |
+| `destructible_crystal` | Crystal Shard 1–3, Crystal Dust 0–1 |
+| `destructible_corrupted_root` | Corrupted Roots 1–3, Poison Gland, Fiber |
+| `destructible_rock` | Stone 1–3 |
+
+### Prop Factory (Kenney meshes)
+
+Barrel, scrap, bone, crystal, corrupted root, furniture/cart, rock mappings added to `DestructiblePropFactory`.
+
+### Region Spawns
+
+* Darkpine Forest: crates, barrel, scrap pile, herb/berry/stone gather nodes
+* Existing crate/herb destructible scenes in bandit camp, ruined watchtower, hearthhold
+
+---
+
+## Resource Node Gathering
+
+### Core System (`ResourceNode`)
+
+* InteractionArea (layer 32) for player detect
+* Simple colored visual marker per resource type
+* Co-op gather lock (`_gathering`) prevents double collection
+* `ResourceFeedbackManager.notify_player_gathered()` — `P{n} gathered {item} x{qty}`
+* Optional `requires_tool` with readable missing-tool toast
+* Depleted state hides visual; prompt becomes `Depleted`
+* Quest hooks via `RegionContent.on_resource_gathered()`
+
+### Runtime Nodes
+
+All region `_spawn_resource()` calls now create fully interactable nodes (Rotfen, Ashfall, Frostgrave, Coast, Blightreach, Ember Wastes, Sunless Dominion, Darkpine).
+
+---
+
+## Resource Item Definitions
+
+New core materials added to `ItemDatabase`:
+
+Natural: fiber, berries, mushrooms, hide, bone, raw_meat, cooked_meat, dirty_water, seeds, charcoal, firewood
+
+Scrap: wire, bolts, rope, leather_strips, broken_blade, weapon_parts, armor_plates, oil, gears
+
+Rare: crystal_shard, crystal_dust, fire_resin, corrupted_roots, silver_ore, charm_fragment
+
+Craft outputs: fire_coating, pet_treat, weapon_upgrade_kit, armor_reinforcement_kit
+
+All typed as `material` or `consumable`; stackable; depositable to base storage.
+
+---
+
+## Crafting Recipes (new/updated)
+
+| Recipe | Station | Materials | Output |
+|--------|---------|-----------|--------|
+| Bandage | Workbench | Cloth x2, Herbs x1 | Bandage x1 |
+| Purified Water | Forge | Dirty Water, Charcoal | Purified Water |
+| Cooked Meat | Workbench | Raw Meat, Firewood | Cooked Meat |
+| Repair Kit | Workbench | Iron Scrap x2, Cloth, Oil | Repair Kit |
+| Fire Coating | Forge | Fire Resin, Oil, Cloth | Fire Coating |
+| Basic Weapon Upgrade | Workbench L2 | Iron Scrap x5, Weapon Parts, 25 copper | Weapon Upgrade Kit |
+| Armor Reinforcement | Forge L2 | Hide x2, Armor Plates, Iron Scrap x3 | Armor Reinforcement Kit |
+| Pet Treat | Workbench | Berries x2, Herbs | Pet Treat x2 |
+
+Missing-resource messages show `Missing {Item} x{N}`.
+
+---
+
+## Base Station Upgrades
+
+| Station | Level | Materials | Copper |
+|---------|-------|-----------|--------|
+| Workbench | 2 | Wood x10, Iron Scrap x6, Nails x4 | 50 |
+| Forge | 2 | Stone x10, Iron Scrap x12, Fire Resin x2, Silver Ore x2 | 50 |
+| Water Collector | 1 | Wood x6, Cloth x3, Rope x2 | 15 |
+| Garden Plot | 1 | Wood x4, Seeds x3, Purified Water x2, Fiber x2 | 10 |
+| Pet Shelter | 1 | Wood x8, Cloth x4, Hide x2, Bone x3 | 20 |
+| Mask Stand | 1 | Wood x6, Nails x2, Cloth x2 | 10 |
+
+Tracked upgrade progress (default: Forge L2) shows material counts on pickup via `BaseManager.notify_tracked_material_pickup()`.
+
+---
+
+## Co-op Safety
+
+* Destructible destroy guard is per-object (no duplicate drops from simultaneous hits)
+* Gather nodes use `_gathering` lock
+* Pickup/gather toasts attribute P1/P2
+* Crafting/upgrades consume shared inventory once; owner attribution on craft/upgrade toasts
+* Menu ownership unchanged from co-op polish pass
+
+---
+
+## Save / Load
+
+* Shared inventory, base storage, station levels serialized via existing SaveManager v3
+* Destructible/resource nodes respawn on region reload (no persistent depletion save — by design for prototype loop)
+
+---
+
+## Manual Checks
+
+| # | Check | Expected |
+|---|-------|----------|
+| 1 | Solo New Game | Unchanged |
+| 2 | Local Co-op spawn | Both players safe |
+| 3 | P1 breaks crate | Resources drop once |
+| 4 | P2 breaks crate | Works |
+| 5 | Crate drops | Once only |
+| 6 | Dual hit same destructible | No duplicate drops |
+| 7 | P1 gathers herb bush | Shared inventory |
+| 8 | P2 gathers node | Shared inventory |
+| 9 | Gather toast | P1/P2 attribution |
+| 10 | Node double-gather | Blocked |
+| 11 | Pickup toast | Correct attribution |
+| 12 | Deposit All Resources | Materials to base |
+| 13 | Camp chest protections | Quest/equipped/locked blocked |
+| 14 | Workbench craft | Resources consumed once |
+| 15 | Crafted output | One item created |
+| 16 | Missing resource | Clear message |
+| 17 | Workbench L2 upgrade | Correct cost |
+| 18 | Forge L2 upgrade | Correct cost |
+| 19 | Upgrade applies once | Level increments |
+| 20 | Craft/upgrade toast | Owner attribution |
+| 21 | Tracked progress P1 | Updates on pickup |
+| 22 | Tracked progress P2 | Updates on pickup |
+| 23 | Save/load inventory | Preserved |
+| 24 | Save/load base storage | Preserved |
+| 25 | Save/load station levels | Preserved |
+| 26 | Field revive | Still works |
+| 27 | Waystone travel | Still works |
+| 28 | Boss fight | Still works |
+| 29 | Camp rest | Still works |
+| 30 | `.\start game.ps1` | Exit 0 |
+
+---
+
+## Known Limitations
+
+* Resource visuals are lightweight primitive placeholders — final art per type still pending
+* Water Collector / Garden Plot production uses a 45s cooldown (no rest-cycle timing yet)
+* Water Collector L2 / Garden Plot L2 upgrade tiers not yet defined
+* Important destructible persistence IDs assigned for runtime resource nodes; scene-placed props not yet flagged
+* Pickup batching still throttles rather than aggregates (`Wood x10`)
+* Tool requirements are lightweight (inventory/equipment check, not dedicated tool items)
+* No new regions added — loop uses existing Phase 0–8 areas
+
+---
+
+## Polish Pass Summary (2026-06-10)
+
+Follow-up pass documented in `tests/production_resource_visuals_persistence_report.txt`:
+
+* `resource_node_visual_factory.gd` — 13 readable placeholder mesh types per gather node
+* Depleted/destroyed persistence via `WorldStateManager` (`depleted_resource_nodes`, `destroyed_world_objects`)
+* Water Collector + Garden Plot placed in Hearthhold with build/upgrade/collect UX
+* Combined inventory + base storage for upgrade/craft cost checks
+* Tracking toasts for all prototype station upgrades (Workbench L2, Forge L2, Water Collector, Garden Plot, Pet Shelter, Mask Stand)
+* Gather prompts: `P1: Press E — Gather Herbs` via `CoopUiCopy`
+* Build: `.\start game.ps1` exit 0
+
+---
+
+## Equipment Progression Summary (2026-06-10)
+
+Follow-up pass documented in `tests/production_equipment_progression_report.txt`:
+
+* `EquipmentManager` autoload — durability, repair, upgrade, reinforcement, socket prep
+* Gear instances persist through inventory save data with backward-safe defaults
+* Combat durability loss on weapon hits, shield blocks, armor hits, tool gathers
+* Workbench/Forge equipment menu actions; Repair Kit consumable wired to gear
+* Inventory UI shows durability, upgrade/reinforcement levels, socket counts
+* Build: `.\start game.ps1` exit 0
+
+---
+
+## Files Created
+
+* `tests/production_resource_loop_report.txt`
+* `tests/production_resource_visuals_persistence_report.txt`
+* `tests/production_equipment_progression_report.txt`
+* `scripts/resources/resource_node_visual_factory.gd`
+* `scenes/base/water_collector.tscn`
+* `scenes/base/garden_plot.tscn`
+
+## Files Modified
+
+* `scripts/destructibles/destructible_object.gd`
+* `scripts/destructibles/destructible_prop_factory.gd`
+* `scripts/resources/resource_node.gd`
+* `scripts/autoload/loot_manager.gd`
+* `scripts/autoload/crafting_manager.gd`
+* `scripts/autoload/base_manager.gd`
+* `scripts/autoload/world_state_manager.gd`
+* `scripts/autoload/equipment_manager.gd`
+* `scripts/autoload/inventory_manager.gd`
+* `scripts/autoload/resource_feedback_manager.gd`
+* `scripts/base/base_station.gd`
+* `scripts/utilities/item_database.gd`
+* `scripts/levels/region_content.gd`
+* `scripts/ui/inventory_panel.gd`
+* `scripts/ui/game_hud.gd`
+* `scripts/player/player_combat.gd`
+* `scripts/combat/hitbox.gd`
+* `scripts/utilities/player_progress.gd`
+* `project.godot`
+* `scenes/destructibles/destructible_crate.tscn`
+* `scenes/levels/hearthhold_camp/hearthhold_camp.tscn`
+* `tests/production_coop_report.txt`

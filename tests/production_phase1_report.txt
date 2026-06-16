@@ -1,0 +1,148 @@
+Exiled Survivors — Phase 1 Completion Report
+Generated: 2026-06-10
+
+=== 1. Hearthhold scene path ===
+res://scenes/levels/hearthhold_camp/hearthhold_camp.tscn
+
+=== 2. Hearthhold node structure ===
+HearthholdCamp
+├── Level (level_manager.gd, region_id=hearthhold_camp)
+│   ├── Players
+│   ├── CameraRig
+│   ├── Environment (WorldEnvironment, DirectionalLight3D, CampTerrain)
+│   ├── SpawnPoints (Spawn1, WaystoneSpawn)
+│   ├── Stations (Workbench, Forge, ItemBox, MemoryAltar, PetShelter, MaskStand)
+│   ├── NPCs (Captain Elira, Mara Fen, Sister Anwen, Tomas Reed, Arms Dealer, Bram, Quartermaster, Guards)
+│   └── Interactables (Waystone, InnRest) + runtime TownProps, gates, caravan POI, infirmary
+└── GameHUD
+
+=== 3. Hearthhold spawn-marker IDs ===
+darkpine_arrival_hearthhold, town_hearthhold, new_arrival_hearthhold,
+checkpoint_hearthhold, waystone_hearthhold, rotfen_departure_hearthhold,
+rotfen_return_hearthhold (+ legacy aliases town_hearthhold_camp, waystone_hearthhold_camp)
+
+=== 4. Hearthhold services implemented ===
+General merchant (Tomas Reed), weapon/armor merchant, blacksmith (Bram + Forge),
+crafting workshop (Workbench), storage chest (ItemBox), inn rest (InnRest → checkpoint),
+healer infirmary (HealerStation), waystone, quest hall area, training yard props
+
+=== 5. Hearthhold NPCs implemented ===
+Captain Elira Voss, Mara Fen, Sister Anwen, Tomas Reed, Arms Dealer,
+Bram Ironhand, Quartermaster Vale, ambient Town Guards
+
+=== 6. Hearthhold quests implemented ===
+The Rot Below, Supplies for the Marsh, Into Rotfen (quest_manager + hearthhold_npc.gd)
+
+=== 7. Darkpine ↔ Hearthhold production result ===
+Preserved Phase 0 pair: darkpine_to_hearthhold → darkpine_arrival_hearthhold;
+hearthhold_to_darkpine → hearthhold_return_darkpine. Gates spawned in level_manager.
+
+=== 8. Rotfen scene path ===
+res://scenes/levels/rotfen_marsh/rotfen_marsh.tscn
+
+=== 9. Rotfen subregions ===
+Hearthhold Approach, Marshwatch Camp, Drowned Woodland, Poison Bog, Ruined Causeway,
+Sunken Village, Corrupted Shrine, Reliquary Approach, Ashfall Route (layout + terrain landmarks)
+
+=== 10. Rotfen spawn-marker IDs ===
+region_start_rotfen, hearthhold_arrival_rotfen, checkpoint_rotfen, camp_marshwatch,
+waystone_rotfen, sunken_reliquary_exterior, exterior_sunken_reliquary,
+ashfall_departure_rotfen, rotfen_return_hearthhold
+
+=== 11. Hearthhold ↔ Rotfen production result ===
+hearthhold_to_rotfen → hearthhold_arrival_rotfen (quest-locked until the_rot_below completed);
+rotfen_to_hearthhold → rotfen_return_hearthhold. Locked message via RegionTransitionGate.
+
+=== 12. Marshwatch Camp implementation ===
+Runtime CampSite named MarshwatchCamp, campfire props, scout vendor, chest, checkpoint/camp markers
+
+=== 13. Rotfen waystone implementation ===
+Runtime waystone rotfen_marsh at (-6,0,6); activates into_rotfen objective on first discovery
+
+=== 14. Enemy roster implemented ===
+Bog Stalker, Mire Hound, Drowned Husk, Rotfen Cultist, Spore Brute (scenes + loot tables)
+
+=== 15. Resource roster implemented ===
+bog_herb, rotwood, poison_gland, corrupted_fiber, swamp_iron, mire_crystal,
+drowned_scrap, ancient_bone (+ item_database entries)
+
+=== 16. Rotfen quests implemented ===
+The Missing Caravan, The Sunken Bells, gather_bog_herbs, rescue_trapped_scout,
+destroy_corruption, hunt_spore_brute
+
+=== 17. Sunken Reliquary exterior status ===
+reliquary_entrance.tscn + reliquary_entrance.gd — quest locked until the_sunken_bells;
+confirmation dialogue; blocks transition with "The Reliquary is not yet accessible."
+
+=== 18. Minimap registration ===
+MapManager.discover_location for Hearthhold services/gates and Rotfen camp, waystone,
+dungeon, quest sites, Ashfall route; map_dungeon group on reliquary
+
+=== 19. Context-aware restart behavior ===
+Preserved SpawnResolver priority. Rotfen: checkpoint_rotfen → camp_marshwatch →
+waystone_rotfen → region_start_rotfen. Hearthhold inn sets checkpoint_hearthhold + TOWN context.
+
+=== 20. Asset sources used ===
+Kenney Nature Kit (CC0), Quaternius character/zombie kit (CC0). See docs/asset_registry.md
+
+=== 21. Files created ===
+scenes/levels/rotfen_marsh/rotfen_marsh.tscn
+scenes/enemies/bog_stalker.tscn, mire_hound.tscn, drowned_husk.tscn, rotfen_cultist.tscn, spore_brute.tscn
+scenes/dungeons/reliquary_entrance.tscn
+scenes/npcs/hearthhold_npc.tscn
+scripts/npcs/hearthhold_npc.gd
+scripts/stations/healer_station.gd
+scripts/interactables/quest_poi.gd
+scripts/dungeons/reliquary_entrance.gd
+docs/asset_registry.md
+tests/production_phase1_report.txt
+
+=== 22. Files modified ===
+scenes/levels/hearthhold_camp/hearthhold_camp.tscn
+scripts/levels/level_manager.gd, region_content.gd, town_layouts.gd, island_terrain.gd
+scripts/autoload/quest_manager.gd, merchant_manager.gd, crafting_manager.gd,
+dialogue_manager.gd, map_manager.gd, loot_manager.gd, region_transition_manager.gd
+scripts/camps/camp_site.gd, waystones/waystone.gd, resources/resource_node.gd
+scripts/utilities/item_database.gd, autoload/inventory_manager.gd
+
+=== 23. Manual verification results ===
+Headless Godot scene load probe: PASS (hearthhold, rotfen, enemies, reliquary).
+Full gameplay verification: run .\start game.ps1 and follow checklist below.
+
+=== 24. Known limitations ===
+- Sunken Reliquary interior not built (exterior shell only)
+- Ashfall route gate is a placeholder (no destination region yet)
+- Rotfen deep-water movement penalty not fully simulated (visual shallow/deep water only)
+- Training yard uses prop placeholders (no dedicated training NPC combat loop)
+- Some Hearthhold structures remain Kenney tent-based (fortified stone assets deferred)
+
+=== 25. Remaining placeholder assets ===
+KayKit stone fortifications, dedicated marsh boardwalk meshes, reliquary interior kit
+
+=== 26. Confirmation no automated tests were added ===
+CONFIRMED — no new automated test files added for Phase 1.
+
+=== 27. Confirmation Phase 0 systems preserved ===
+CONFIRMED — RegionTransitionGate → RegionTransitionManager → WorldStateManager →
+SpawnResolver/SpawnHelpers → complete_arrival flow unchanged. Darkpine and Abandoned Mine
+markers/transitions not modified.
+
+=== 28. Confirmation grounded arrivals ===
+All spawn markers use y=0.1 offsets and SpawnHelpers ground snap on placement.
+
+--- Manual verification checklist ---
+
+HEARTHOLD:
+[ ] Darkpine gate → Hearthhold at darkpine_arrival_hearthhold
+[ ] Merchants, forge, workbench, storage, waystone, inn checkpoint
+[ ] Captain Elira quest chain → Rotfen gate unlock
+[ ] Return gate → Darkpine at hearthhold_return_darkpine
+
+ROTFEN:
+[ ] Hearthhold gate → hearthhold_arrival_rotfen (grounded)
+[ ] Marshwatch camp rest + waystone + enemies + loot + resources
+[ ] Quest POIs (caravan, shrines, scout, corruption)
+[ ] Return gate → rotfen_return_hearthhold
+
+RELIQUARY:
+[ ] Minimap icon, quest lock, confirmation, no invalid scene transition

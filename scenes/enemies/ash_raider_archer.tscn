@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://asharcher001"]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/bandit_archer.tscn" id="1"]
+
+[node name="AshRaiderArcher" instance=ExtResource("1")]
+enemy_id = "ash_raider_archer"
+display_name = "Ash Raider Archer"
+loot_table_id = "ash_raider"

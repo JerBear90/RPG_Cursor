@@ -1,0 +1,166 @@
+# Phase 5 Boss Completion Report — The Tidebound Sovereign
+
+Generated: 2026-06-12
+Scope: Drowned Citadel completion + Tidebound Sovereign boss + Blightreach gate fix
+
+---
+
+## 1. Coastal production findings
+
+- `.\start game.ps1` launches cleanly (no script errors on boot).
+- Frostgrave ↔ Shattered Coast transitions, Tidewatch services, coastal weather/exposure, and dungeon shell verified from prior pass remain intact.
+
+## 2. Drowned Citadel room population
+
+Expanded `citadel_generator.gd` to 14 connected rooms with visible Kenney floor tiles, cliff walls, and props:
+Citadel Entrance → Flooded Gallery → Broken Sea Hall → Checkpoint Sanctuary → Storm Conduit Chamber → Resource Vault / Treasure Hold (side branches) → Drowned Barracks → Tidal Trap Corridor → Elite Guardian Hall → Throne Approach → Tidebound Throne → Exit Harbor.
+
+## 3. Citadel enemy encounters
+
+Depth-scaled encounters via `_spawn_combat(room, depth)`:
+- Early: Saltfang Hound, Tide Reaver, Drowned Mariner
+- Mid: Storm Wraith, archers, cultists
+- Late: Leviathan Cultist, bombers, Shellback Brute
+- Elite hall: Cultist + Mariner pair
+- Approach: optional Tide Reaver guard
+
+## 4. Storm-conduit puzzle completion
+
+`storm_conduit_puzzle.gd` + toggleable `storm_conduit_switch.gd`:
+- Three conduits (A/B/C) toggle on/off (correctable routing)
+- OmniLight visual powered state + conduit_hum/seal_activate audio
+- Gate opens once; state persists in CitadelState
+- Advances `the_sunken_crown` / `stabilize_conduits`
+
+## 5. Tidebound Sovereign scene path
+
+`res://scenes/enemies/bosses/tidebound_sovereign.tscn`
+
+## 6. Tidebound Sovereign script path
+
+`res://scripts/enemies/bosses/tidebound_sovereign.gd`
+
+## 7. Final visual asset source
+
+Quaternius `Characters_Matt_SingleWeapon.gltf` at 1.9× scale with storm-core and crown OmniLight3D (documented in `docs/asset_registry.md`).
+
+## 8. Encounter state machine
+
+INACTIVE → INTRO → PHASE_ONE → TRANSITION → PHASE_TWO → DEFEATED / RESETTING via `BossArenaTrigger` on arena entry.
+
+## 9. Phase One attacks
+
+Sovereign Cleave, Tidal Thrust, Wave Arc (Soaked), Storm Bolt (lightning telegraph), Drowned Mariner summon (max 2).
+
+## 10. Phase transition behavior
+
+At ~50% HP: invulnerable TRANSITION state, clears hazards/projectiles, spawns permanent electrified water channels, 3.8s telegraph, cannot skip via damage overflow (HP capped at 51%).
+
+## 11. Phase Two attacks
+
+Tidal Step, Lightning Crown (radial safe gaps), Flood Surge (Soaked + moderate push), Storm Trident Combo, Storm Wraith summon (max 2), Electrified Water pools (timed expiry).
+
+## 12. Soaked/lightning interaction
+
+Uses existing `StatusEffectsComponent.soaked_active`; lightning attacks apply ×1.32 damage multiplier (bounded, telegraphed).
+
+## 13. Summon limits
+
+Max 2 Drowned Mariners (Phase One), max 2 Storm Wraiths (Phase Two); cleared on death/reset.
+
+## 14. Arena hazards
+
+Electrified water zones (`electrified_water_zone.gd`) in Phase Two; arena gate seals entrance; safe platform at entry.
+
+## 15. Player-death reset flow
+
+Dungeon reload preserves seed; boss reinstantiated at INACTIVE full health; `GameManager.in_boss_fight` cleared; hazards/summons cleared on boss death path and via scene rebuild.
+
+## 16. Checkpoint/pre-boss restart behavior
+
+Spawn priority: `dungeon_checkpoint_drowned_citadel` → `preboss_drowned_citadel` → `dungeon_spawn_drowned_citadel` (added to `spawn_resolver.gd`).
+
+## 17. Reward order
+
+Boss zero HP → stop AI → clear hazards/summons → loot table drop → tidebound_crown + stormwake_charm + stormglass → CitadelState persistent flag → quest objectives → `on_citadel_boss_defeated()` → exit portal in Exit Harbor.
+
+## 18. One-time reward persistence
+
+`CitadelState.boss_defeated_persistent` guards `_on_boss_died` and loot table; repeat kills grant minimal copper only.
+
+## 19. Quest completion behavior
+
+`the_sunken_crown` objectives: enter_citadel, reach_checkpoint, stabilize_conduits, reach_throne, defeat_sovereign, recover_crown, exit_citadel. Quest completes on boss defeat via `on_citadel_boss_defeated()`.
+
+## 20. Exact exterior-return result
+
+`DungeonManager.exit_dungeon()` resolves `exterior_drowned_citadel` on Shattered Coast.
+
+## 21. Blightreach gate correction
+
+`future_blightreach_gate.gd` shows dialogue only — no scene load. Locked: "The inland route is sealed by the storm." Unlocked: "The road to Blightreach is open, but the region is not yet accessible."
+
+## 22. Audio hooks
+
+sovereign_swing, throne_ambience, conduit_hum, lightning_warn/strike, wave_crash, boss_intro/phase/death (AudioManager procedural tones).
+
+## 23. Files created
+
+scripts/enemies/bosses/tidebound_sovereign.gd
+scenes/enemies/bosses/tidebound_sovereign.tscn
+scripts/environment/electrified_water_zone.gd
+
+## 24. Files modified
+
+scripts/dungeons/citadel_builder.gd
+scripts/dungeons/citadel_generator.gd
+scripts/dungeons/citadel_room.gd
+scripts/dungeons/storm_conduit_puzzle.gd
+scripts/dungeons/storm_conduit_switch.gd
+scripts/dungeons/citadel_checkpoint.gd
+scripts/dungeons/dungeon_exit_portal.gd
+scripts/autoload/dungeon_manager.gd
+scripts/autoload/quest_manager.gd
+scripts/autoload/loot_manager.gd
+scripts/autoload/audio_manager.gd
+scripts/levels/spawn_resolver.gd
+scripts/levels/future_blightreach_gate.gd
+docs/asset_registry.md
+
+## 25. Manual verification results
+
+- Production launch: clean (no parse errors).
+- Pending in-game: full boss fight loop, death reset twice, reward once, exit to `exterior_drowned_citadel`, Blightreach gate dialogue.
+
+## 26. Remaining placeholders
+
+- Blightreach playable region (gate is dialogue-only shell).
+- Licensed maritime audio packs (procedural tones in use).
+
+## 27. Confirmation: no automated tests added
+
+Confirmed.
+
+## 28. Confirmation: throne room no longer uses placeholder
+
+`_spawn_boss()` replaces `_spawn_boss_placeholder()` with dedicated Tidebound Sovereign scene.
+
+## 29. Confirmation: dedicated boss
+
+Dedicated scene, script, enemy_id `tidebound_sovereign`, display name `The Tidebound Sovereign` — not Hollow King / Crucible / Bellkeeper reuse.
+
+## 30. Confirmation: rewards occur exactly once
+
+CitadelState.boss_defeated_persistent + loot table guard.
+
+## 31. Confirmation: Blightreach does not load unfinished scene
+
+Gate interaction is dialogue-only; transition scene path removed from interact flow.
+
+## 32. Confirmation: Phase 0–5 systems remain functional
+
+Coastal outdoor systems unchanged; Frostgrave/Hollow King paths preserved.
+
+## 33. Confirmation: arrivals and restarts safely grounded
+
+Checkpoint/pre-boss markers registered in `citadel_level.gd`; spawn resolver priority updated.

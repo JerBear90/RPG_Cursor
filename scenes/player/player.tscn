@@ -19,6 +19,9 @@
 [ext_resource type="Script" path="res://scripts/combat/hitbox.gd" id="17"]
 [ext_resource type="Script" path="res://scripts/player/player_visual.gd" id="18"]
 [ext_resource type="Script" path="res://scripts/player/player_animation_controller.gd" id="19"]
+[ext_resource type="Script" path="res://scripts/combat/status_effects_component.gd" id="20"]
+[ext_resource type="Script" path="res://scripts/player/environment_movement_modifier.gd" id="21"]
+[ext_resource type="Script" path="res://scripts/player/coop_field_revive.gd" id="22"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -115,11 +118,20 @@ script = ExtResource("14")
 [node name="SurvivalNeedsComponent" type="Node" parent="."]
 script = ExtResource("15")
 
+[node name="StatusEffectsComponent" type="Node" parent="."]
+script = ExtResource("20")
+
+[node name="EnvironmentMovementModifier" type="Node" parent="."]
+script = ExtResource("21")
+
 [node name="Combat" type="Node" parent="."]
 script = ExtResource("2")
 
 [node name="Interaction" type="Node" parent="."]
 script = ExtResource("3")
+
+[node name="CoopFieldRevive" type="Node" parent="."]
+script = ExtResource("22")
 
 [node name="Spellcaster" type="Node" parent="."]
 script = ExtResource("4")

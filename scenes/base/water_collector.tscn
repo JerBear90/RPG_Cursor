@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3 uid="uid://watercollector001"]
+
+[ext_resource type="Script" path="res://scripts/base/base_station.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="2"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_1"]
+height = 1.0
+radius = 0.55
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 2.0
+
+[node name="WaterCollector" type="StaticBody3D"]
+collision_layer = 1
+script = ExtResource("1")
+station_id = "water_collector"
+display_name = "Water Collector"
+
+[node name="KenneyVisual" type="Node3D" parent="."]
+script = ExtResource("2")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/pot_large.glb"
+mesh_scale = Vector3(1.1, 1.1, 1.1)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("CylinderShape3D_1")
+
+[node name="InteractionArea" type="Area3D" parent="."]
+collision_layer = 32
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea"]
+shape = SubResource("SphereShape3D_interact")

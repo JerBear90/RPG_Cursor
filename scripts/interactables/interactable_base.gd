@@ -13,6 +13,8 @@ func _ready() -> void:
 
 
 func interact(player: Node) -> void:
+	if player is PlayerController:
+		GameManager.interacting_player_index = (player as PlayerController).player_index
 	interacted.emit(player)
 	_on_interact(player)
 

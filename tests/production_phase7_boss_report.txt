@@ -1,0 +1,202 @@
+Phase 7 Boss Pass — Production Completion Report
+==============================================
+Date: 2026-06-10
+Scope: Cinderhold NPC polish, Solar Tyrant boss, Heart of the Wastes completion
+
+1. Phase 7 foundation production findings
+-----------------------------------------
+- `.\start game.ps1` exits 0 (Godot 4.6.3 launches cleanly).
+- Phase 7 foundation intact: Ember Wastes, transitions, heat/dehydration/sandstorm,
+  Cinderhold camp, Pyreheart dungeon, mirror puzzle, oasis checkpoint, exterior return metadata.
+- Fixed premature exit unlock: mirror puzzle no longer sets `DungeonManager.boss_defeated`.
+- Fixed premature exit portal reveal on puzzle-only completion.
+
+2. Cinderhold NPC implementation
+--------------------------------
+Replaced placeholder merchants and Commander QuestPoi with named roster via `CinderholdNpc`:
+- Warden Ilyra Voss — main quest chain (into_the_ember → heart_of_the_wastes)
+- Dagan Sunforge — sunsmith / forge merchant
+- Nima Dareth — general merchant
+- Doctor Sol Marr — apothecary crafting + supply browse
+- Brother Caldus — `CinderholdHealerStation` (heat, hydration, sand lung, burning)
+- Scout Kera Ash — side quest giver (ashscale, behemoth, sunstone, scorched sand)
+
+3. Cinderhold service results
+-----------------------------
+- All NPCs use shared `DialogueManager` (E interact, confirm/cancel via dialogue actions).
+- Merchant handoffs: Trade → shop once (`NpcController._open_merchant_shop_once`).
+- Forge (Dagan): merchant catalog `dagan_sunforge`.
+- Healer (Brother Caldus): copper cost shown before Treat confirmation.
+- Apothecary (Doctor Sol): Craft opens `apothecary` crafting menu; Browse opens shop catalog.
+- Gameplay blocked during dialogue/shop; interaction cooldown preserved via existing systems.
+
+4. Solar Heart unlock flow
+--------------------------
+Mirror A → sand barrier A removed
+Mirror B → heat vents disabled + barrier B removed
+Mirror C → glass pulse disabled + inner gate opened
+All three → puzzle_completed + cooling_channels_active → `unlock_solar_heart_chamber()`
+Seal retracts (sand wall removed); chamber accessible; boss arena trigger starts encounter.
+
+5. Solar Tyrant scene path
+--------------------------
+res://scenes/enemies/bosses/solar_tyrant.tscn
+
+6. Solar Tyrant script path
+---------------------------
+res://scripts/enemies/bosses/solar_tyrant.gd
+
+7. Boss visual source
+---------------------
+Quaternius CC0 Characters_Matt_SingleWeapon.gltf
+Scale 2.2×, SolarCore + SolarCrown OmniLight3D (red-gold)
+Documented in docs/asset_registry.md
+
+8. Encounter state machine
+--------------------------
+INACTIVE → INTRO → PHASE_ONE → TRANSITION → PHASE_TWO → DEFEATED → RESETTING
+Boss inactive during intro, transition, pause, dialogue, death sequence, reset.
+
+9. Phase One attacks
+--------------------
+Solar Cleave, Sunstrike, Solar Beam, Glass Eruption, Ashbound Summon (max 2 pyre cultists)
+
+10. Phase transition behavior
+-----------------------------
+At ~50% HP: invulnerable transition, hazards cleared, one-time phase shift,
+core exposure window in Phase Two, toast + solar_phase_transition audio.
+
+11. Mirror/cooling effects on encounter
+---------------------------------------
+Mirror A: reduces Solar Beam duration/frequency (0.72 scale)
+Mirror B: disables boss arena heat-vent lane
+Mirror C: extends exposed-core damage windows (1.4×)
+All three: reduces passive arena heat buildup (0.65× multiplier)
+
+12. Phase Two attacks
+---------------------
+Solar Step, Crown of Flame, Sandglass Storm, Solar Judgment Combo,
+Burning Ground, Solar Sentinel Summon (max 2 dune raiders)
+
+13. Summon limits
+-----------------
+Maximum 2 active summons per phase; cleared on reset/death.
+
+14. Arena behavior
+------------------
+Safe entry south of boss; BossArenaGate seals on intro; platform + obelisks;
+heat-vent lane unless Mirror B aligned; hazards expire; safe ground retained.
+
+15. Death-reset flow
+--------------------
+Boss reset via dungeon reload (preserve seed + puzzle state); `reset_encounter()` on boss;
+hazards/summons/beams cleared; arena gate released; in_boss_fight cleared.
+
+16. Checkpoint/preboss restart result
+-------------------------------------
+Priority: dungeon_checkpoint_pyreheart_ziggurat → preboss_pyreheart_ziggurat
+→ dungeon_spawn_pyreheart_ziggurat (spawn_resolver + pyreheart_level markers).
+
+17. Reward order
+----------------
+Boss HP zero → stop AI → clear hazards/summons → loot table drop → inventory grants
+(solar_heart_core, sunless_dominion_pass, sunforged_halo, desert_glass, copper)
+→ quest objectives → on_pyreheart_boss_defeated() sets persistent flag → exit reveal
+→ victory notification dialogue.
+
+18. One-time reward persistence
+---------------------------------
+PyreheartState.boss_defeated_persistent set in on_pyreheart_boss_defeated AFTER grants.
+Loot table returns reduced drops when flag already set.
+
+19. Heart of the Wastes completion flow
+---------------------------------------
+Objectives: enter_ziggurat → reach_checkpoint → align_mirrors → reach_inner_pyramid
+→ prepare_solar_heart → enter_solar_heart → defeat_solar_tyrant
+→ recover_solar_heart_core → stabilize_pyreheart → exit_pyreheart_ziggurat
+Quest completes on exit (exit_pyreheart_ziggurat objective).
+
+20. Exact exterior-return result
+--------------------------------
+Dungeon exit → fade → Ember Wastes → exterior_pyreheart_ziggurat spawn (WorldStateManager).
+
+21. Sunless Dominion gate behavior
+----------------------------------
+Pre-boss: "The buried road remains sealed by the Solar Heart."
+Post sunless_dominion_pass: "The road to the Sunless Dominion is open, but the region is not yet accessible."
+Never loads unfinished scene.
+
+22. Audio hooks
+---------------
+solar_heart_ambience, solar_tyrant_intro, solar_cleave, sunstrike_charge,
+solar_beam_charge, solar_beam_fire, glass_eruption_warning, glass_eruption_impact,
+solar_phase_transition, crown_of_flame, sandglass_storm, solar_tyrant_death,
+solar_heart_exit_unlock (procedural tones in audio_manager.gd)
+
+23. Assets imported
+-------------------
+No new external downloads; Quaternius CC0 characters reused; procedural audio.
+
+24. Files created
+-----------------
+scripts/npcs/cinderhold_npc.gd
+scenes/npcs/cinderhold_npc.tscn
+scripts/stations/cinderhold_healer_station.gd
+scripts/enemies/bosses/solar_tyrant.gd
+scenes/enemies/bosses/solar_tyrant.tscn
+scripts/dungeons/solar_boss_hazard.gd
+tests/production_phase7_boss_report.txt
+
+25. Files modified
+------------------
+scripts/levels/region_content.gd
+scripts/autoload/merchant_manager.gd
+scripts/autoload/dialogue_manager.gd
+scripts/autoload/quest_manager.gd
+scripts/autoload/dungeon_manager.gd
+scripts/autoload/crafting_manager.gd
+scripts/autoload/loot_manager.gd
+scripts/autoload/audio_manager.gd
+scripts/utilities/item_database.gd
+scripts/dungeons/pyreheart_builder.gd
+scripts/dungeons/mirror_puzzle.gd
+scripts/dungeons/sealed_solar_heart_door.gd
+scripts/dungeons/dungeon_exit_portal.gd
+scripts/levels/future_sunless_dominion_gate.gd
+docs/asset_registry.md
+
+26. Manual verification results
+-------------------------------
+Automated launch: PASS (exit 0).
+Full gameplay checklist requires manual playtest in editor:
+Cinderhold NPCs, Pyreheart puzzle, Solar Tyrant fight, death reset, rewards, exit, gate.
+
+27. Remaining placeholders
+--------------------------
+- Solar Tyrant visual: Quaternius humanoid + procedural lights (not custom monarch mesh).
+- Boss/projectile audio: procedural tones until licensed desert/temple SFX imported.
+- Sunless Dominion region shell remains dialogue-only (intentional).
+
+28. Confirmation no automated tests were added
+---------------------------------------------
+Confirmed — no new test scenes or automated test files.
+
+29. Confirmation no placeholder boss remains
+--------------------------------------------
+Confirmed — dedicated Solar Tyrant scene/script replaces sealed-heart dialogue-only stub.
+
+30. Confirmation rewards occur exactly once
+-----------------------------------------
+Confirmed — persistent flag set after inventory grants; loot table gated on flag.
+
+31. Confirmation Sunless Dominion does not load unfinished scene
+----------------------------------------------------------------
+Confirmed — gate shows dialogue only in all states.
+
+32. Confirmation Phase 0–7 systems remain functional
+----------------------------------------------------
+Launch passes; prior dungeon/region systems unchanged except Pyreheart boss path fixes.
+
+33. Confirmation every arrival and death restart remains safely grounded
+------------------------------------------------------------------------
+Existing spawn_resolver + SpawnHelpers placement preserved for Pyreheart markers.

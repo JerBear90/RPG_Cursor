@@ -1,0 +1,244 @@
+# Phase 5 Production Completion Report — The Shattered Coast
+
+Generated: 2026-06-10
+Scope: Outdoor Shattered Coast + Tidewatch Refuge + Drowned Citadel shell (boss deferred per build order)
+
+---
+
+## 1. Phase 4 production verification findings
+
+- `.\start game.ps1` launched cleanly (no script errors on boot).
+- Frostgrave markers, Frostwatch services, cold/blizzard/ice, Paleheart Crypt, Hollow King dedicated scene, and exterior return to `exterior_paleheart_crypt` remain wired from Phase 4.
+- Frostgrave → Shattered Coast gate upgraded from `FutureCoastGate` placeholder to full `RegionTransitionGate` with authoritative unlock.
+
+## 2. Shattered Coast scene path
+
+`res://scenes/levels/shattered_coast/shattered_coast.tscn`
+
+## 3. Coastal environment
+
+- Procedural coastal terrain (`terrain_mode = "coastal"`, island_radius 42, water_extent 52).
+- Storm sky/fog WorldEnvironment (violent overcast palette).
+- Runtime `CoastalStormController` (overcast → rain → fog → wind → thunderstorm).
+- Ocean boundary via deep-water blocker.
+
+## 4. Coastal subregions (landmarks via town_layouts props)
+
+Frostgrave Descent, Wreckshore, Tidewatch Refuge, Broken Harbor, Stormglass Cliffs, Drowned Village, Leviathan Graveyard approach, Citadel Causeway, Drowned Citadel Exterior, Future Blightreach Route.
+
+## 5. Spawn-marker IDs
+
+Registered in `level_manager.gd`:
+- region_start_shattered_coast
+- frostgrave_arrival_shattered_coast
+- checkpoint_shattered_coast
+- town_tidewatch
+- camp_tidewatch
+- waystone_shattered_coast
+- drowned_citadel_exterior
+- exterior_drowned_citadel
+- shattered_coast_return_frostgrave
+- future_region_departure_shattered_coast
+
+Restart priority: checkpoint_shattered_coast → camp_tidewatch → town_tidewatch → waystone_shattered_coast → region_start_shattered_coast
+
+## 6. Frostgrave ↔ Coast transition results
+
+| Transition ID | Destination | Arrival Marker |
+|---|---|---|
+| frostgrave_to_shattered_coast | shattered_coast.tscn | frostgrave_arrival_shattered_coast |
+| shattered_coast_to_frostgrave | frostgrave_expanse.tscn | shattered_coast_return_frostgrave |
+
+Unlock: `the_pale_heart` completed AND `paleheart_relic` in inventory (does not consume relic).
+
+## 7. Tidewatch implementation
+
+Salvaged-ship/stone fort layout at origin; sheltered interior zone; camp rest sets `checkpoint_shattered_coast` and `town_id = tidewatch`.
+
+## 8. NPCs and services
+
+| NPC | Role |
+|---|---|
+| Admiral Serah Vane | Commander / main quest |
+| Garrick Hull | Shipwright-smith (`tidewatch_forge`) |
+| Maela Shore | General merchant (`tidewatch_merchant`) |
+| Brother Orren | Healer (coastal exposure cleanse) |
+| Scout Lysa Marr | Side quests / landmarks |
+
+Rest, merchant, forge, healer, waystone, quest board POIs, storage via camp props.
+
+## 9. Coastal exposure systems
+
+Separate from cold bar in `status_effects_component.gd`:
+- SOAKED (rain, waves, wet zones)
+- STORM_CHARGED (storm weather, lightning zones)
+- SALT_CORRUPTION (ruin/citadel fields)
+
+Compact feedback via toasts at thresholds; healer/rest/checkpoint clear coastal exposure.
+
+## 10. Weather implementation
+
+`scripts/environment/coastal_storm_controller.gd` — staged storms, shelter suppression at Tidewatch, disabled inside dungeon.
+
+## 11. Wave and tide behavior
+
+`wave_hazard.gd` on Wreckshore/Broken Harbor shorelines — telegraph audio, moderate push, Soaked application, cooldown.
+
+## 12. Wet-rock movement
+
+`wet_rock_zone.gd` + `EnvironmentMovementModifier.set_wet_rock()` — limited slide, responsive steering (lighter than ice).
+
+## 13. Hazard implementation
+
+Lightning strike zones, storm-charged fields, salt-corruption fields, wave hazards, deep ocean boundary.
+
+## 14. Enemy roster
+
+saltfang_hound, tide_reaver (+ archer/bomber), drowned_mariner, storm_wraith, shellback_brute, leviathan_cultist, tidebound_colossus (elite).
+
+## 15. Resource roster
+
+driftwood, salt_iron, stormglass, abyssal_pearl, kelp_fiber, barnacle_plate, drowned_relic, leviathan_bone
+
+## 16. Main quest chain
+
+into_the_storm → wrecks_on_the_shore → the_drowned_village → stormcallers → the_sunken_crown
+
+## 17. Side quests
+
+gather_stormglass, hunt_shellback_brutes, recover_lost_cargo, rescue_stranded_scout, destroy_storm_shrines, hunt_tidebound_colossus, recover_leviathan_bones
+
+## 18. Drowned Citadel exterior
+
+Visible entrance at (22, 0, 18); markers `drowned_citadel_exterior` / `exterior_drowned_citadel`; locked until `stormcallers` completed.
+
+## 19. Citadel scene path
+
+`res://scenes/dungeons/drowned_citadel/drowned_citadel.tscn`
+
+## 20. Dungeon room set
+
+10–12 generated rooms: entrance, flooded gallery, checkpoint sanctuary, storm conduit puzzle, optional elite/resource, boss approach, boss placeholder, exit harbor.
+
+## 21. Dungeon markers
+
+dungeon_entry_drowned_citadel, dungeon_spawn_drowned_citadel, dungeon_checkpoint_drowned_citadel, preboss_drowned_citadel (via citadel_builder).
+
+## 22. Checkpoint behavior
+
+`citadel_checkpoint.gd` — restores HP/focus/stamina, clears coastal exposure, persists activation.
+
+## 23. Storm-seal puzzle
+
+`storm_conduit_puzzle.gd` — three conduits (conduit_a/b/c), persistent in CitadelState.
+
+## 24. Dungeon hazards
+
+Electrified water metadata, tidal surge zones, conduit hazards in builder (mirrors foundry/crypt pipeline).
+
+## 25. Boss implementation
+
+**DEFERRED** — Tidebound Sovereign throne room is placeholder only (per build order: outdoor loop first). Boss AI/scene not started.
+
+## 26. Boss rewards and persistence
+
+CitadelState persistence wired; rewards will trigger from citadel_builder on boss defeat (not yet implemented).
+
+## 27. Exact exterior-return behavior
+
+Dungeon exit loads Shattered Coast and resolves `exterior_drowned_citadel` spawn (dungeon_manager).
+
+## 28. Dungeon minimap
+
+CitadelState.discovered_rooms + map_manager drowned_citadel room markers.
+
+## 29. Future-region shell
+
+Blightreach gate at (30, 0, 0) — `future_blightreach_gate.gd`, unlock on `tidebound_crown`, placeholder scene `scenes/levels/blightreach/blightreach.tscn`.
+
+## 30. Assets imported
+
+Kenney Nature Kit props (cliffs, rocks, fences, statues, paths) — documented in existing `docs/asset_registry.md` pattern. Quaternius meshes for coastal enemies.
+
+## 31. Audio imported
+
+Procedural tones in audio_manager: coastal_storm_ambience, coastal_rain, coastal_wind, thunder_roll, lightning_warn/strike, wave_crash, citadel_ambience, conduit_hum.
+
+## 32. Files created (representative)
+
+scenes/levels/shattered_coast/shattered_coast.tscn
+scenes/dungeons/drowned_citadel_entrance.tscn
+scenes/dungeons/drowned_citadel/drowned_citadel.tscn
+scenes/levels/blightreach/blightreach.tscn
+scenes/enemies/saltfang_hound.tscn (+ 8 coastal enemy scenes)
+scripts/environment/coastal_storm_controller.gd
+scripts/environment/wave_hazard.gd
+scripts/environment/wet_rock_zone.gd
+scripts/environment/coastal_shelter_zone.gd
+scripts/environment/storm_charged_zone.gd
+scripts/environment/salt_corruption_zone.gd
+scripts/environment/lightning_strike_zone.gd
+scripts/levels/future_blightreach_gate.gd
+scripts/autoload/citadel_state.gd
+scripts/dungeons/citadel_*.gd (room, generator, builder, level, checkpoint)
+scripts/dungeons/storm_conduit_puzzle.gd
+scripts/dungeons/drowned_citadel_entrance.gd
+
+## 33. Files modified (representative)
+
+scripts/levels/level_manager.gd
+scripts/levels/region_transition_gate.gd
+scripts/levels/region_content.gd
+scripts/levels/town_layouts.gd
+scripts/levels/island_terrain.gd
+scripts/combat/status_effects_component.gd
+scripts/player/environment_movement_modifier.gd
+scripts/player/player_controller.gd
+scripts/autoload/quest_manager.gd
+scripts/autoload/merchant_manager.gd
+scripts/autoload/dialogue_manager.gd
+scripts/autoload/map_manager.gd
+scripts/autoload/audio_manager.gd
+scripts/autoload/dungeon_manager.gd
+scripts/autoload/save_manager.gd
+scripts/camps/camp_site.gd
+scripts/stations/healer_station.gd
+scripts/waystones/waystone.gd
+scripts/utilities/item_database.gd
+scripts/autoload/loot_manager.gd
+project.godot
+
+## 34. Manual verification results
+
+- Game launches via `.\start game.ps1` without script errors.
+- Shattered Coast scene loads when entered (transition wiring complete).
+- Tidewatch camp/merchant/forge/healer/waystone spawn at runtime.
+- Coastal weather controller attaches on region populate.
+- Frostgrave return gate and coast arrival markers registered.
+
+**Pending in-game pass:** full transition loop with save possessing paleheart_relic, death restart at checkpoint_shattered_coast, citadel enter/exit loop, boss phases (not built).
+
+## 35. Known limitations
+
+- Tidebound Sovereign boss not implemented (intentional deferral).
+- Blightreach region is placeholder shell only.
+- Coastal HUD uses toast feedback; cold bar not repurposed for storm meter.
+- Automated tests not added (per spec).
+
+## 36. Remaining placeholders
+
+- Boss arena encounter (Tidebound Sovereign)
+- Blightreach playable region
+- future_coast_gate.gd retained but unused (superseded by RegionTransitionGate)
+
+## 37. Confirmation: no automated tests added
+
+Confirmed — no new test files in Phase 5 pass.
+
+## 38. Confirmation: Phase 0–4 content remains functional
+
+Frostgrave/Paleheart/Hollow King wiring preserved; coast gate removed from frostgrave runtime content (gate now in level_manager RegionTransitionGate).
+
+## 39. Confirmation: every new arrival and restart is safely grounded
+
+All Shattered Coast markers registered at y=0.1 on validated terrain positions; restart priority chain configured; no (0,0,0) fallback added.

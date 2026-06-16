@@ -1,0 +1,79 @@
+[gd_scene load_steps=8 format=3 uid="uid://blightreach001"]
+
+[ext_resource type="Script" path="res://scripts/levels/level_manager.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://camerarig001" path="res://scenes/camera/camera_rig.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://gamehud001" path="res://scenes/ui/game_hud.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://islandterrain001" path="res://scenes/levels/darkpine_forest/island_terrain.tscn" id="4"]
+[ext_resource type="Script" path="res://scripts/spawn_point.gd" id="5"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.08, 0.12, 0.06, 1)
+sky_horizon_color = Color(0.32, 0.38, 0.22, 1)
+ground_horizon_color = Color(0.18, 0.22, 0.12, 1)
+ground_bottom_color = Color(0.06, 0.08, 0.04, 1)
+
+[sub_resource type="Sky" id="Sky_env"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_level"]
+background_mode = 2
+sky = SubResource("Sky_env")
+ambient_light_source = 2
+ambient_light_color = Color(0.52, 0.62, 0.38, 1)
+ambient_light_energy = 0.68
+tonemap_mode = 3
+fog_enabled = true
+fog_light_color = Color(0.42, 0.55, 0.28, 1)
+fog_density = 0.022
+fog_aerial_perspective = 0.45
+
+[node name="Blightreach" type="Node3D"]
+
+[node name="Level" type="Node3D" parent="."]
+script = ExtResource("1")
+region_id = "blightreach"
+spawn_points = Array[NodePath]([NodePath("SpawnPoints/Spawn1")])
+
+[node name="Players" type="Node3D" parent="Level"]
+
+[node name="CameraRig" parent="Level" instance=ExtResource("2")]
+
+[node name="Environment" type="Node3D" parent="Level"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Level/Environment"]
+environment = SubResource("Environment_level")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Level/Environment"]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 12, 0)
+light_color = Color(0.62, 0.78, 0.42, 1)
+light_energy = 0.78
+shadow_enabled = true
+shadow_opacity = 0.42
+
+[node name="BlightTerrain" parent="Level/Environment" instance=ExtResource("4")]
+region_id = "blightreach"
+terrain_mode = "blighted"
+island_radius = 42.0
+water_extent = 0.0
+scatter_trees = 18
+scatter_rocks = 14
+scatter_grass = 22
+scatter_bushes = 16
+land_tile = "ground_pathRocks.glb"
+apply_dark_tint = true
+
+[node name="SpawnPoints" type="Node3D" parent="Level"]
+
+[node name="Spawn1" type="Marker3D" parent="Level/SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0.1, 0)
+
+[node name="WaystoneSpawn" type="Marker3D" parent="Level/SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.1, 4)
+script = ExtResource("5")
+spawn_id = "waystone_spawn"
+
+[node name="Enemies" type="Node3D" parent="Level"]
+
+[node name="Interactables" type="Node3D" parent="Level"]
+
+[node name="GameHUD" parent="." instance=ExtResource("3")]

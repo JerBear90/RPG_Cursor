@@ -2,7 +2,7 @@ class_name DamageData
 extends Resource
 ## Describes a single damage instance.
 
-enum DamageType { PHYSICAL, FIRE, WATER, POISON, DARK }
+enum DamageType { PHYSICAL, FIRE, WATER, POISON, DARK, FROST }
 
 @export var amount: float = 10.0
 @export var damage_type: DamageType = DamageType.PHYSICAL

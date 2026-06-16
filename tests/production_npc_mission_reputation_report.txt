@@ -1,0 +1,140 @@
+NPC Missions, Reputation, Anger System, and Quest Integration — Production Report
+================================================================================
+Date: 2026-06-10
+Scope: Expandable NPC mission/reputation foundation (Phase 0–8 + pet pass preserved)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0** (verified after this pass)
+
+---
+
+## Changes Summary
+
+### Resource & Registry Layer
+* `npc_data.gd`, `npc_mission_data.gd`, `dialogue_data.gd`, `npc_relationship_data.gd`
+* `npc_mission_registry.gd` — static mission metadata and NPC→mission mapping
+
+### Autoload Managers
+* **NpcStateManager** — shared relationship score, anger state, fines, gifts, service locks; save/load
+* **NpcMissionHooks** — objective hooks for resources, base upgrades, pets, waystones, bandit kills
+
+### Prototype NPC Missions (QuestManager)
+1. **Rebuild the Forge** (`bram_ironhand` / Old Blacksmith) — iron scrap x6, fire resin x1, turn-in
+2. **Clear the Bandit Path** (`wounded_scout`) — defeat 5 bandits, return
+3. **Build the Basics** (`quartermaster_vale` / Camp Builder) — workbench L2, water L1, garden L1, turn-in
+4. **A Hound in the Ash** (`beast_handler`) — Beast Bond, pet shelter L1, bone x3, adopt Ash Hound, turn-in
+5. **Wake the Stone** (`waystone_keeper`) — find waystone, crystal shard x3, activate, turn-in
+
+### NPC Anger & Relationship
+* Anger states: calm → annoyed → angry → hostile
+* Hit reactions with dialogue lines; achievement on first annoy
+* Repair: pay fine (scaled copper), gift (herb, bandage, pet treat, repair kit, gems)
+* Hostile blocks shop; fine reduces hostile → angry (not permanent soft-lock)
+* Relationship labels: Hostile, Angry, Wary, Neutral, Friendly, Trusted
+* Friendly Old Blacksmith: repair discount display; merchant relationship price multiplier
+
+### Scene / NPC Updates
+* Hearthhold: Old Blacksmith, Camp Builder use `hearthhold_npc.tscn` with mission flow
+* Added **Beast Handler** and **Waystone Keeper** at Hearthhold Camp
+* **Wounded Scout** (Darkpine) uses `hearthhold_npc.gd` for Clear the Bandit Path
+
+### Integration Hooks
+* `RegionContent.on_enemy_killed` → `NpcMissionHooks.on_enemy_killed`
+* `waystone.gd` first activation → `NpcMissionHooks.on_waystone_activated`
+* `player_skill_tree.gd` Beast Bond unlock → mission objective sync
+* `SaveManager` persists `npc_states`; `GameManager` resets on new game
+* Merchant shop applies relationship price multiplier
+
+### Toasts
+* `Mission Accepted: …`, `Objective Complete: …`, `Mission Complete: …`
+* `Relationship repaired`, `Paid fine: …`, `Gift accepted`, `Gift refused`
+
+---
+
+## Manual Verification Checklist
+
+1. [ ] Solo New Game still behaves unchanged.
+2. [ ] Local Co-op still spawns both players safely.
+3. [ ] Old Blacksmith NPC appears and can be interacted with.
+4. [ ] Wounded Scout NPC appears and can be interacted with.
+5. [ ] Camp Builder NPC appears and can be interacted with.
+6. [ ] Beast Handler NPC appears and can be interacted with.
+7. [ ] Waystone Keeper NPC appears and can be interacted with.
+8. [ ] P1 can start NPC dialogue.
+9. [ ] P2 can start NPC dialogue.
+10. [ ] Wrong-player confirm/cancel is blocked during dialogue.
+11. [ ] NPC mission can be accepted.
+12. [ ] Mission objective progress updates from P1 action.
+13. [ ] Mission objective progress updates from P2 action.
+14. [ ] Resource objective updates correctly.
+15. [ ] Base upgrade objective updates correctly.
+16. [ ] Pet adoption objective updates correctly.
+17. [ ] Waystone objective updates correctly.
+18. [ ] Enemy defeat objective updates correctly.
+19. [ ] Boss defeat objective updates correctly (where applicable).
+20. [ ] Mission rewards grant once.
+21. [ ] Shared currency reward grants once.
+22. [ ] Shared item reward grants once.
+23. [ ] Skill point reward grants correctly if implemented.
+24. [ ] Mission complete state persists after save/load.
+25. [ ] Completed mission does not reward twice.
+26. [ ] NPC anger triggers when P1 attacks NPC.
+27. [ ] NPC anger triggers when P2 attacks NPC.
+28. [ ] Angry NPC blocks or modifies service as designed.
+29. [ ] Relationship repair through fine works.
+30. [ ] Relationship repair through gift works.
+31. [ ] Apology task works if implemented (placeholder — fine/gift primary).
+32. [ ] Relationship state affects service/price or displays correctly.
+33. [ ] NPC anger/reputation persists after save/load.
+34. [ ] Critical NPC cannot be permanently soft-locked.
+35. [ ] Pet does not permanently anger NPC through accidental hit unless intended.
+36. [ ] Quest tracker displays current NPC mission objective.
+37. [ ] NPC mission toasts are readable.
+38. [ ] Existing pet system still works.
+39. [ ] Existing spellcasting still works.
+40. [ ] Existing skill tree still works.
+41. [ ] Existing equipment/gem systems still work.
+42. [ ] Existing resource gathering still works.
+43. [ ] Existing co-op revive still works.
+44. [ ] Existing Waystone travel still works.
+45. [ ] Existing boss fight still works.
+46. [ ] `.\start game.ps1` exits 0.
+
+---
+
+## Cross-Pass Summary: Quest / Map / Tracker (2026-06-10)
+
+A follow-up pass added the player navigation layer on top of this NPC mission foundation:
+
+* **ObjectiveRouter** autoload resolves mission objectives to world targets (NPC, station, waystone, boss, region hints)
+* **Quest tracker HUD** shows tracked mission, objective, progress, distance (nearest living player in co-op), and input hints
+* **Quest tracker screen** lists missions with status/rewards; track on confirm; menu ownership via `GameManager.menu_owner_index`
+* **World map** shows region danger/level, P1/P2/pet/objective/NPC/waystone/boss markers on a functional canvas
+* **Save/load** preserves tracked quest; deserialize refreshes routing via `tracked_quest_changed`
+* Build verified: `.\start game.ps1` exit 0 — see `tests/production_quest_map_tracker_report.txt`
+
+---
+
+## Known Limitations (After This Pass)
+
+* No massive branching story — single-offer missions per NPC
+* Apology tasks (gather wood/bandage) not fully wired — fine and gift repair primary
+* Time-based anger decay not implemented (no day/night decay system)
+* Faction-wide reputation not implemented — per-NPC relationship only
+* Only five prototype missions; Silent Merchant / Mask Collector / Wandering Survivor not mission-enabled yet
+* Relationship repair discount on forge upgrades is display-first; full craft cost integration partial
+* Pet accidental friendly fire does not anger NPCs (by design — player hits only)
+* Legacy `merchant_errand` quest still exists for older saves; Wounded Scout primary mission is Clear the Bandit Path
+* Only Ash Hound pet mission integration
+* Co-op shared party relationship (not per-player reputation)
+* Map/tracker layer is functional foundation — see `production_quest_map_tracker_report.txt` for map/tracker-specific limits
+
+---
+
+## Files Added / Modified (Key)
+
+**Added:** `scripts/autoload/npc_state_manager.gd`, `npc_mission_hooks.gd`, `npc_mission_registry.gd`, `scripts/resources/dialogue_data.gd`
+
+**Modified:** `quest_manager.gd`, `hearthhold_npc.gd`, `wounded_scout.tscn`, `hearthhold_camp.tscn`, `save_manager.gd`, `game_manager.gd`, `project.godot`, `dialogue_manager.gd`, `region_content.gd`, `waystone.gd`, `player_skill_tree.gd`, `merchant_shop_panel.gd`

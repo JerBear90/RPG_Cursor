@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://kenney_crate_wood"]
+
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="1"]
+
+[node name="KenneyCrateWood" type="Node3D"]
+metadata/kenney_pack = "Nature Kit"
+metadata/kenney_source = "log_stack.glb"
+
+[node name="Mesh" type="Node3D" parent="."]
+script = ExtResource("1")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/log_stack.glb"
+mesh_scale = Vector3(0.9, 0.9, 0.9)
+fallback_kind = "prop"

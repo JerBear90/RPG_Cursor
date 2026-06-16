@@ -68,12 +68,28 @@ func _draw() -> void:
 	if MinimapSettings.rotation_mode == MinimapSettings.MinimapRotationMode.ROTATE_WITH_PLAYER:
 		map_rotation = -_display_yaw
 
-	draw_circle(center, radius + 1.5 * ui_scale, Color(0.02, 0.03, 0.04, 0.65))
-	draw_circle(center, radius, UiColors.MAP_WATER)
-	draw_circle(center, land_r, UiColors.MAP_LAND)
-	draw_arc(center, land_r, 0.0, TAU, 96, Color(0.10, 0.18, 0.09, 0.85), maxf(1.0, 2.0 * ui_scale))
+	var layout_kind: String = str(layout.get("kind", "island"))
+	if layout_kind == "dungeon":
+		draw_circle(center, radius, Color(0.06, 0.08, 0.1, 0.92))
+		var room_half := 3.0 * ui_scale
+		for entry in MapManager.get_dungeon_room_markers(region_id):
+			var pos: Vector3 = entry.get("position", Vector3.ZERO)
+			var mp := _world_to_map(pos, center, map_scale, map_rotation)
+			var cat: String = str(entry.get("category", "room"))
+			var col := Color(0.35, 0.55, 0.6, 0.85)
+			match cat:
+				"entrance": col = Color(0.4, 0.75, 0.95)
+				"checkpoint": col = Color(0.95, 0.85, 0.35)
+				"boss": col = Color(0.9, 0.25, 0.25)
+				"quest": col = Color(0.55, 0.85, 0.45)
+			draw_rect(Rect2(mp - Vector2(room_half, room_half), Vector2(room_half * 2.0, room_half * 2.0)), col)
+	else:
+		draw_circle(center, radius + 1.5 * ui_scale, Color(0.02, 0.03, 0.04, 0.65))
+		draw_circle(center, radius, UiColors.MAP_WATER)
+		draw_circle(center, land_r, UiColors.MAP_LAND if layout_kind != "volcanic" else Color(0.22, 0.14, 0.1, 0.95))
+		draw_arc(center, land_r, 0.0, TAU, 96, Color(0.10, 0.18, 0.09, 0.85) if layout_kind != "volcanic" else Color(0.35, 0.12, 0.06, 0.85), maxf(1.0, 2.0 * ui_scale))
 
-	if MinimapSettings.fog_of_war_enabled:
+	if layout_kind != "dungeon" and MinimapSettings.fog_of_war_enabled:
 		draw_circle(center, land_r, Color(0.04, 0.05, 0.06, 0.42))
 
 	var trail_half := 1.5 * ui_scale
@@ -123,6 +139,16 @@ func _draw() -> void:
 		if _smooth_player_map.distance_to(center) <= land_r:
 			var arrow_yaw := 0.0 if MinimapSettings.rotation_mode == MinimapSettings.MinimapRotationMode.ROTATE_WITH_PLAYER else _display_yaw
 			MinimapIconRegistry.draw_player_arrow(self, _smooth_player_map, arrow_yaw, 8.0 * ui_scale)
+
+	var p2 := GameManager.get_player(1)
+	if p2 and is_instance_valid(p2) and p2 is Node3D:
+		var p2p := _world_to_map((p2 as Node3D).global_position, center, map_scale, map_rotation)
+		if p2p.distance_to(center) <= land_r:
+			var alive: bool = p2.has_method("is_alive") and bool(p2.call("is_alive"))
+			var fill := Color(0.45, 0.72, 0.98, 0.95) if alive else Color(0.78, 0.48, 0.38, 0.88)
+			var ring := Color(0.2, 0.35, 0.55, 0.85) if alive else Color(0.45, 0.28, 0.22, 0.75)
+			draw_circle(p2p, 4.5 * ui_scale, fill)
+			draw_arc(p2p, 5.5 * ui_scale, 0.0, TAU, 16, ring, 1.2 * ui_scale)
 
 	draw_arc(center, land_r * 0.98, -0.6, 0.6, 24, Color(1, 1, 1, 0.04), maxf(1.5, 3.0 * ui_scale))
 	draw_arc(center, radius, 0.0, TAU, 96, UiColors.BORDER_BRONZE, maxf(1.0, 2.0 * ui_scale))

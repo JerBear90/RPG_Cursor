@@ -9,8 +9,10 @@ func _ready() -> void:
 	prompt_text = "Camp Chest — Send to Base"
 
 
-func _on_interact(_player: Node) -> void:
-	# Prototype: send first wood stack to base
-	if InventoryManager.has_item("wood"):
-		InventoryManager.send_to_base("wood", 1)
-		AchievementManager.unlock("not_just_a_box")
+func _on_interact(player: Node) -> void:
+	if player is PlayerController:
+		GameManager.interacting_player_index = (player as PlayerController).player_index
+	for hud in get_tree().get_nodes_in_group("game_hud"):
+		if hud.has_method("open_camp_chest_menu"):
+			hud.open_camp_chest_menu()
+			return

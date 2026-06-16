@@ -41,6 +41,10 @@ var _spawn_transform: Transform3D
 var _death_sequence_running: bool = false
 var _death_reward_granted: bool = false
 var _last_player_killer: Node = null
+var _target_switch_cd: float = 0.0
+
+const TARGET_SWITCH_COOLDOWN := 1.0
+const TARGET_SWITCH_CLOSER_RATIO := 0.72
 
 
 func _ready() -> void:
@@ -96,6 +100,7 @@ func _physics_process(delta: float) -> void:
 		return
 	PlanarFacing.apply_floor(self, delta, _gravity)
 	_attack_cooldown = maxf(_attack_cooldown - delta, 0.0)
+	_target_switch_cd = maxf(_target_switch_cd - delta, 0.0)
 	if _staggered_timer > 0.0:
 		_staggered_timer -= delta
 		if _staggered_timer <= 0.0:
@@ -175,16 +180,71 @@ func execute(killer: Node) -> void:
 
 
 func _scan_for_player() -> void:
+	var best := _pick_nearest_living_player(detection_range)
+	if best:
+		_set_combat_target(best)
+		_set_state(AIState.ALERT)
+		GameManager.set_combat_state(true)
+
+
+func _pick_nearest_living_player(max_range: float) -> Node3D:
+	var best: Node3D = null
+	var best_dist := max_range
 	for p in GameManager.get_alive_players():
-		if global_position.distance_to(p.global_position) <= detection_range:
-			_target = p
-			_set_state(AIState.ALERT)
-			GameManager.set_combat_state(true)
-			return
+		if not p is Node3D:
+			continue
+		var dist := global_position.distance_to((p as Node3D).global_position)
+		if dist <= best_dist:
+			best_dist = dist
+			best = p as Node3D
+	return best
+
+
+func _is_valid_combat_target(node: Node) -> bool:
+	return is_instance_valid(node) and node.has_method("is_alive") and node.is_alive()
+
+
+## Retarget to the nearest living player when the current target is downed or invalid.
+func refresh_living_target(max_range: float = -1.0) -> bool:
+	if _is_valid_combat_target(_target):
+		return true
+	_target = null
+	var range := max_range if max_range > 0.0 else maxf(detection_range * 1.5, 40.0)
+	var replacement := _pick_nearest_living_player(range)
+	if replacement:
+		_set_combat_target(replacement)
+		return true
+	return false
+
+
+func _set_combat_target(node: Node3D) -> void:
+	if node == _target:
+		return
+	_target = node
+	_target_switch_cd = TARGET_SWITCH_COOLDOWN
+
+
+func _maybe_switch_target() -> void:
+	if _target_switch_cd > 0.0:
+		return
+	if not _is_valid_combat_target(_target):
+		var replacement := _pick_nearest_living_player(detection_range * 1.5)
+		if replacement:
+			_set_combat_target(replacement)
+		return
+	var nearest := _pick_nearest_living_player(detection_range * 1.5)
+	if nearest == null or nearest == _target:
+		return
+	var current_dist := global_position.distance_to(_target.global_position)
+	var new_dist := global_position.distance_to(nearest.global_position)
+	if new_dist < current_dist * TARGET_SWITCH_CLOSER_RATIO:
+		_set_combat_target(nearest)
 
 
 func _chase_target(_delta: float) -> void:
-	if not is_instance_valid(_target):
+	_maybe_switch_target()
+	if not _is_valid_combat_target(_target):
+		_target = null
 		_set_state(AIState.PATROL)
 		return
 	var dist := global_position.distance_to(_target.global_position)
@@ -222,14 +282,19 @@ func _aggro_from_damage(dmg: DamageData) -> void:
 	if attacker == null:
 		return
 	if attacker.is_in_group("player") or attacker.is_in_group("pet"):
-		_target = attacker
+		if attacker.is_in_group("player") and not _is_valid_combat_target(attacker):
+			return
+		if attacker is Node3D:
+			_set_combat_target(attacker as Node3D)
+		else:
+			_target = attacker
 		if current_state != AIState.ATTACK:
 			_set_state(AIState.CHASE)
 		GameManager.set_combat_state(true)
 
 
 func _perform_attack() -> void:
-	if not is_instance_valid(_target):
+	if not refresh_living_target():
 		_set_state(AIState.PATROL)
 		return
 	if _attack_cooldown > 0.0:
@@ -261,7 +326,7 @@ func _perform_attack() -> void:
 
 
 func _resolve_melee_strike(hitbox: Hitbox, target: Node3D, strike_damage: float) -> void:
-	if not is_instance_valid(target) or current_state == AIState.DEAD:
+	if not _is_valid_combat_target(target) or current_state == AIState.DEAD:
 		return
 	if hitbox and hitbox.landed_any_hit():
 		return

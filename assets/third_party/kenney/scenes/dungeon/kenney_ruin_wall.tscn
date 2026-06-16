@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://kenney_ruin_wall"]
+
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="1"]
+
+[node name="KenneyRuinWall" type="Node3D"]
+metadata/kenney_pack = "Nature Kit"
+metadata/kenney_source = "statue_columnDamaged.glb"
+
+[node name="Mesh" type="Node3D" parent="."]
+script = ExtResource("1")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/statue_columnDamaged.glb"
+mesh_scale = Vector3(1.0, 1.0, 1.0)
+fallback_kind = "rock"

@@ -1,7 +1,7 @@
 extends Node
 ## Awards combat XP from confirmed damage and kills.
 
-signal combat_xp_gained(amount: int, label: String, is_kill: bool)
+signal combat_xp_gained(amount: int, label: String, is_kill: bool, player_index: int)
 
 @export var hit_xp_multiplier: float = 0.05
 @export var min_hit_xp: int = 1
@@ -34,7 +34,7 @@ func try_award_hit_xp(attacker: Node, final_damage: float, _victim: Node) -> voi
 	var xp := maxi(min_hit_xp, int(final_damage * hit_xp_multiplier))
 	var stats := attacker.get_node("StatsComponent") as StatsComponent
 	stats.add_experience(xp, &"combat_hit")
-	combat_xp_gained.emit(xp, "+%d XP" % xp, false)
+	combat_xp_gained.emit(xp, "+%d XP" % xp, false, _player_index(attacker))
 
 
 func try_award_kill_xp(killer: Node, amount: int, enemy_name: String = "") -> void:
@@ -47,4 +47,10 @@ func try_award_kill_xp(killer: Node, amount: int, enemy_name: String = "") -> vo
 	var label := "+%d XP — Enemy Defeated" % amount
 	if enemy_name != "":
 		label = "+%d XP — %s" % [amount, enemy_name]
-	combat_xp_gained.emit(amount, label, true)
+	combat_xp_gained.emit(amount, label, true, _player_index(killer))
+
+
+func _player_index(node: Node) -> int:
+	if node is PlayerController:
+		return (node as PlayerController).player_index
+	return 0

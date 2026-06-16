@@ -1,0 +1,401 @@
+Phase 8 — Sunless Dominion & Eclipse Sanctum Foundation
+Production Completion Report
+========================================================
+Date: 2026-06-10
+Scope: Sunless Dominion outdoor region, Dawnwatch Bastion, Ember Wastes transitions,
+       dread/shadow systems, dedicated enemies, main quest chain, Eclipse Sanctum
+       exterior + dungeon foundation (no boss)
+
+1. Phase 7 production verification findings
+-------------------------------------------
+- `.\start game.ps1` exits 0 (Godot 4.6.3 launches cleanly after compile fix).
+- Fixed compile blocker: `status_effects_component.gd` used nonexistent
+  `DamageData.DamageType.MAGICAL` for Umbral Sickness tick — replaced with `.DARK`.
+- Phase 7 systems preserved: Ember Wastes, Cinderhold, Pyreheart Ziggurat, Solar Tyrant,
+  mirror puzzle, one-time rewards, `exterior_pyreheart_ziggurat` return, Sunless gate shell.
+- Full Phase 7 gameplay loop requires manual in-editor verification (see §33 below).
+
+2. Sunless Dominion scene path
+------------------------------
+res://scenes/levels/sunless_dominion/sunless_dominion.tscn
+
+3. Region environment
+---------------------
+- Perpetual twilight/eclipse sky (ProceduralSkyMaterial, violet fog).
+- `terrain_mode = "sunless"` on island terrain — black stone scatter, silverwood stubs,
+  gothic ruin props, obelisks, grave markers, ward braziers, distant fortress silhouette.
+- `EclipseStormController` — staged weather (twilight, shadow fog, eclipse surge,
+  umbral storm, clearing).
+- Ambient audio hook: `sunless_dominion_ambience`.
+
+4. Subregions (macro-layout landmarks)
+--------------------------------------
+- Emberfall Passage (arrival from Ember Wastes, west)
+- Shaded Royal Road (primary route west → east)
+- Dawnwatch Bastion (central settlement, light wards)
+- Forsaken Hamlet (quest POI, west of Dawnwatch)
+- Gloam Fields / Silverwood Grave (resource + dread zones)
+- Broken Palace Road (east approach)
+- Eclipse Observatory (Dark Observatory quest POI)
+- Nightbound Cemetery (grave quest POIs)
+- Sanctum Approach (executioner territory)
+- Eclipse Sanctum exterior (fortress-temple landmark)
+- Future Region Route — The Astral Rift gate (east shell)
+
+5. Spawn-marker IDs
+-------------------
+Registered in level_manager (global coords, grounded validation):
+- region_start_sunless_dominion
+- ember_wastes_arrival_sunless_dominion
+- checkpoint_sunless_dominion
+- town_dawnwatch
+- camp_dawnwatch
+- waystone_sunless_dominion
+- eclipse_sanctum_exterior
+- exterior_eclipse_sanctum
+- sunless_dominion_return_ember_wastes
+- future_region_departure_sunless_dominion
+
+Restart priority: checkpoint_sunless_dominion → camp_dawnwatch → town_dawnwatch
+→ waystone_sunless_dominion → region_start_sunless_dominion
+
+6. Ember Wastes ↔ Sunless Dominion transition result
+----------------------------------------------------
+Forward:
+  transition_id: ember_wastes_to_sunless_dominion
+  destination: res://scenes/levels/sunless_dominion/sunless_dominion.tscn
+  arrival: ember_wastes_arrival_sunless_dominion
+  unlock: heart_of_the_wastes completed AND sunless_dominion_pass in inventory
+  (pass is NOT consumed)
+
+Return:
+  transition_id: sunless_dominion_to_ember_wastes
+  destination: res://scenes/levels/ember_wastes/ember_wastes.tscn
+  arrival: sunless_dominion_return_ember_wastes
+
+Uses RegionTransitionGate + RegionTransitionManager + WorldStateManager + SpawnResolver.
+
+7. Dawnwatch implementation
+---------------------------
+- Gothic fortified enclave at settlement spawn (0, 0, 0).
+- DawnwatchCamp (camp_site) — rest, checkpoint_sunless_dominion, town_inn_mode.
+- ShadowShelterZone (14×14) suppresses dread/shadow exposure inside walls.
+- Waystone (sunless_dominion id) at (2, 0, 4).
+- Eclipse Sanctum gate POI on eastern bluff.
+
+8. NPCs and services
+--------------------
+Commander Alaric Vane — main quest giver (commander_alaric_vane)
+Selene Nightforge — nightsmith merchant (selene_nightforge catalog)
+Mira Sol — general merchant (mira_sol catalog)
+Doctor Corvin Hale — apothecary crafting + browse
+Father Lucen — DawnwatchHealerStation (dread, shadow, curse, heal)
+Scout Nyra Vale — side quest giver
+All use DialogueManager; merchant handoffs via existing shop flow.
+
+Merchant stock includes: bandages, rations, lantern oil, ward candles, dread resistance
+tonic, shadow-cleansing salve, basic materials, light utilities.
+Nightsmith: weapon/armor upgrades, shadow/curse resistance recipes.
+Apothecary: dread tonic, shadow cleanse, curse-breaking, moonwell draught recipes.
+Rest at camp: health/mana/stamina restore, clear temporary dread/shadow, set checkpoint.
+
+9. Dread system
+---------------
+StatusEffectsComponent: dread buildup in deep darkness/haunted zones (DreadZone).
+Threshold effects: reduced stamina/focus regen, screen-edge distortion hooks.
+Dawnwatch shelter and ShadowShelterZone slow/stop buildup.
+
+10. Shadow Exposure system
+--------------------------
+Buildup from ShadowPoolZone, umbral enemies, dark areas.
+Threshold may apply Umbral Sickness (bounded health deg, reduced healing, focus cap).
+ShadowShelterZone and protective light decay exposure.
+
+11. HUD feedback
+----------------
+player_hud.gd: DreadExposureBar + ShadowExposureBar in existing needs row.
+Hidden when irrelevant; distinct violet palette; threshold warning colors.
+Does not overwrite heat/cold/blight/coastal indicators.
+
+12. Protective light behavior
+-----------------------------
+ShadowShelterZone (Dawnwatch, explicit ward metadata): slows dread, decays shadow,
+reduces visual darkness contribution via status pipeline.
+Decorative lights are NOT treated as wards unless zoned.
+
+13. Eclipse weather
+-------------------
+EclipseStormController: normal twilight, heavy shadow fog, eclipse surge, umbral storm,
+clearing period. Surges increase dread, may strengthen enemies, expand shadow pools.
+Dawnwatch shelter suppresses weather effects inside ward volume.
+
+14. Shadow traversal
+--------------------
+ShadowGroundZone: movement resistance, reduced stamina recovery, shadow buildup,
+visual distortion. Jump/dodge remain functional; no infinite slowdown.
+
+15. Hazard implementation
+---------------------------
+Overworld: shadow pools, dread zones, shadow ground patches.
+Dungeon: curse sigils (DungeonTrap), shadow traps in Dread Maze, nightglass hazards.
+Telegraphed via existing damage/status pipelines with cooldowns.
+Spawn markers placed outside hazard volumes.
+
+16. Enemy roster
+----------------
+Dedicated scenes:
+- gloom_hound — fast pack, shadow buildup, leap
+- nightbound_raider (+ archer, bomber variants)
+- hollow_knight — armored, guard break vulnerability
+- eclipse_cultist — curse sigils, shadow fields
+- grave_wraith — teleport, dread buildup
+- shadow_stalker — ambush from shadow points
+- dominion_executioner — elite, shockwave, curse zones
+
+17. Resource roster
+-------------------
+Items: silverwood, umbral_ore, moonstone, nightglass, grave_dust, eclipse_shard,
+shadow_hide, royal_relic, sanctum_sigil.
+Resource nodes spawned in region_content for silverwood, moonstone, umbral_ore,
+nightglass, grave_dust, shadow_hide.
+
+18. Main quest chain
+--------------------
+into_the_dominion:
+  enter_sunless_dominion → reach_dawnwatch → activate_waystone → speak_commander
+the_forsaken_hamlet:
+  investigate_hamlet → defeat_raiders → recover_records → rescue_survivors
+graves_without_rest:
+  investigate_graves (3) → defeat_wraiths → recover_seals
+the_dark_observatory:
+  investigate_observatory → defeat_cultists → recover_eclipse_shard
+throne_beneath_the_eclipse:
+  enter_sanctum → reach_checkpoint → align_shadow_mirrors → reach_inner_spire
+  → prepare_eclipse_throne (STOPS HERE — no boss objective)
+
+Chains from heart_of_the_wastes completion → into_the_dominion.
+
+19. Side quests
+---------------
+gather_moonstone, rescue_lost_patrol, destroy_gloom_hound_dens, recover_royal_relics,
+defeat_dominion_executioner, purify_shadow_wells, collect_nightglass.
+
+20. Eclipse Sanctum exterior
+----------------------------
+scenes/dungeons/eclipse_sanctum_entrance.tscn at (22, 0, 18).
+Gothic fortress-temple landmark; quest-locked until eclipse_shard / observatory complete.
+Markers: eclipse_sanctum_exterior, exterior_eclipse_sanctum.
+
+21. Sanctum scene path
+----------------------
+res://scenes/dungeons/eclipse_sanctum/eclipse_sanctum.tscn
+
+22. Room foundation (EclipseGenerator — 14 room nodes + passages)
+----------------------------------------------------------------
+Critical path rooms:
+  Sanctum Entrance → Shadow Nave → Moon Cloister → Ward Chamber (side)
+  → Ward Checkpoint → Dread Maze → Observatory Hall → Central Spire
+  → Ascent Approach → Eclipse Antechamber → Sealed Eclipse Throne → Exit Terrace
+Side branches: Buried Archive, Resource Vault, Elite Shadow Chapel.
+Total: 10 main rooms + 4 side + connecting passages (within 10–14 target).
+
+23. Dungeon markers
+-------------------
+dungeon_entry_eclipse_sanctum, dungeon_spawn_eclipse_sanctum,
+dungeon_checkpoint_eclipse_sanctum, preboss_eclipse_sanctum.
+Registered in spawn_resolver restart priority for eclipse_sanctum.
+
+24. Checkpoint behavior
+-----------------------
+EclipseCheckpoint sanctuary: restore health/mana/stamina, clear dread/shadow,
+update dungeon restart context, persist activation, no enemies/hazards.
+
+25. Shadow-mirror puzzle
+------------------------
+ShadowMirrorPuzzle + three ShadowMirrorSwitch nodes (ward_a/b/c).
+Align wards → disable shadow barriers → unlock spire approach.
+Persists via EclipseSanctumState; audio hooks ward_activation, purification_wave.
+
+26. Dungeon hazards
+---------------------
+Curse traps, shadow traps (Dread Maze), nightglass shards, eclipse pulses.
+Puzzle completion disables selected barriers/traps (ward_b purifies crypt traps).
+
+27. Dungeon enemies
+-------------------
+Hollow Knight, Eclipse Cultist, Grave Wraith, Shadow Stalker, Nightbound Raider
+variants, Gloom Hound, Dominion Executioner (elite chapel).
+NOTE: Nightbound Royal Guard and Umbral Priest not yet implemented (see limitations).
+
+28. Minimap integration
+-----------------------
+MapManager discovers eclipse_sanctum region; room_discovery_zone per room.
+Mirror objectives and ward locations emit map_updated on activation.
+
+29. Dungeon persistence
+-----------------------
+EclipseSanctumState autoload + save_manager serialization:
+seed, layout, checkpoint, mirror alignment, ward state, disabled barriers,
+discovered rooms. Temporary enemies/projectiles reset on reload.
+
+30. Sealed throne behavior
+----------------------------
+SealedEclipseThroneDoor — dialogue only:
+"A sovereign shadow waits beyond the sealed throne."
+No boss spawn. throne_beneath_the_eclipse does NOT complete.
+
+31. Future-region shell
+-----------------------
+The Astral Rift — FutureAstralRiftGate at (30, 0, 0).
+Marker: future_region_departure_sunless_dominion.
+Dialogue only; never loads unfinished scene.
+
+32. Assets imported
+-------------------
+Documented in docs/asset_registry.md — Phase 8 sections for enemy visuals,
+Dawnwatch NPCs, Eclipse Sanctum dungeon visuals, procedural audio placeholders.
+Uses Kenney modular dungeon tiles + runtime scatter props (gothic ruins, obelisks,
+graves, braziers, silverwood stubs).
+
+33. Audio hooks
+---------------
+sunless_dominion_ambience, shadow_fog, dawnwatch_wards, graveyard_ambience,
+dark_obelisk_pulse, sanctum_ambience, ward_activation, purification_wave,
+sealed_throne_heartbeat, eclipse_pulse (referenced in AudioManager).
+
+34. Files created (Phase 8)
+---------------------------
+scenes/levels/sunless_dominion/sunless_dominion.tscn
+scenes/dungeons/eclipse_sanctum/eclipse_sanctum.tscn
+scenes/dungeons/eclipse_sanctum_entrance.tscn
+scenes/npcs/dawnwatch_npc.tscn
+scenes/enemies/gloom_hound.tscn
+scenes/enemies/nightbound_raider.tscn
+scenes/enemies/nightbound_raider_archer.tscn
+scenes/enemies/nightbound_raider_bomber.tscn
+scenes/enemies/hollow_knight.tscn
+scenes/enemies/eclipse_cultist.tscn
+scenes/enemies/grave_wraith.tscn
+scenes/enemies/shadow_stalker.tscn
+scenes/enemies/dominion_executioner.tscn
+scripts/autoload/eclipse_sanctum_state.gd
+scripts/npcs/dawnwatch_npc.gd
+scripts/stations/dawnwatch_healer_station.gd
+scripts/environment/dread_zone.gd
+scripts/environment/shadow_shelter_zone.gd
+scripts/environment/shadow_pool_zone.gd
+scripts/environment/shadow_ground_zone.gd
+scripts/environment/eclipse_storm_controller.gd
+scripts/levels/future_astral_rift_gate.gd
+scripts/dungeons/eclipse_sanctum_room.gd
+scripts/dungeons/eclipse_generator.gd
+scripts/dungeons/eclipse_builder.gd
+scripts/dungeons/eclipse_level.gd
+scripts/dungeons/eclipse_checkpoint.gd
+scripts/dungeons/eclipse_sanctum_entrance.gd
+scripts/dungeons/shadow_mirror_puzzle.gd
+scripts/dungeons/shadow_mirror_switch.gd
+scripts/dungeons/sealed_eclipse_throne_door.gd
+(+ enemy script .gd files for each enemy scene)
+
+35. Files modified (Phase 8)
+----------------------------
+project.godot (EclipseSanctumState autoload)
+scripts/levels/level_manager.gd
+scripts/levels/region_content.gd
+scripts/levels/region_transition_gate.gd
+scripts/levels/island_terrain.gd
+scripts/levels/spawn_resolver.gd
+scripts/combat/status_effects_component.gd
+scripts/autoload/quest_manager.gd
+scripts/autoload/dungeon_manager.gd
+scripts/autoload/merchant_manager.gd
+scripts/autoload/crafting_manager.gd
+scripts/autoload/dialogue_manager.gd
+scripts/autoload/save_manager.gd
+scripts/autoload/map_manager.gd
+scripts/autoload/audio_manager.gd
+scripts/autoload/inventory_manager.gd
+scripts/autoload/loot_manager.gd
+scripts/utilities/item_database.gd
+scripts/dungeons/room_discovery_zone.gd
+scripts/interactables/waystone.gd
+ui/hud/player_hud.gd
+docs/asset_registry.md
+
+36. Manual verification results
+-------------------------------
+Automated boot: PASS (`.\start game.ps1` exit 0, no script parse errors).
+In-editor gameplay verification REQUIRED for:
+  [ ] Ember Wastes → Sunless Dominion transition (post Heart of the Wastes + pass)
+  [ ] Arrival at ember_wastes_arrival_sunless_dominion
+  [ ] Dawnwatch services (merchant, nightsmith, apothecary, healer, rest)
+  [ ] Dread/shadow HUD bars in dominion regions
+  [ ] Eclipse weather cycle visible
+  [ ] Enemy XP/loot on kill
+  [ ] Resource gathering
+  [ ] Death restart at correct marker
+  [ ] Return to Ember Wastes
+  [ ] Eclipse Sanctum exterior unlock after Dark Observatory
+  [ ] Dungeon entry fade/spawn/minimap
+  [ ] Checkpoint sanctuary restore
+  [ ] Shadow-mirror puzzle (3 wards, barrier dissolve)
+  [ ] Sealed throne dialogue (no enemy)
+  [ ] Exit to exterior_eclipse_sanctum
+  [ ] Phase 0–7 regression (Solar Tyrant, Cinderhold, prior regions)
+
+37. Known limitations
+---------------------
+- Dark Observatory quest uses eclipse_shard unlock instead of separate sanctum_sigil
+  at observatory; disable-three-obelisks objective simplified to defeat cultists POI.
+- Nightbound Royal Guard and Umbral Priest dungeon enemies not yet implemented;
+  elite chapel uses Dominion Executioner + mixed roster instead.
+- Macro-layout side areas (haunted manor, moonwell, royal crypt, etc.) use POI/zone
+  placeholders rather than fully unique geometry per landmark.
+- Terrain scatter reuses Kenney props; dedicated licensed gothic asset pack pending.
+- sanctum_sigil granted on throne quest completion reward, not observatory recovery.
+
+38. Remaining placeholders
+--------------------------
+- Astral Rift future gate (dialogue shell only)
+- Sealed Eclipse Throne boss (future dedicated pass)
+- Optional dungeon enemy variants (Royal Guard, Umbral Priest)
+- Licensed audio/visual asset replacement per asset_registry.md
+
+39. Confirmation: no automated tests added
+------------------------------------------
+No new .gd test runners, .tscn test scenes, or test harness files were added
+for Phase 8. Only this production report in tests/.
+
+40. Confirmation: no placeholder boss added
+--------------------------------------------
+Sealed Eclipse Throne contains SealedEclipseThroneDoor dialogue interactable only.
+No Solar Tyrant, Blightheart, Hollow King, Tidebound Sovereign, or other boss
+spawned in the throne chamber.
+
+41. Confirmation: Phase 0–7 content remains functional
+--------------------------------------------------------
+Compile fix isolated to Umbral Sickness damage type (.DARK). No Phase 7 quest,
+boss, or transition logic removed. Ember Wastes Sunless gate upgraded from shell
+to full transition with authoritative unlock condition.
+
+42. Confirmation: arrival and restart safely grounded
+-----------------------------------------------------
+All Sunless Dominion and Eclipse Sanctum spawn markers registered via
+SpawnMarker.create_runtime with validated Y=0.1 ground offsets and reserved radii.
+SpawnResolver includes eclipse_sanctum checkpoint/spawn/entry/preboss priority.
+No (0,0,0) unvalidated fallbacks used.
+
+Manual verification command
+---------------------------
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"
+
+Recommended test path:
+1. Complete Heart of the Wastes (or use save with pass + quest complete)
+2. Interact Sunless Dominion gate on Ember Wastes east road
+3. Reach Dawnwatch, activate waystone, speak Commander Alaric
+4. Progress main quest chain through hamlet → graves → observatory
+5. Enter Eclipse Sanctum, activate checkpoint, align three shadow wards
+6. Reach Inner Spire antechamber, interact sealed throne (dialogue only)
+7. Exit dungeon to exterior_eclipse_sanctum
+8. Return to Ember Wastes via west gate; verify Solar Tyrant still functional

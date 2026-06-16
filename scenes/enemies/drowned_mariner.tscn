@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://drownedmariner001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="DrownedMariner" instance=ExtResource("1")]
+enemy_id = "drowned_mariner"
+display_name = "Drowned Mariner"
+enemy_level = 8
+max_health = 72.0
+damage = 16.0
+move_speed = 4.2
+detection_range = 16.0
+attack_range = 2.2
+loot_table_id = "drowned_mariner"
+xp_reward = 42
+experience_reward = 31
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Zombie_Basic.gltf"

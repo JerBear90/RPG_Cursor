@@ -47,13 +47,14 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -210.0
-offset_right = 210.0
-offset_bottom = 72.0
+	offset_left = -210.0
+	offset_top = 36.0
+	offset_right = 210.0
+	offset_bottom = 120.0
 grow_horizontal = 2
 mouse_filter = 2
 
-[node name="NotificationContainer" type="CenterContainer" parent="SafeArea/Shell/TopCenter"]
+[node name="NotificationContainer" type="MarginContainer" parent="SafeArea/Shell/TopCenter"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -61,11 +62,18 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+theme_override_constants/margin_top = 6
 
-[node name="NotificationToast" parent="SafeArea/Shell/TopCenter/NotificationContainer" instance=ExtResource("5")]
+[node name="ToastAlign" type="HBoxContainer" parent="SafeArea/Shell/TopCenter/NotificationContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+alignment = 1
+
+[node name="NotificationToast" parent="SafeArea/Shell/TopCenter/NotificationContainer/ToastAlign" instance=ExtResource("5")]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(320, 64)
+custom_minimum_size = Vector2(364, 72)
 
 [node name="TopRight" type="Control" parent="SafeArea/Shell"]
 unique_name_in_owner = true

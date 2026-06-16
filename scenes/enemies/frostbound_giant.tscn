@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3 uid="uid://frostboundgiant001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+[ext_resource type="Script" path="res://scripts/ai/frostbound_giant.gd" id="2"]
+
+[node name="FrostboundGiant" instance=ExtResource("1")]
+script = ExtResource("2")
+enemy_id = "frostbound_giant"
+display_name = "Frostbound Giant"
+enemy_level = 7
+max_health = 120.0
+damage = 22.0
+move_speed = 3.2
+detection_range = 16.0
+attack_range = 3.2
+loot_table_id = "frostbound_giant"
+xp_reward = 90
+experience_reward = 70
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Zombie_Chubby.gltf"
+mesh_scale = Vector3(1.6, 1.6, 1.6)

@@ -194,3 +194,41 @@ static func snap_character_to_ground(body: CharacterBody3D, lift: float = GROUND
 	body.global_position = Vector3(origin.x, floor_y - feet, origin.z)
 	body.velocity = Vector3.ZERO
 	return true
+
+
+static func get_party_offset(player_index: int, leader_yaw: float) -> Vector3:
+	if player_index <= 0:
+		return Vector3.ZERO
+	var right := Vector3(cos(leader_yaw), 0.0, sin(leader_yaw))
+	var forward := Vector3(-sin(leader_yaw), 0.0, cos(leader_yaw))
+	if player_index == 1:
+		return right * 2.2
+	return (-forward * 1.6) + (right * 1.4)
+
+
+static func place_party_at_marker(tree: SceneTree, marker: Node3D) -> void:
+	if tree == null or marker == null:
+		return
+	var party: Array[Node] = []
+	for p in GameManager.players:
+		if p and is_instance_valid(p):
+			party.append(p)
+	if party.is_empty():
+		return
+	var yaw: float = marker.get_facing_yaw() if marker.has_method("get_facing_yaw") else 0.0
+	var leader := party[0]
+	if leader is CharacterBody3D:
+		await place_player_safely_on_ground(leader as CharacterBody3D, marker.global_position, tree)
+		if marker.has_method("get_facing_yaw"):
+			leader.rotation.y = yaw
+	for i in range(1, party.size()):
+		var companion := party[i]
+		if not companion is CharacterBody3D:
+			continue
+		var leader_yaw: float = yaw if marker.has_method("get_facing_yaw") else (leader as Node3D).rotation.y
+		var offset: Vector3 = get_party_offset(i, leader_yaw)
+		var target: Vector3 = (leader as Node3D).global_position + offset
+		await place_player_safely_on_ground(companion as CharacterBody3D, target, tree)
+		companion.rotation.y = leader.rotation.y
+		if GameManager.is_local_coop() and companion.has_method("is_alive") and not companion.is_alive():
+			GameManager.revive_player(companion, 0.45)

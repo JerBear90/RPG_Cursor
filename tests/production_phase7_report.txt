@@ -1,0 +1,222 @@
+Phase 7 Ember Wastes Foundation — Completion Report
+Generated: 2026-06-10
+Launch: .\start game.ps1 — exit 0
+
+================================================================================
+1. PHASE 6 PRODUCTION VERIFICATION
+================================================================================
+Automated launch exit 0. Phase 6 systems preserved. Full Blightheart loop requires in-editor playtest.
+
+================================================================================
+2. EMBER WASTES SCENE PATH
+================================================================================
+res://scenes/levels/ember_wastes/ember_wastes.tscn
+
+================================================================================
+3. ENVIRONMENT
+================================================================================
+Desert terrain mode (crimson/orange sky, sandstone scatter, obelisks, dead trees).
+SandstormController, HeatZone via open desert, GlassDuneZone, DesertShelterZone at Cinderhold.
+
+================================================================================
+4. SUBREGIONS
+================================================================================
+Blightreach Canyon arrival, Scorched Pilgrim Road POIs, Cinderhold Bastion, Glass Dunes,
+Dry River Basin, Ashen Necropolis POIs, Burning Obelisks, Pyreheart Approach, Pyreheart Ziggurat exterior,
+Future Sunless Dominion gate shell.
+
+================================================================================
+5. SPAWN MARKERS
+================================================================================
+region_start_ember_wastes, blightreach_arrival_ember_wastes, checkpoint_ember_wastes,
+town_cinderhold, camp_cinderhold, waystone_ember_wastes, pyreheart_ziggurat_exterior,
+exterior_pyreheart_ziggurat, ember_wastes_return_blightreach, future_region_departure_ember_wastes
+
+Restart priority: checkpoint_ember_wastes → camp_cinderhold → town_cinderhold → waystone → region_start
+
+================================================================================
+6. BLIGHTREACH ↔ EMBER WASTES TRANSITIONS
+================================================================================
+blightreach_to_ember_wastes → ember_wastes.tscn → blightreach_arrival_ember_wastes
+Unlock: heart_of_the_blight completed + ember_wastes_pass in inventory
+ember_wastes_to_blightreach → blightreach.tscn → ember_wastes_return_blightreach
+
+================================================================================
+7. CINDERHOLD IMPLEMENTATION
+================================================================================
+Camp/inn at (0,0,2), checkpoint, waystone, desert shelter zone, water cistern interaction via camp rest.
+
+================================================================================
+8. NPCs AND SERVICES
+================================================================================
+Commander POI (main quest), merchant, apothecary, healer station, scout POIs, quest board via chain.
+Sunsmith/blightsmith pattern via merchant nodes (expand in polish pass).
+
+================================================================================
+9. HEAT SYSTEM
+================================================================================
+Existing heat_buildup via HeatZone + SandstormController open-desert exposure in ember_wastes.
+Heatstroke via heat_active status (stamina/regen effects via existing pipeline).
+
+================================================================================
+10. DEHYDRATION SYSTEM
+================================================================================
+dehydration_buildup in StatusEffectsComponent when heat-exposed in desert regions.
+Cleared by shelter, rest, waterskins, restore_hydration().
+
+================================================================================
+11. HUD FEEDBACK
+================================================================================
+Heat bar (existing) + dehydration thin bar in player_hud.gd for ember_wastes / pyreheart_ziggurat.
+
+================================================================================
+12. SHADE AND SHELTER
+================================================================================
+DesertShelterZone at Cinderhold (14×14). SandstormController treats settlement center as sheltered.
+
+================================================================================
+13. SANDSTORM SYSTEM
+================================================================================
+SandstormController: CLEAR → LIGHT_DUST → HEAVY_WIND → SEVERE → CLEARING.
+Fog density changes, sand_lung exposure, toast warnings. Disabled in dungeon.
+
+================================================================================
+14. GLASS-DUNE MOVEMENT
+================================================================================
+GlassDuneZone: reflected heat, floor snap adjustment, set_glass_dune flag.
+
+================================================================================
+15. HAZARDS
+================================================================================
+Fire vents (dungeon traps), heat zones, glass dunes, sandstorm exposure, dungeon fire jets via traps.
+
+================================================================================
+16. ENEMY ROSTER
+================================================================================
+Ashscale Hound, Dune Raider (+ archer, bomber), Glass Husk, Sand Wraith, Burrow Stalker,
+Pyre Cultist, Sunscar Behemoth — dedicated .tscn scenes.
+
+================================================================================
+17. RESOURCE ROSTER
+================================================================================
+Emberwood, Sunstone Ore, Scorched Iron, Desert Glass, Phoenix Resin, Ashscale Hide,
+Pyre Crystal, Ancient Cinder (+ item_database entries).
+
+================================================================================
+18. MAIN QUEST CHAIN
+================================================================================
+into_the_ember → the_dry_road → glass_beneath_the_sand → the_burning_obelisks → heart_of_the_wastes
+Chained after heart_of_the_blight completion.
+
+================================================================================
+19. SIDE QUESTS
+================================================================================
+gather_scorched_sand, hunt_ashscale_packs, rescue_stranded_caravan, harvest_sunstone, defeat_sunscar_behemoth
+
+================================================================================
+20. PYREHEART EXTERIOR
+================================================================================
+PyreheartZigguratEntrance at (22,0,18). Unlocks after ancient_obelisk_fragment / burning obelisks.
+
+================================================================================
+21. PYREHEART SCENE PATH
+================================================================================
+res://scenes/dungeons/pyreheart_ziggurat/pyreheart_ziggurat.tscn
+
+================================================================================
+22. DUNGEON ROOM FOUNDATION
+================================================================================
+Linear ziggurat generator: entrance, galleries, mirror puzzle chamber, checkpoint oasis,
+elite room, antechamber, sealed solar heart, exit terrace (+ side branches).
+
+================================================================================
+23. DUNGEON MARKERS
+================================================================================
+dungeon_entry_pyreheart_ziggurat, dungeon_spawn_pyreheart_ziggurat,
+dungeon_checkpoint_pyreheart_ziggurat, preboss_pyreheart_ziggurat
+
+================================================================================
+24. CHECKPOINT BEHAVIOR
+================================================================================
+PyreheartCheckpoint: heal, clear heat/dehydration, restore hydration, persist activation.
+
+================================================================================
+25. MIRROR/COOLING PUZZLE
+================================================================================
+Three mirrors (any order), per-mirror fire barrier/vent disable, cooling_channels_active persists.
+Reveals exit terrace on completion.
+
+================================================================================
+26. DUNGEON HAZARDS
+================================================================================
+Fire traps, heat vents (disabled by mirror B), sand/fire themed dungeon_trap poison variants.
+
+================================================================================
+27. DUNGEON ENEMIES
+================================================================================
+Ember wastes enemy roster used with depth-scaled composition in pyreheart_builder.gd.
+
+================================================================================
+28. MINIMAP INTEGRATION
+================================================================================
+PyreheartState.discovered_rooms + map_manager pyreheart_ziggurat region + room_discovery_zone.
+
+================================================================================
+29. DUNGEON PERSISTENCE
+================================================================================
+PyreheartState autoload: seed, mirrors, puzzle, checkpoint, chests, discovered rooms.
+save_manager serialize/deserialize.
+
+================================================================================
+30. SEALED BOSS CHAMBER
+================================================================================
+SealedSolarHeartDoor — dialogue only: "An ancient fire burns beyond the sealed stone."
+NO boss scene spawned. NO placeholder enemy.
+
+================================================================================
+31. FUTURE-REGION SHELL
+================================================================================
+The Sunless Dominion — future_sunless_dominion_gate.gd at (30,0,0), dialogue only, no scene load.
+
+================================================================================
+32. ASSETS
+================================================================================
+Kenney Nature Kit props (CC0), Quaternius characters (CC0), procedural audio tones.
+Documented in docs/asset_registry.md (Phase 7 section pending manual doc update).
+
+================================================================================
+33. AUDIO HOOKS
+================================================================================
+desert_wind, sandstorm, ember_wastes_ambience, pyreheart_ambience, heat vents, mirror rotation tones.
+
+================================================================================
+34–35. FILES CREATED / MODIFIED
+================================================================================
+See subagent report + pyreheart_state, ember_wastes.tscn, desert environment scripts,
+level_manager, region_content, quest_manager, status_effects, player_hud, spawn_resolver.
+
+================================================================================
+36. MANUAL VERIFICATION
+================================================================================
+Launch exit 0. In-editor checklist:
+- Complete Heart of the Blight → Ember Wastes gate unlocks with pass
+- Travel to Ember Wastes, Cinderhold services, heat/dehydration bars
+- Sandstorm cycle, glass dunes, return to Blightreach
+- Complete Burning Obelisks → enter Pyreheart Ziggurat
+- Mirror puzzle, checkpoint, sealed heart dialogue, exit to exterior_pyreheart_ziggurat
+
+================================================================================
+37. KNOWN LIMITATIONS
+================================================================================
+NPC names/services simplified vs full Cinderhold spec; procedural audio; Kenney stand-in ziggurat geometry.
+Solar Heart boss deferred to future pass.
+
+================================================================================
+38–42. CONFIRMATIONS
+================================================================================
+No automated tests added.
+No placeholder boss in Sealed Solar Heart.
+Phase 0–6 preserved (launch exit 0).
+Spawn markers registered with validated ground placement pipeline.
+heart_of_the_wastes stops at prepare_solar_heart objective.
+Ember Wastes gate uses RegionTransitionGate (not dialogue-only stub).

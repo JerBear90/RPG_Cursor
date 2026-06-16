@@ -3,6 +3,13 @@ extends Node
 
 const _TownLayouts = preload("res://scripts/levels/town_layouts.gd")
 const _MinimapSettings = preload("res://ui/map/minimap_settings.gd")
+const _ReliquaryRoom = preload("res://scripts/dungeons/reliquary_room.gd")
+const _FoundryRoom = preload("res://scripts/dungeons/foundry_room.gd")
+const _CryptRoom = preload("res://scripts/dungeons/crypt_room.gd")
+const _CitadelRoom = preload("res://scripts/dungeons/citadel_room.gd")
+const _CathedralRoom = preload("res://scripts/dungeons/cathedral_room.gd")
+const _PyreheartRoom = preload("res://scripts/dungeons/pyreheart_room.gd")
+const _EclipseRoom = preload("res://scripts/dungeons/eclipse_sanctum_room.gd")
 const _BUILDING_HINTS := ["tent", "platform", "statue", "fence_gate", "campfire"]
 signal map_updated(region_id: String)
 
@@ -15,8 +22,81 @@ var region_layout: Dictionary = {
 		"scatter_trees": 32, "scatter_rocks": 20, "scatter_grass": 60, "scatter_bushes": 18,
 	},
 	"hearthhold_camp": {
-		"kind": "camp", "radius": 16.0,
-		"scatter_trees": 6, "scatter_rocks": 4, "scatter_grass": 20, "scatter_bushes": 8,
+		"kind": "camp", "radius": 18.0,
+		"scatter_trees": 4, "scatter_rocks": 6, "scatter_grass": 16, "scatter_bushes": 6,
+	},
+		"rotfen_marsh": {
+		"kind": "swamp", "radius": 34.0, "water_extent": 48.0,
+		"land_tile": "ground_pathRocks.glb",
+		"scatter_trees": 18, "scatter_rocks": 14, "scatter_grass": 24, "scatter_bushes": 16,
+		"tree_pool": ["tree_simple_dark.glb", "tree_tall_dark.glb", "tree_detailed.glb", "stump_oldTall.glb"],
+		"bush_pool": ["mushroom_red.glb", "mushroom_tan.glb", "plant_bushDetailed.glb", "hanging_moss.glb"],
+	},
+	"ashfall_highlands": {
+		"kind": "volcanic", "radius": 38.0, "water_extent": 0.0,
+		"land_tile": "ground_pathRocks.glb",
+		"scatter_trees": 8, "scatter_rocks": 28, "scatter_grass": 10, "scatter_bushes": 6,
+		"tree_pool": ["stump_oldTall.glb", "stump_old.glb", "tree_simple_dark.glb", "tree_tall_dark.glb"],
+		"rock_pool": ["rock_largeA.glb", "rock_largeB.glb", "rock_tallA.glb", "cliff_block_rock.glb", "stone_largeA.glb"],
+	},
+	"frostgrave_expanse": {
+		"kind": "frozen", "radius": 40.0, "water_extent": 0.0,
+		"land_tile": "ground_pathStraight.glb",
+		"scatter_trees": 10, "scatter_rocks": 22, "scatter_grass": 6, "scatter_bushes": 4,
+		"tree_pool": ["tree_simple_dark.glb", "tree_tall_dark.glb", "stump_oldTall.glb", "stump_old.glb"],
+		"rock_pool": ["rock_largeA.glb", "rock_largeB.glb", "cliff_block_stone.glb", "cliff_block_rock.glb", "stone_largeA.glb"],
+	},
+	"shattered_coast": {
+		"kind": "coastal", "radius": 42.0, "water_extent": 52.0,
+		"land_tile": "ground_pathRocks.glb",
+		"scatter_trees": 6, "scatter_rocks": 26, "scatter_grass": 8, "scatter_bushes": 6,
+		"tree_pool": ["stump_oldTall.glb", "stump_old.glb"],
+		"rock_pool": ["rock_largeA.glb", "rock_largeB.glb", "cliff_block_rock.glb", "cliff_block_stone.glb", "stone_largeA.glb"],
+	},
+	"blightreach": {
+		"kind": "blighted", "radius": 42.0, "water_extent": 0.0,
+		"land_tile": "ground_pathRocks.glb",
+		"scatter_trees": 18, "scatter_rocks": 14, "scatter_grass": 22, "scatter_bushes": 16,
+		"tree_pool": ["tree_simple_dark.glb", "tree_tall_dark.glb", "stump_oldTall.glb", "stump_old.glb"],
+		"rock_pool": ["cliff_block_stone.glb", "statue_columnDamaged.glb", "rock_largeA.glb"],
+		"bush_pool": ["mushroom_red.glb", "mushroom_tan.glb", "plant_bushLarge.glb", "plant_bushDetailed.glb"],
+	},
+	"ember_wastes": {
+		"kind": "desert", "radius": 44.0, "water_extent": 0.0,
+		"land_tile": "ground_pathRocks.glb",
+		"scatter_trees": 6, "scatter_rocks": 22, "scatter_grass": 0, "scatter_bushes": 4,
+		"tree_pool": ["stump_oldTall.glb", "stump_old.glb", "tree_simple_dark.glb"],
+		"rock_pool": ["rock_largeA.glb", "rock_largeB.glb", "rock_tallA.glb", "statue_columnDamaged.glb", "statue_obelisk.glb"],
+		"bush_pool": ["plant_bushSmall.glb"],
+	},
+	"sunless_dominion": {
+		"kind": "desert", "radius": 44.0, "water_extent": 0.0,
+		"land_tile": "ground_pathRocks.glb",
+		"scatter_trees": 4, "scatter_rocks": 24, "scatter_grass": 0, "scatter_bushes": 2,
+		"tree_pool": ["stump_oldTall.glb", "tree_simple_dark.glb"],
+		"rock_pool": ["rock_largeA.glb", "rock_largeB.glb", "statue_columnDamaged.glb", "statue_block.glb"],
+		"bush_pool": ["plant_bushSmall.glb"],
+	},
+	"blightspire_cathedral": {
+		"kind": "dungeon", "radius": 160.0, "water_extent": 0.0,
+	},
+	"pyreheart_ziggurat": {
+		"kind": "dungeon", "radius": 160.0, "water_extent": 0.0,
+	},
+	"eclipse_sanctum": {
+		"kind": "dungeon", "radius": 160.0, "water_extent": 0.0,
+	},
+	"drowned_citadel": {
+		"kind": "dungeon", "radius": 140.0, "water_extent": 0.0,
+	},
+	"sunken_reliquary": {
+		"kind": "dungeon", "radius": 120.0, "water_extent": 0.0,
+	},
+	"blackvein_foundry": {
+		"kind": "dungeon", "radius": 140.0, "water_extent": 0.0,
+	},
+	"paleheart_crypt": {
+		"kind": "dungeon", "radius": 140.0, "water_extent": 0.0,
 	},
 	"ruined_watchtower": {
 		"kind": "island", "radius": 18.0, "water_extent": 30.0,
@@ -59,6 +139,19 @@ func reset_for_new_game() -> void:
 		"bandit_camp": RegionState.UNDISCOVERED,
 		"crystal_cave": RegionState.UNDISCOVERED,
 		"hollow_grove_shrine": RegionState.UNDISCOVERED,
+		"rotfen_marsh": RegionState.UNDISCOVERED,
+		"ashfall_highlands": RegionState.UNDISCOVERED,
+		"sunken_reliquary": RegionState.UNDISCOVERED,
+		"blackvein_foundry": RegionState.UNDISCOVERED,
+		"paleheart_crypt": RegionState.UNDISCOVERED,
+		"shattered_coast": RegionState.UNDISCOVERED,
+		"blightreach": RegionState.UNDISCOVERED,
+		"drowned_citadel": RegionState.UNDISCOVERED,
+		"blightspire_cathedral": RegionState.UNDISCOVERED,
+		"ember_wastes": RegionState.UNDISCOVERED,
+		"pyreheart_ziggurat": RegionState.UNDISCOVERED,
+		"sunless_dominion": RegionState.UNDISCOVERED,
+		"eclipse_sanctum": RegionState.UNDISCOVERED,
 		"procedural_dungeon": RegionState.UNDISCOVERED,
 	}
 	icons.clear()
@@ -277,6 +370,121 @@ func _mesh_is_building(mesh_name: String) -> bool:
 
 func get_region_radius(region_id: String) -> float:
 	return float(get_region_layout(region_id).get("radius", 28.0))
+
+
+func get_dungeon_room_markers(region_id: String) -> Array[Dictionary]:
+	if region_id not in ["sunken_reliquary", "blackvein_foundry", "paleheart_crypt", "drowned_citadel", "blightspire_cathedral", "pyreheart_ziggurat", "eclipse_sanctum"]:
+		return []
+	var out: Array[Dictionary] = []
+	var layout: Dictionary = DungeonManager.layout
+	if layout.is_empty():
+		return out
+	var cell_size: float = float(layout.get("cell_size", 2.0))
+	var discovered: Array = ReliquaryState.discovered_rooms
+	if region_id == "blackvein_foundry":
+		discovered = FoundryState.discovered_rooms
+	elif region_id == "paleheart_crypt":
+		discovered = CryptState.discovered_rooms
+	elif region_id == "drowned_citadel":
+		discovered = CitadelState.discovered_rooms
+	elif region_id == "blightspire_cathedral":
+		discovered = CathedralState.discovered_rooms
+	elif region_id == "pyreheart_ziggurat":
+		discovered = PyreheartState.discovered_rooms
+	elif region_id == "eclipse_sanctum":
+		discovered = EclipseSanctumState.discovered_rooms
+	for room in layout.get("rooms", []):
+		var room_index := -1
+		var center := Vector3.ZERO
+		var category := "room"
+		var display_name := "Room"
+		if room is _ReliquaryRoom:
+			room_index = room.room_index
+			if room.room_type == _ReliquaryRoom.RoomType.CORRIDOR:
+				continue
+			center = room.get_world_center(cell_size)
+			display_name = room.get_display_name()
+			match room.room_type:
+				_ReliquaryRoom.RoomType.ENTRANCE: category = "entrance"
+				_ReliquaryRoom.RoomType.CHECKPOINT: category = "checkpoint"
+				_ReliquaryRoom.RoomType.BOSS: category = "boss"
+				_ReliquaryRoom.RoomType.PUZZLE: category = "quest"
+		elif room is _FoundryRoom:
+			room_index = room.room_index
+			if room.room_type == _FoundryRoom.RoomType.CORRIDOR:
+				continue
+			center = room.get_world_center(cell_size)
+			display_name = room.get_display_name()
+			match room.room_type:
+				_FoundryRoom.RoomType.ENTRANCE: category = "entrance"
+				_FoundryRoom.RoomType.CHECKPOINT: category = "checkpoint"
+				_FoundryRoom.RoomType.BOSS: category = "boss"
+				_FoundryRoom.RoomType.MECHANISM: category = "quest"
+		elif room is _CryptRoom:
+			room_index = room.room_index
+			if room.room_type == _CryptRoom.RoomType.PASSAGE:
+				continue
+			center = room.get_world_center(cell_size)
+			display_name = room.get_display_name()
+			match room.room_type:
+				_CryptRoom.RoomType.ENTRANCE: category = "entrance"
+				_CryptRoom.RoomType.CHECKPOINT: category = "checkpoint"
+				_CryptRoom.RoomType.BOSS: category = "boss"
+				_CryptRoom.RoomType.PUZZLE: category = "quest"
+		elif room is _CitadelRoom:
+			room_index = room.room_index
+			if room.room_type == _CitadelRoom.RoomType.PASSAGE:
+				continue
+			center = room.get_world_center(cell_size)
+			display_name = room.get_display_name()
+			match room.room_type:
+				_CitadelRoom.RoomType.ENTRANCE: category = "entrance"
+				_CitadelRoom.RoomType.CHECKPOINT: category = "checkpoint"
+				_CitadelRoom.RoomType.BOSS: category = "boss"
+				_CitadelRoom.RoomType.PUZZLE: category = "quest"
+				_CitadelRoom.RoomType.EXIT: category = "exit"
+		elif room is _CathedralRoom:
+			room_index = room.room_index
+			if room.room_type == _CathedralRoom.RoomType.PASSAGE:
+				continue
+			center = room.get_world_center(cell_size)
+			display_name = room.get_display_name()
+			match room.room_type:
+				_CathedralRoom.RoomType.ENTRANCE: category = "entrance"
+				_CathedralRoom.RoomType.CHECKPOINT: category = "checkpoint"
+				_CathedralRoom.RoomType.HEART_CHAMBER: category = "boss"
+				_CathedralRoom.RoomType.PURIFICATION_CHAMBER: category = "quest"
+				_CathedralRoom.RoomType.EXIT_CLOISTER: category = "exit"
+		elif room is _PyreheartRoom:
+			room_index = room.room_index
+			if room.room_type == _PyreheartRoom.RoomType.PASSAGE:
+				continue
+			center = room.get_world_center(cell_size)
+			display_name = room.get_display_name()
+			match room.room_type:
+				_PyreheartRoom.RoomType.ENTRANCE: category = "entrance"
+				_PyreheartRoom.RoomType.CHECKPOINT: category = "checkpoint"
+				_PyreheartRoom.RoomType.SEALED_HEART_CHAMBER: category = "boss"
+				_PyreheartRoom.RoomType.MIRROR_CHAMBER: category = "quest"
+				_PyreheartRoom.RoomType.EXIT_TERRACE: category = "exit"
+		elif room is _EclipseRoom:
+			room_index = room.room_index
+			if room.room_type == _EclipseRoom.RoomType.PASSAGE:
+				continue
+			center = room.get_world_center(cell_size)
+			display_name = room.get_display_name()
+			match room.room_type:
+				_EclipseRoom.RoomType.ENTRANCE: category = "entrance"
+				_EclipseRoom.RoomType.CHECKPOINT: category = "checkpoint"
+				_EclipseRoom.RoomType.SEALED_THRONE_CHAMBER: category = "boss"
+				_EclipseRoom.RoomType.WARD_CHAMBER: category = "quest"
+				_EclipseRoom.RoomType.EXIT_TERRACE: category = "exit"
+		else:
+			continue
+		if room_index not in discovered:
+			continue
+		out.append({"position": center, "category": category, "name": display_name})
+	return out
 
 
 func serialize() -> Dictionary:

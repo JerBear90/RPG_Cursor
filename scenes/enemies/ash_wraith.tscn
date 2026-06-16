@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3 uid="uid://ashwraith001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+[ext_resource type="Script" path="res://scripts/ai/ash_wraith.gd" id="2"]
+
+[node name="AshWraith" instance=ExtResource("1")]
+script = ExtResource("2")
+enemy_id = "ash_wraith"
+display_name = "Ash Wraith"
+enemy_level = 5
+max_health = 48.0
+damage = 14.0
+move_speed = 3.8
+detection_range = 18.0
+attack_range = 8.0
+loot_table_id = "ash_wraith"
+xp_reward = 36
+experience_reward = 26
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Female_1.gltf"

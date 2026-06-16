@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://duneraiderbomber001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="DuneRaiderBomber" instance=ExtResource("1")]
+enemy_id = "dune_raider_bomber"
+display_name = "Dune Raider Bomber"
+enemy_level = 8
+max_health = 46.0
+damage = 17.0
+move_speed = 4.8
+detection_range = 16.0
+attack_range = 10.5
+loot_table_id = "dune_raider_bomber"
+xp_reward = 36
+experience_reward = 28
+is_ranged = true
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Zombie.gltf"

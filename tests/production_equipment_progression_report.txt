@@ -1,0 +1,150 @@
+Equipment Durability, Repair, Upgrades, Armor Reinforcement, and Socket Prep — Production Report
+==================================================================================================
+Date: 2026-06-10
+Scope: Equipment progression + gem socket + spell/skill passes (Phase 0–8 preserved)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0** (verified after equipment + gem passes)
+
+---
+
+## Changes Summary
+
+### Equipment Durability Foundation
+* New autoload: `scripts/autoload/equipment_manager.gd`
+* Gear instances track: `current_durability`, `max_durability`, `upgrade_level`, `reinforcement_level`, `socket_count`, `max_socket_count`, `socket_prep_level`, `socketed_gems`, `is_broken`, `instance_id`
+* Tier-based max durability via `ItemDatabase.get_max_durability()` (weapons 40–100, armor 70, shields 80)
+* Durability loss: weapon hits (-1), shield blocks (-1 to -3), armor damage taken (-1 random piece), tool gather (-1)
+* Broken gear reduces effectiveness to 50%; badly worn (≤25%) reduces to 75%
+* Gear never disappears at zero durability
+
+### Repair System
+* Workbench/Forge crafting menus include per-item **Repair** actions (resource cost from inventory + base storage)
+* **Repair Kit** consumable restores 35 durability or 40% (whichever is higher)
+* Repair Kit targets first damaged equipped item, then first damaged inventory gear
+* Kit is not consumed if no valid damaged target exists
+* Toasts: `P1 repaired Rusty Sword`, `Missing Metal Scraps x2`, `Item is already fully repaired`
+
+### Craft Integration
+* `repair_kit` recipe unchanged (iron_scrap x2, cloth_scrap x1, oil x1, 10 copper)
+* `basic_weapon_upgrade` → weapon_upgrade_kit (Workbench L2)
+* `armor_reinforcement` → armor_reinforcement_kit (Forge L2)
+* Kits apply +1 upgrade/reinforcement to equipped weapon/chest armor when used from inventory
+
+### Weapon Upgrade (+1 prototype)
+* Workbench menu: Upgrade weapon (iron_scrap x5, weapon_parts x1, 25 copper) OR use kit
+* +12% effective damage per level, +5 max durability
+* Requires Workbench L2 for +1; max +3 defined (only +1 wired)
+
+### Armor Reinforcement (+1 prototype)
+* Forge menu: Reinforce armor (hide x2, armor_plates x1, iron_scrap x3) OR use kit
+* +12% effective armor HP per level, +5 max durability
+* Requires Forge L2; max +3 defined (only +1 wired)
+
+### Socket Preparation (Forge L2)
+* **Prepare Socket** action: crystal_shard x2, iron_scrap x2, 1 silver (100 copper)
+* Increments `socket_count` by 1 up to `max_socket_count`
+* `socketed_gems` placeholder array reserved for future gem pass
+* No gem insertion yet
+
+### UI & Co-op
+* Inventory panel shows durability, upgrade/reinforcement level, socket count, repair preview
+* Workbench/Forge menus list equipment actions with requirement status
+* Menu owner attribution on all repair/upgrade/reinforce/socket toasts
+* Shared inventory/resources; solo behavior unchanged
+
+### Save / Load
+* Gear instance fields serialize through existing `InventoryManager.serialize()` items array
+* `EquipmentManager.normalize_all_items()` + `migrate_equipment_slots()` on load
+* Older saves default missing durability fields safely
+
+---
+
+## Gem Socket Pass (2026-06-10)
+
+See full checklist: `tests/production_gem_socket_report.txt`
+
+* New autoload: `GemEffectManager` — eight prototype gems, compatibility, modifier aggregation
+* `EquipmentManager.insert_gem()` / `remove_gem()` — Forge L2, consume gem, recover (50c/1s) or shatter
+* Forge menu: per-socket insert/remove actions with co-op owner toasts
+* Gem drops: crystal destructibles/nodes, crates, boss Amethyst; craft Ruby/Sapphire/Emerald at Forge L2
+* Inventory/equipment UI shows rarity, socket lines, gem effect descriptions
+* Save/load preserves `socketed_gems`; older saves pad empty slots safely
+* Weapon/armor/shield/durability bonuses wired; passive focus_max from Amethyst; loot/discovery modifiers stored for future use
+
+---
+
+## Spell & Skill Pass (2026-06-10)
+
+See full checklist: `tests/production_spell_skill_report.txt`
+
+* Focus resource with regen delay, cost multiplier, save/load
+* Four prototype spells: Ember Bolt, Healing Mist, Venom Dart, Shadow Lash
+* Spell registry/caster/cooldown/area-effect foundation scripts
+* Ranked skill tree with Combat/Survival/Crafting/Fire/Water/Poison/Dark/Co-op branches
+* Stat point spending from skill tree panel (K key)
+* Passive bonuses wired: weapon damage, block stamina, repair/socket costs, revive hold, camp rest, spell modifiers
+
+---
+
+## Manual Verification Checklist
+
+1. [ ] Solo New Game still behaves unchanged.
+2. [ ] Local Co-op still spawns both players safely.
+3. [ ] Weapon durability decreases after hitting enemy.
+4. [ ] Weapon durability decreases after hitting destructible.
+5. [ ] Shield durability decreases after blocking.
+6. [ ] Armor durability decreases after taking damage.
+7. [ ] Broken weapon reduces damage but does not disappear.
+8. [ ] Broken armor reduces protection but does not disappear.
+9. [ ] Repair Kit recipe crafts successfully.
+10. [ ] Repair Kit consumes correct resources once.
+11. [ ] Repair Kit repairs selected gear.
+12. [ ] Repair Kit is not consumed if no valid target exists.
+13. [ ] Workbench repair works.
+14. [ ] Repair consumes correct resources once.
+15. [ ] Fully repaired item shows correct message.
+16. [ ] Basic Weapon Upgrade consumes correct resources once.
+17. [ ] Weapon upgrade increases upgrade level.
+18. [ ] Weapon upgrade improves combat value.
+19. [ ] Armor Reinforcement consumes correct resources once.
+20. [ ] Armor reinforcement increases reinforcement level.
+21. [ ] Armor reinforcement improves defense value.
+22. [ ] Socket prep requires Forge L2.
+23. [ ] Socket prep consumes correct resources once.
+24. [ ] Socket count increases by 1.
+25. [ ] Max socket limit is respected.
+26. [ ] Item that cannot have sockets shows clear message.
+27. [ ] Equipment UI shows durability.
+28. [ ] Equipment UI shows upgrade/reinforcement level.
+29. [ ] Equipment UI shows socket count.
+30. [ ] P1 can repair/upgrade/reinforce/socket-prep with correct attribution.
+31. [ ] P2 can repair/upgrade/reinforce/socket-prep with correct attribution.
+32. [ ] Wrong-player input remains blocked in equipment menus.
+33. [ ] Save/load preserves durability.
+34. [ ] Save/load preserves upgrade level.
+35. [ ] Save/load preserves reinforcement level.
+36. [ ] Save/load preserves socket count.
+37. [ ] Save/load preserves equipped modified gear.
+38. [ ] Shared inventory/base storage still works.
+39. [ ] Existing crafting still works.
+40. [ ] Existing resource gathering still works.
+41. [ ] Existing field revive still works.
+42. [ ] Existing Waystone travel still works.
+43. [ ] Existing boss fight still works.
+44. [ ] `.\start game.ps1` exits 0.
+
+---
+
+## Known Limitations (Post-Pass)
+
+* Only +1 weapon upgrade and +1 armor reinforcement implemented (+2/+3 costs not defined)
+* Gem socket system implemented — see `tests/production_gem_socket_report.txt`
+* Spell/skill progression implemented — see `tests/production_spell_skill_report.txt`
+* Dedicated tool items not implemented; gather tool wear uses main weapon
+* Helmet/gloves/boots armor slots contribute HP but have no separate reinforcement menu entries yet
+* Shield block bonus only on `wooden_shield` prototype field
+* Equipment unequip no longer duplicates items (fixed), but duplicate item_id instances still share slot lookup by first match when equipping by ID
+* No automated tests added

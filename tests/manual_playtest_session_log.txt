@@ -1,0 +1,230 @@
+# Manual Playtest Session Log
+
+## Session Info
+
+Date: 2026-06-16
+Build command: .\start game.ps1
+Build result: exit code 0 (Godot 4.6.3 launches main menu; script exits after Start-Process)
+Tester: Cursor agent (automated build/headless checks only — no interactive gameplay)
+Mode tested:
+- Solo: NOT TESTED interactively (headless boot verification only)
+- Local Co-op: NOT TESTED
+
+## Summary
+
+Overall status: Build launches cleanly. Headless new-game boot passes after compile fixes.
+Interactive solo/co-op demo path was NOT performed by this session — human playtest still required.
+
+Recommendation: Manual playtest execution still required. Blockers found via headless boot were fixed; re-run full PLAYTEST_README.md checklist before external testers.
+
+## Automated Verification (This Session)
+
+| Check | Result |
+|-------|--------|
+| .\start game.ps1 exit code | PASS (0) |
+| Headless verify_gameplay_boot.gd | PASS (0) after fixes — player spawns, moves |
+| Headless test_runner.tscn | INCONCLUSIVE (hung / terminated; not used for sign-off) |
+| Input bindings (code review + InputControlSchemeTests source) | PASS — matches PLAYTEST_README.md |
+
+---
+
+## Solo Demo Path
+
+1. Solo New Game starts:
+Status: NOT TESTED (interactive)
+Notes: Headless start_new_game(false) spawns player at Darkpine after compile fixes.
+
+2. Darkpine outpost spawn:
+Status: NOT TESTED (interactive)
+Notes: Headless player pos ~(-3, 1.15, 4) after boot.
+
+3. Intro/tutorial prompts:
+Status: NOT TESTED
+
+4. Raider Trainee encounter:
+Status: NOT TESTED
+
+5. Reach Hearthhold Camp:
+Status: NOT TESTED
+
+6. Old Blacksmith / Rebuild the Forge:
+Status: NOT TESTED
+
+7. Metal Scraps / Fire Resin gathering:
+Status: NOT TESTED
+
+8. Workbench / Forge interaction:
+Status: NOT TESTED
+
+9. Waystone Keeper / Wake the Stone:
+Status: NOT TESTED
+
+10. Crystal Shards / Waystone unlock:
+Status: NOT TESTED
+
+11. Wounded Scout / Clear the Bandit Path:
+Status: NOT TESTED
+
+12. Bandit encounter / Bandit Captain:
+Status: NOT TESTED
+
+13. Demo completion toast:
+Status: NOT TESTED
+
+14. Save / Continue:
+Status: NOT TESTED
+
+---
+
+## Local Co-op Smoke Path
+
+1. Local Co-op starts:
+Status: NOT TESTED
+
+2. P1/P2 spawn safely:
+Status: NOT TESTED
+
+3. Shared camera frames both players:
+Status: NOT TESTED
+
+4. P2 HUD appears:
+Status: NOT TESTED
+
+5. P1/P2 gathering advances shared objectives:
+Status: NOT TESTED
+
+6. Co-op revive:
+Status: NOT TESTED
+
+7. Waystone travel with both players:
+Status: NOT TESTED
+
+8. Co-op save / continue:
+Status: NOT TESTED
+
+---
+
+## Controls Verification
+
+Verified via project.godot, InputDefaults, and input_control_scheme_test.gd expectations (not in-game):
+
+| Action | Documented | Verified |
+|--------|------------|----------|
+| Move WASD / left stick | Yes | Yes |
+| Camera mouse / right stick | Yes | Yes |
+| Interact E / X | Yes | Yes |
+| Light attack LMB+J / RT | Yes | Yes |
+| Heavy attack RMB+K / RB | Yes | Yes |
+| Dodge Ctrl+Alt / B | Yes | Yes |
+| Block F / LB | Yes | Yes |
+| Sprint Shift / L3 | Yes | Yes |
+| Spell Q+3 / LT | Yes | Yes |
+| Inventory I / View | Yes | Yes |
+| Map M / D-pad Up | Yes | Yes |
+| Quest tracker hotkey | None (known limitation) | Yes — unbound |
+| Skill tree hotkey | None (known limitation) | Yes — unbound |
+| Pause Esc / Start | Yes | Yes |
+| Pet wheel D-pad Down hold | Yes | Yes |
+| P2 keyboard arrows / U O P | Yes | Yes (InputManager) |
+| P2 gamepad device 1 | Yes | Yes (InputManager) |
+
+PLAYTEST_README.md bindings confirmed accurate; no README update required.
+
+---
+
+## Save / Continue Verification
+
+Status: NOT TESTED interactively.
+
+Documented paths unchanged:
+- user://saves/slot_0.json (Windows: %APPDATA%\Godot\app_userdata\Exiled Survivors\saves\)
+- Milestone autosave → slot 0 when current_slot < 0
+- Pause → Save Game, Memory Altar at Hearthhold
+
+---
+
+## Issues Found
+
+[Blocker] [Boot / Compile] New game failed to spawn player in headless boot
+
+Steps:
+1. Run Godot headless: verify_gameplay_boot.gd
+2. GameManager.start_new_game(false)
+3. Wait 180 frames for player
+
+Expected:
+Player spawns; level scripts compile; RegionContent.populate runs.
+
+Actual:
+Multiple GDScript parse/compile errors; RegionContent.populate missing; no player after 180 frames; VERIFY_FAIL exit 1.
+
+Notes:
+Discovered during automated boot check — would also break real New Game if scripts recompiled from cold state.
+Files/systems likely involved:
+region_content.gd, region_transition_gate.gd, minimap_control.gd, world_map.gd, quest_tracker_screen.gd, game_hud.gd, hearthhold_npc.gd, camp_site.gd
+
+Resolution: FIXED this session (see RC report Fixes Applied).
+
+---
+
+[High] [NPC] Hearthhold NPC script failed to compile (duplicate const)
+
+Steps:
+1. Load hearthhold region with Old Blacksmith
+2. Script parse on hearthhold_npc.gd
+
+Expected:
+NPC dialogue and missions work.
+
+Actual:
+Parse error: _INTERACT_OPTS already exists in parent NpcController.
+
+Notes:
+Would block all Hearthhold NPC interactions including Old Blacksmith forge mission.
+Files/systems likely involved:
+scripts/npcs/hearthhold_npc.gd, scripts/npcs/npc_controller.gd
+
+Resolution: FIXED — removed duplicate const; uses parent _INTERACT_OPTS.
+
+---
+
+[High] [HUD] game_hud.gd missing InventoryPanelScene preload
+
+Steps:
+1. Start new game
+2. game_hud.gd compiles for GameHUD scene
+
+Expected:
+Inventory opens with I / View.
+
+Actual:
+Parse error: Identifier InventoryPanelScene not declared; game_hud failed to load.
+
+Notes:
+Cascade failure prevented HUD and likely blocked normal gameplay UI.
+Files/systems likely involved:
+scripts/ui/game_hud.gd, scripts/ui/inventory_panel.gd
+
+Resolution: FIXED — added preload for inventory_panel.gd.
+
+---
+
+## Fixes Applied This Session
+
+1. region_content.gd — _spawn_destructible uses _spawn_prop_node (was assigning void return)
+2. region_transition_gate.gd — explicit float type for co-op yaw
+3. minimap_control.gd — explicit bool for P2 alive check
+4. world_map.gd — _canvas typed as Control (MapCanvas class resolution)
+5. quest_tracker_screen.gd — NpcMissionRegistry preload
+6. game_hud.gd — InventoryPanelScene + NpcMissionRegistry preloads; type inference fixes
+7. hearthhold_npc.gd — removed duplicate _INTERACT_OPTS
+8. camp_site.gd — StatusEffectsComponent call without unresolved type cast
+
+Post-fix: verify_gameplay_boot.gd exit 0; .\start game.ps1 exit 0.
+
+---
+
+## Final Build Check
+
+Command: .\start game.ps1
+Result: exit code 0 (2026-06-16)

@@ -1,0 +1,176 @@
+Production Demo Release Candidate Report
+========================================
+Date: 2026-06-10
+Scope: Manual playtest / release-candidate documentation pass
+
+## Build Status
+
+Command:
+```powershell
+.\start game.ps1
+```
+
+| Check | Result |
+|-------|--------|
+| Launch script exit code | 0 (verified 2026-06-16; post blocker-fix pass) |
+| Compile / import | Project loads via Godot 4.6; headless new-game boot PASS |
+| Script errors at launch | None in launch script; compile blockers fixed this pass |
+| Warnings | Headless boot: combat VFX RID leaks (non-blocking) |
+
+Note: `start game.ps1` starts Godot and exits immediately; full gameplay verification is manual.
+
+---
+
+## Demo Route Status
+
+| Area | Code / Prior Pass | Manual Confirm |
+|------|-------------------|----------------|
+| Solo route | Connected end-to-end | Required |
+| Co-op route | P1/P2 spawn, shared camera fix applied | Required |
+| Save / continue | v3 saves, milestone autosave, slot 0 default | Required |
+| Tutorial prompts | TutorialPromptManager + staggered intro | Required |
+| Map / quest tracker | ObjectiveRouter, HUD tracker, map panel (M / D-pad Up) | Required |
+| Waystone | Wake the Stone + travel co-op | Required |
+| NPC missions | Forge, Waystone, Bandit path | Required |
+| Combat / boss | Trainee tuned; Bandit Captain at Darkpine far end | Required |
+| Crafting / resources | Scrap/resin/crystal nodes on demo path | Required |
+
+---
+
+## Release Candidate Checklist
+
+Status key: **[Y]** verified this pass (code/script) · **[M]** needs manual playtest · **[N]** not verified
+
+1.  [Y] `.\start game.ps1` exits 0.
+2.  [M] Solo New Game starts safely.
+3.  [M] Local Co-op starts safely.
+4.  [M] P1/P2 spawn safely.
+5.  [M] Intro/tutorial prompts appear once.
+6.  [M] Starting gear equips correctly.
+7.  [M] Starting bandages appear in quick slot.
+8.  [M] Quest tracker displays Reach Hearthhold Camp.
+9.  [M] Hearthhold arrival advances objective.
+10. [M] Old Blacksmith mission works.
+11. [M] Resource gathering works.
+12. [M] Rebuild the Forge can progress.
+13. [M] Workbench/Forge interaction works.
+14. [M] Waystone Keeper mission works.
+15. [M] Crystal Shards are reachable.
+16. [M] Waystone unlock works.
+17. [M] Wounded Scout mission works.
+18. [M] Bandit kills count.
+19. [M] Bandit Captain encounter works.
+20. [M] Demo completion toast appears once.
+21. [M] Save/continue restores solo state.
+22. [M] Save/continue restores co-op state.
+23. [M] P2 HUD remains readable.
+24. [M] Co-op camera remains readable.
+25. [M] Co-op revive works.
+26. [M] Pet does not duplicate or disappear.
+27. [M] Spellcasting still works.
+28. [M] Equipment durability/repair still works.
+29. [M] Gem socket state persists.
+30. [M] NPC anger does not soft-lock critical progression.
+31. [M] Map markers remain correct after load.
+32. [M] Quest tracker restores correctly after load.
+33. [M] Controller navigation works in core menus.
+34. [M] Steam Deck 1280x800 readability is acceptable.
+35. [Y] Known limitations are documented (PLAYTEST_README.md).
+36. [Y] Playtest README exists (PLAYTEST_README.md).
+37. [Y] Export settings report exists (production_export_settings_report.txt).
+38. [Y] No automated tests were added this pass.
+
+---
+
+## Documentation Deliverables (This Pass)
+
+| File | Status |
+|------|--------|
+| PLAYTEST_README.md | Created |
+| tests/production_export_settings_report.txt | Created |
+| tests/production_demo_release_candidate_report.txt | Created (this file) |
+| tests/production_vertical_slice_playtest_report.txt | Updated with Demo Packaging section |
+
+---
+
+## Blockers Fixed in Prior Pass (Not Re-opened)
+
+- Wake the Stone crystal nodes on demo route
+- Forge turn-in base-storage consumption (consume_combined)
+- Co-op boss camera midpoint crash
+- Demo completion toast spam guard
+
+---
+
+## Open Items (Non-Blocking for Manual Playtest)
+
+- No Windows/Linux export presets in repository
+- Full quest tracker and skill tree lack default hotkeys
+- Bandit Captain difficulty remains high for solo fresh players
+- Placeholder art and map
+- No automated playtest harness
+
+---
+
+## Manual Playtest Pass Summary
+
+Date: 2026-06-16
+
+### Solo path status
+NOT TESTED interactively. Headless `verify_gameplay_boot.gd` PASS after compile fixes (player spawns, moves in Darkpine).
+
+### Local co-op smoke status
+NOT TESTED.
+
+### Blockers found
+1. **New game boot compile cascade** — region_content, game_hud, hearthhold_npc, and related scripts failed GDScript compile; player never spawned in headless boot.
+
+### High-impact bugs found
+1. **hearthhold_npc.gd** duplicate `_INTERACT_OPTS` — all Hearthhold NPC dialogue would fail to load.
+2. **game_hud.gd** missing `InventoryPanelScene` preload — HUD/inventory would not load.
+
+### Fixes applied
+* `region_content.gd` — `_spawn_destructible` uses `_spawn_prop_node`
+* `region_transition_gate.gd` — explicit float yaw for co-op pull
+* `minimap_control.gd` — explicit bool alive check
+* `world_map.gd` — canvas typed as Control
+* `quest_tracker_screen.gd` — NpcMissionRegistry preload
+* `game_hud.gd` — InventoryPanelScene + NpcMissionRegistry preloads; type inference fixes
+* `hearthhold_npc.gd` — removed duplicate `_INTERACT_OPTS`
+* `camp_site.gd` — camp rest status-effect clear without unresolved cast
+
+### Remaining known issues
+* Interactive solo/co-op demo path unverified by human tester
+* Quest tracker / skill tree still unbound (documented)
+* No export preset / standalone binary
+* Headless test_runner.tscn inconclusive (hung when run this session)
+
+### Export status
+No `export_presets.cfg`. Playtest via Godot + `start game.ps1` only. Export prep notes added to production_export_settings_report.txt.
+
+### Session log
+`tests/manual_playtest_session_log.txt`
+
+---
+
+## Kenney Asset Integration Summary
+
+Date: 2026-06-16
+
+* Runtime **ResourceNode** visuals now prefer Kenney Nature Kit meshes (crystal, scrap, fire resin, herbs, etc.) with primitive fallback.
+* **Hearthhold stations** updated: water collector (`pot_large`), workbench (`log_stackLarge`), forge (`campfire_stones`), garden (`plant_bushDetailed`).
+* **10 wrapper scenes** under `assets/third_party/kenney/scenes/`; licenses in `THIRD_PARTY_ASSETS.md`.
+* **Ash Hound** and **world map** visuals unchanged.
+* Build: `.\start game.ps1` exit 0; headless boot exit 0.
+* Art/collision: gameplay collision unchanged; decorative wrappers have no collision.
+* Performance: conservative — no new full pack import.
+
+Recommendation unchanged: **Ready for manual playtest** (verify gather/camp visuals in-game).
+
+---
+
+## Recommendation
+
+**Ready for manual playtest**
+
+Manual playtest execution still required. Blockers discovered via headless new-game boot were fixed; `.\start game.ps1` and `verify_gameplay_boot.gd` exit 0. A human tester must complete the full PLAYTEST_README.md solo and co-op paths before external distribution. Standalone export remains blocked until export presets are configured and smoke-tested.

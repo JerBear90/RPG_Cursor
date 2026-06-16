@@ -1,0 +1,254 @@
+=== Production Death Restart Audit ===
+Real start_new_game + player_died + LevelRestartService reload
+
+--- 1. New game start ---
+  label: new_game
+  active_level: res://scenes/levels/darkpine_forest/darkpine_forest.tscn
+  resolved_spawn_id: waystone_darkpine_forest
+  spawn_marker_path: /root/DarkpineForest/Level/SpawnPoints/waystone_darkpine_forest
+  requested_position: (-5.0, 0.1, 9.0)
+  final_player_position: (-5.0, 3.999985, 8.0)
+  facing_y_rad: 0.0
+  clear_radius: 5.0
+  grounded: true
+  player_instance_id: 601731635703
+  health_instance_id: 602016845317
+  hud_bound_health_id: 602016845317
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+Screenshot: death_restart_new_game_start.png
+
+--- 2. Wilderness death ---
+  label: wilderness_restart
+  active_level: res://scenes/levels/darkpine_forest/darkpine_forest.tscn
+  resolved_spawn_id: new_game_start_darkpine_outpost
+  spawn_marker_path: /root/DarkpineForest/Level/SpawnPoints/new_game_start_darkpine_outpost
+  requested_position: (-5.0, 0.1, 4.0)
+  final_player_position: (-6.0, 1.026002, 0.0)
+  facing_y_rad: 0.0
+  clear_radius: 5.0
+  grounded: true
+  player_instance_id: 1393817559592
+  health_instance_id: 1394102767895
+  hud_bound_health_id: 1394102767895
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  last_restart: { "spawn_id": "region_start_darkpine_forest", "requested_position": (0.0, 0.1, 0.0), "rotation_y": 0.0, "clear_radius": 6.5, "location_type": 0, "region_id": "darkpine_forest", "inside_dungeon": false, "placement_ok": true, "final_position": (-6.0, 1.019028, 0.0), "grounded": true, "player_instance_id": 1393817559592 }
+  xp_preserved: true
+  copper_preserved: true
+  enemy_reset: true
+Screenshot: death_restart_wilderness.png
+
+--- 3. Town death ---
+Detected town_id=darkpine_forest location_type=1
+  label: town_restart
+  active_level: res://scenes/levels/darkpine_forest/darkpine_forest.tscn
+  resolved_spawn_id: waystone_darkpine_forest
+  spawn_marker_path: /root/DarkpineForest/Level/SpawnPoints/waystone_darkpine_forest
+  requested_position: (-5.0, 0.1, 9.0)
+  final_player_position: (-5.0, 3.999985, 8.0)
+  facing_y_rad: 0.0
+  clear_radius: 5.0
+  grounded: true
+  player_instance_id: 2832094726906
+  health_instance_id: 2832379944635
+  hud_bound_health_id: 2832379944635
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  location_type: 1
+  last_restart: { "spawn_id": "town_darkpine_forest", "requested_position": (-5.0, 0.1, 4.0), "rotation_y": 3.14159274101257, "clear_radius": 5.0, "location_type": 1, "region_id": "darkpine_forest", "inside_dungeon": false, "placement_ok": true, "final_position": (-5.0, 2.93304, 8.0), "grounded": true, "player_instance_id": 2832094726906 }
+  dist_town_marker: 5.58658075332642
+Screenshot: death_restart_town.png
+
+--- 4. Camp death ---
+  label: camp_restart
+  active_level: res://scenes/levels/darkpine_forest/darkpine_forest.tscn
+  resolved_spawn_id: camp_darkpine_forest
+  spawn_marker_path: /root/DarkpineForest/Level/SpawnPoints/camp_darkpine_forest
+  requested_position: (6.5, 0.1, -7.5)
+  final_player_position: (6.185923, 0.800299, -9.73978)
+  facing_y_rad: 0.0
+  clear_radius: 4.0
+  grounded: true
+  player_instance_id: 4425728924866
+  health_instance_id: 4426014138997
+  hud_bound_health_id: 4426014138997
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  camp_id: CampSite
+  last_restart: { "spawn_id": "CampSite", "requested_position": (6.5, 0.1, -7.5), "rotation_y": 0.0, "clear_radius": 4.0, "location_type": 3, "region_id": "darkpine_forest", "inside_dungeon": false, "placement_ok": true, "final_position": (6.190651, 0.795924, -9.735484), "grounded": true, "player_instance_id": 4425728924866 }
+  dist_camp_marker: 2.36763143539429
+Screenshot: death_restart_camp.png
+
+--- 5. Abandoned Mine death ---
+  label: dungeon_restart
+  active_level: res://scenes/dungeons/procedural_dungeon.tscn
+  resolved_spawn_id: dungeon_spawn
+  spawn_marker_path: /root/ProceduralDungeon/Level/RestartMarkers/dungeon_spawn
+  requested_position: (10.0, 0.1, 10.0)
+  final_player_position: (10.0, 0.000682, 10.0)
+  facing_y_rad: 0.0
+  clear_radius: 3.5
+  grounded: true
+  player_instance_id: 6203442736506
+  health_instance_id: 6203727949197
+  hud_bound_health_id: 6203727949197
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  seed_before: 4273942118
+  seed_after: 4273942118
+  rooms_before: 9
+  rooms_after: 9
+  still_in_dungeon: true
+  last_restart: { "spawn_id": "dungeon_spawn", "requested_position": (10.0, 0.1, 10.0), "rotation_y": 0.0, "clear_radius": 3.5, "location_type": 4, "region_id": "procedural_dungeon", "inside_dungeon": true, "placement_ok": true, "final_position": (10.0, 0.000682, 10.0), "grounded": true, "player_instance_id": 6203442736506 }
+Screenshot: death_restart_dungeon.png
+
+--- 6. Boss death ---
+  label: boss_restart
+  active_level: res://scenes/dungeons/procedural_dungeon.tscn
+  resolved_spawn_id: dungeon_checkpoint_room_2
+  spawn_marker_path: /root/ProceduralDungeon/Level/RestartMarkers/dungeon_checkpoint_room_2
+  requested_position: (36.0, 0.1, 10.0)
+  final_player_position: (36.0, 0.000682, 10.0)
+  facing_y_rad: 0.0
+  clear_radius: 4.0
+  grounded: true
+  player_instance_id: 6754876271922
+  health_instance_id: 6755161484603
+  hud_bound_health_id: 6755161484603
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  last_restart: { "spawn_id": "preboss_abandoned_mine", "requested_position": (36.0, 0.1, 10.0), "rotation_y": 3.14159274101257, "clear_radius": 5.0, "location_type": 5, "region_id": "procedural_dungeon", "inside_dungeon": true, "placement_ok": true, "final_position": (36.0, 0.000682, 10.0), "grounded": true, "player_instance_id": 6754876271922 }
+  boss_flag_cleared: true
+Screenshot: death_restart_boss.png
+
+--- 7. Dungeon exit ---
+  label: dungeon_exit
+  active_level: res://scenes/levels/darkpine_forest/darkpine_forest.tscn
+  resolved_spawn_id: exterior_abandoned_mine
+  spawn_marker_path: /root/DarkpineForest/Level/SpawnPoints/exterior_abandoned_mine
+  requested_position: (-18.0, 0.1, -6.0)
+  final_player_position: (-18.0, 0.500684, -6.0)
+  facing_y_rad: 0.0
+  clear_radius: 4.0
+  grounded: true
+  player_instance_id: 7005678870672
+  health_instance_id: 7005964086636
+  hud_bound_health_id: 7005964086636
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  exterior_entrance_id: exterior_abandoned_mine
+  dist_exterior: 0.40068361163139
+  placement_report: { "spawn_id": "exterior_abandoned_mine", "requested_position": (-18.0, 0.1, -6.0), "final_position": (-18.0, 0.500684, -6.0), "grounded": true, "location_type": 0, "fallback_used": false }
+  exterior_placement: { "requested_spawn_id": "exterior_abandoned_mine", "resolved_spawn_id": "exterior_abandoned_mine", "exterior_position": (-18.0, 0.1, -6.0), "final_position": (-18.0, 0.500684, -6.0), "fallback_used": false }
+Screenshot: death_restart_dungeon_exit.png
+
+--- 8. Region transition ---
+  label: region_transition_to_hearthhold
+  active_level: res://scenes/levels/hearthhold_camp/hearthhold_camp.tscn
+  resolved_spawn_id: darkpine_arrival_hearthhold
+  spawn_marker_path: /root/HearthholdCamp/Level/SpawnPoints/darkpine_arrival_hearthhold
+  requested_position: (0.0, 0.1, 8.0)
+  final_player_position: (0.0, 0.000683, 8.0)
+  facing_y_rad: 0.0
+  clear_radius: 6.0
+  grounded: true
+  player_instance_id: 7383937984021
+  health_instance_id: 7384223196079
+  hud_bound_health_id: 7384223196079
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  requested_spawn_id: darkpine_arrival_hearthhold
+  dist_arrival: 0.09931717813015
+  placement_report: { "spawn_id": "darkpine_arrival_hearthhold", "requested_position": (0.0, 0.1, 8.0), "final_position": (0.0, 0.000683, 8.0), "grounded": true, "location_type": 8, "fallback_used": false }
+Screenshot: death_restart_region_to_hearthhold.png
+  label: region_transition_to_darkpine
+  active_level: res://scenes/levels/darkpine_forest/darkpine_forest.tscn
+  resolved_spawn_id: hearthhold_return_darkpine
+  spawn_marker_path: /root/DarkpineForest/Level/SpawnPoints/hearthhold_return_darkpine
+  requested_position: (16.0, 0.1, 10.0)
+  final_player_position: (16.0, 0.500684, 10.0)
+  facing_y_rad: 0.0
+  clear_radius: 6.0
+  grounded: true
+  player_instance_id: 7655141678951
+  health_instance_id: 7655426890479
+  hud_bound_health_id: 7655426890479
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  requested_spawn_id: hearthhold_return_darkpine
+  dist_arrival: 0.40068361163139
+  placement_report: { "spawn_id": "hearthhold_return_darkpine", "requested_position": (16.0, 0.1, 10.0), "final_position": (16.0, 0.500684, 10.0), "grounded": true, "location_type": 8, "fallback_used": false }
+Screenshot: death_restart_region_to_darkpine.png
+
+--- 9. Fast travel ---
+  label: fast_travel
+  active_level: res://scenes/levels/hearthhold_camp/hearthhold_camp.tscn
+  resolved_spawn_id: region_start_hearthhold_camp
+  spawn_marker_path: /root/HearthholdCamp/Level/SpawnPoints/region_start_hearthhold_camp
+  requested_position: (0.0, 0.1, 0.0)
+  final_player_position: (1.196981, 1.020942, -0.022443)
+  facing_y_rad: 0.0
+  clear_radius: 6.0
+  grounded: true
+  player_instance_id: 7823199052804
+  health_instance_id: 7823484264663
+  hud_bound_health_id: 7823484264663
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  waystone_id: hearthhold_camp
+  dist_waystone: 1.51043105125427
+Screenshot: death_restart_fast_travel.png
+
+--- 10. Continue/load ---
+  label: continue_load
+  active_level: res://scenes/levels/darkpine_forest/darkpine_forest.tscn
+  resolved_spawn_id: save_point
+  spawn_marker_path: /root/DarkpineForest/Level/SpawnPoints/region_start_darkpine_forest
+  requested_position: (0.0, 0.1, 0.0)
+  final_player_position: (-1.756929, 0.498573, 1.963312)
+  facing_y_rad: 0.0
+  clear_radius: 6.5
+  grounded: true
+  player_instance_id: 8447798030250
+  health_instance_id: 8448083232910
+  hud_bound_health_id: 8448083232910
+  player_group_count: 1
+  game_hud_count: 1
+  death_input_locked: false
+  saved_respawn_region: darkpine_forest
+  saved_respawn_position: (-5.031066, 0.500934, 4.021458)
+  requested_spawn_id: save_point
+  placement_report: {  }
+  dist_saved: 3.86729121208191
+  xp_preserved: true
+  zero_spawn: false
+
+--- 11. Repeated death ---
+Screenshot: death_restart_repeated.png
+
+--- 12. Obstructed marker ---
+
+=== Production Scenario Matrix ===
+New game start | PASS | spawn=waystone_darkpine_forest
+Darkpine wilderness death | PASS | spawn=new_game_start_darkpine_outpost
+Darkpine town death | PASS | spawn=waystone_darkpine_forest
+Camp death | PASS | spawn=camp_darkpine_forest
+Abandoned Mine death | PASS | spawn=dungeon_spawn
+Boss death | PASS | spawn=dungeon_checkpoint_room_2
+Dungeon exit | PASS | spawn=exterior_abandoned_mine
+Region transition | PASS | spawn=darkpine_arrival_hearthhold
+Region transition return | PASS | spawn=hearthhold_return_darkpine
+Fast travel | PASS | spawn=region_start_hearthhold_camp
+Continue/load | PASS | spawn=save_point
+Second consecutive death | PASS | spawn=

@@ -28,7 +28,7 @@ const PROP_COLLISION_LAYER := 8
 const WORLD_COLLISION_MASK := 6  # player (layer 2) + enemies (layer 4)
 
 @export var region_id: String = ""
-@export_enum("island", "camp") var terrain_mode: String = "island"
+@export_enum("island", "camp", "swamp", "volcanic", "frozen", "coastal", "blighted", "desert", "sunless") var terrain_mode: String = "island"
 @export var island_radius: float = 28.0
 @export var water_extent: float = 52.0
 @export var tile_step: float = 2.0
@@ -76,6 +76,52 @@ func _ready() -> void:
 		scatter_rocks = mini(scatter_rocks, 8)
 		scatter_grass = mini(scatter_grass, 24)
 		scatter_bushes = mini(scatter_bushes, 8)
+	elif terrain_mode == "swamp":
+		land_tile = "ground_pathRocks.glb"
+		apply_dark_tint = true
+		_tree_pool = [
+			"tree_simple_dark.glb", "tree_tall_dark.glb", "tree_detailed.glb",
+			"tree_pineDefaultA.glb", "tree_pineTallA.glb",
+		]
+		_bush_pool = [
+			"mushroom_red.glb", "mushroom_tan.glb", "plant_bushDetailed.glb",
+			"flower_purpleA.glb", "plant_bushLarge.glb",
+		]
+		_grass_pool = ["grass.glb", "grass_large.glb"]
+	elif terrain_mode == "volcanic":
+		land_tile = "ground_pathRocks.glb"
+		apply_dark_tint = true
+		water_extent = 0.0
+		_tree_pool = ["stump_oldTall.glb", "stump_old.glb", "tree_simple_dark.glb", "tree_tall_dark.glb"]
+		_rock_pool = ["rock_largeA.glb", "rock_largeB.glb", "rock_tallA.glb", "cliff_block_rock.glb", "stone_largeA.glb"]
+		_grass_pool = ["grass.glb"]
+		_bush_pool = ["plant_bush.glb", "plant_bushSmall.glb"]
+	elif terrain_mode == "desert":
+		land_tile = "ground_pathRocks.glb"
+		apply_dark_tint = true
+		water_extent = 0.0
+		scatter_grass = 0
+		_tree_pool = ["stump_oldTall.glb", "stump_old.glb", "tree_simple_dark.glb"]
+		_rock_pool = ["rock_largeA.glb", "rock_largeB.glb", "rock_tallA.glb", "stone_largeA.glb", "cliff_block_rock.glb"]
+		_grass_pool = []
+		_bush_pool = ["plant_bushSmall.glb"]
+	elif terrain_mode == "sunless":
+		land_tile = "ground_pathRocks.glb"
+		apply_dark_tint = true
+		water_extent = 0.0
+		scatter_grass = 0
+		_tree_pool = ["tree_simple_dark.glb", "tree_tall_dark.glb", "stump_oldTall.glb"]
+		_rock_pool = ["cliff_block_stone.glb", "statue_columnDamaged.glb", "rock_largeA.glb", "statue_obelisk.glb"]
+		_grass_pool = []
+		_bush_pool = ["plant_bushLarge.glb", "mushroom_tan.glb"]
+	elif terrain_mode == "frozen":
+		land_tile = "ground_pathStraight.glb"
+		apply_dark_tint = false
+		water_extent = 0.0
+		_tree_pool = ["tree_simple_dark.glb", "tree_tall_dark.glb", "stump_oldTall.glb", "stump_old.glb"]
+		_rock_pool = ["rock_largeA.glb", "rock_largeB.glb", "cliff_block_stone.glb", "cliff_block_rock.glb", "stone_largeA.glb"]
+		_grass_pool = ["grass.glb", "grass_large.glb"]
+		_bush_pool = ["plant_bushSmall.glb", "mushroom_tan.glb"]
 	_setup_world_environment()
 	_boost_level_lighting()
 	_build_ground_base()
@@ -115,8 +161,27 @@ func _run_mesh_pipeline() -> void:
 		await _flush_mesh_queue()
 		_queue_shore_rocks()
 		await _flush_mesh_queue()
+	if terrain_mode == "swamp" and water_extent > 0.0:
+		_build_water_base()
+		_queue_swamp_shallows()
+		await _flush_mesh_queue()
 	if terrain_mode == "camp":
 		_queue_camp_fence()
+		await _flush_mesh_queue()
+	if terrain_mode == "volcanic":
+		_queue_volcanic_fissures()
+		await _flush_mesh_queue()
+	if terrain_mode == "frozen":
+		_queue_frozen_scatter()
+	if terrain_mode == "coastal":
+		_queue_coastal_scatter()
+		await _flush_mesh_queue()
+	if terrain_mode == "blighted":
+		_queue_blighted_scatter()
+	if terrain_mode == "desert":
+		_queue_desert_scatter()
+	if terrain_mode == "sunless":
+		_queue_sunless_scatter()
 		await _flush_mesh_queue()
 
 
@@ -264,7 +329,7 @@ func _build_spawn_pad() -> void:
 		for z in range(-4, 5):
 			var wx := float(x) * tile_step
 			var wz := float(z) * tile_step
-			if terrain_mode == "island":
+			if terrain_mode in ["island", "swamp"]:
 				if Vector2(wx, wz).length() > island_radius - tile_step * 0.15:
 					continue
 			elif absf(wx) > island_radius or absf(wz) > island_radius:
@@ -299,7 +364,7 @@ func _build_immediate_vista() -> void:
 		["campfire_logs.glb", Vector3(-4, 0, -5), 0.0, 1.7],
 	]
 	for spec in ring:
-		if terrain_mode == "island" and Vector2(spec[1].x, spec[1].z).length() > island_radius - 2.0:
+		if terrain_mode in ["island", "swamp"] and Vector2(spec[1].x, spec[1].z).length() > island_radius - 2.0:
 			continue
 		_add_mesh(
 			_props,
@@ -455,7 +520,7 @@ func _queue_land_tiles() -> void:
 		for z in range(-half, half + 1):
 			var wx := float(x) * tile_step
 			var wz := float(z) * tile_step
-			if terrain_mode == "island":
+			if terrain_mode in ["island", "swamp"]:
 				if Vector2(wx, wz).length() > island_radius - tile_step * 0.15:
 					continue
 			elif absf(wx) > island_radius or absf(wz) > island_radius:
@@ -481,6 +546,140 @@ func _queue_water_shore_strip() -> void:
 			yaw,
 			Vector3(tile_scale, 1.0, tile_scale)
 		)
+
+
+func _queue_volcanic_fissures() -> void:
+	for i in 6:
+		var angle := TAU * float(i) / 6.0 + randf_range(-0.2, 0.2)
+		var dist := randf_range(island_radius * 0.35, island_radius * 0.75)
+		var pos := Vector3(cos(angle) * dist, -0.04, sin(angle) * dist)
+		_queue_mesh(_props, "rock_tallA.glb", pos, randf_range(0.0, 360.0), Vector3(1.2, 1.2, 1.2), true)
+		_queue_mesh(_land, "ground_pathRocks.glb", pos + Vector3(0.8, 0.02, 0.0), randf_range(0.0, 360.0), Vector3(1.4, 1.0, 1.4))
+
+
+func _queue_frozen_scatter() -> void:
+	for i in 8:
+		var angle := TAU * float(i) / 8.0 + randf_range(-0.15, 0.15)
+		var dist := randf_range(island_radius * 0.3, island_radius * 0.82)
+		var pos := Vector3(cos(angle) * dist, -0.03, sin(angle) * dist)
+		_queue_mesh(_props, "cliff_block_stone.glb", pos, randf_range(0.0, 360.0), Vector3(1.3, 1.3, 1.3), true)
+		_queue_mesh(_land, "ground_pathStraight.glb", pos + Vector3(1.0, 0.02, 0.5), randf_range(0.0, 360.0), Vector3(1.2, 1.0, 1.2))
+
+
+func _queue_coastal_scatter() -> void:
+	for i in 10:
+		var angle := TAU * float(i) / 10.0 + randf_range(-0.2, 0.2)
+		var dist := randf_range(island_radius * 0.35, island_radius * 0.88)
+		var pos := Vector3(cos(angle) * dist, -0.02, sin(angle) * dist)
+		_queue_mesh(_props, "rock_largeA.glb", pos, randf_range(0.0, 360.0), Vector3(1.35, 1.35, 1.35), true)
+	for i in 5:
+		var angle := TAU * float(i) / 5.0
+		var dist := randf_range(island_radius * 0.5, island_radius * 0.75)
+		var pos := Vector3(cos(angle) * dist, -0.03, sin(angle) * dist)
+		_queue_mesh(_props, "cliff_block_rock.glb", pos, randf_range(0.0, 360.0), Vector3(1.5, 1.5, 1.5), true)
+
+
+func _queue_blighted_scatter() -> void:
+	var fungus := ["mushroom_red.glb", "mushroom_tan.glb", "mushroom_redGroup.glb"]
+	var twisted := ["tree_simple_dark.glb", "tree_tall_dark.glb", "stump_oldTall.glb", "stump_old.glb"]
+	for i in 14:
+		var angle := TAU * float(i) / 14.0 + randf_range(-0.25, 0.25)
+		var dist := randf_range(island_radius * 0.2, island_radius * 0.9)
+		if dist < 8.0:
+			continue
+		var pos := Vector3(cos(angle) * dist, -0.02, sin(angle) * dist)
+		var tree: String = twisted[i % twisted.size()]
+		_queue_mesh(_props, tree, pos, randf_range(0.0, 360.0), Vector3(1.6, 1.8, 1.6), true)
+	for i in 18:
+		var angle := randf() * TAU
+		var dist := randf_range(6.0, island_radius * 0.85)
+		var pos := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+		var shroom: String = fungus[i % fungus.size()]
+		_queue_mesh(_props, shroom, pos, randf_range(0.0, 360.0), Vector3(1.2, 1.2, 1.2))
+	for i in 8:
+		var angle := TAU * float(i) / 8.0
+		var dist := randf_range(island_radius * 0.45, island_radius * 0.82)
+		var pos := Vector3(cos(angle) * dist, -0.04, sin(angle) * dist)
+		_queue_mesh(_props, "cliff_block_stone.glb", pos, randf_range(0.0, 360.0), Vector3(1.4, 1.4, 1.4), true)
+		_queue_mesh(_props, "statue_columnDamaged.glb", pos + Vector3(1.2, 0, 0.8), randf_range(0.0, 360.0), Vector3(1.1, 1.3, 1.1), true)
+	for i in 6:
+		var pos := Vector3(randf_range(-28.0, 28.0), -0.06, randf_range(-28.0, 28.0))
+		if pos.length() < 10.0 or pos.length() > island_radius - 2.0:
+			continue
+		_queue_mesh(_props, "plant_bushLarge.glb", pos, randf_range(0.0, 360.0), Vector3(1.4, 1.4, 1.4))
+
+
+func _queue_desert_scatter() -> void:
+	var ruins := ["statue_columnDamaged.glb", "statue_block.glb", "platform_stone.glb"]
+	var dead_trees := ["stump_oldTall.glb", "stump_old.glb", "tree_simple_dark.glb", "tree_tall_dark.glb"]
+	var obelisks := ["statue_obelisk.glb", "statue_column.glb"]
+	for i in 12:
+		var angle := TAU * float(i) / 12.0 + randf_range(-0.25, 0.25)
+		var dist := randf_range(island_radius * 0.25, island_radius * 0.88)
+		if dist < 8.0:
+			continue
+		var pos := Vector3(cos(angle) * dist, -0.02, sin(angle) * dist)
+		var ruin: String = ruins[i % ruins.size()]
+		_queue_mesh(_props, ruin, pos, randf_range(0.0, 360.0), Vector3(1.1, 1.2, 1.1), true)
+	for i in 10:
+		var angle := randf() * TAU
+		var dist := randf_range(10.0, island_radius * 0.82)
+		var pos := Vector3(cos(angle) * dist, -0.03, sin(angle) * dist)
+		var tree: String = dead_trees[i % dead_trees.size()]
+		_queue_mesh(_props, tree, pos, randf_range(0.0, 360.0), Vector3(1.4, 1.6, 1.4), true)
+	for i in 6:
+		var angle := TAU * float(i) / 6.0
+		var dist := randf_range(island_radius * 0.4, island_radius * 0.78)
+		var pos := Vector3(cos(angle) * dist, -0.04, sin(angle) * dist)
+		var obelisk: String = obelisks[i % obelisks.size()]
+		_queue_mesh(_props, obelisk, pos, randf_range(0.0, 360.0), Vector3(1.2, 1.4, 1.2), true)
+	for i in 8:
+		var pos := Vector3(randf_range(-30.0, 30.0), -0.05, randf_range(-30.0, 30.0))
+		if pos.length() < 10.0 or pos.length() > island_radius - 2.0:
+			continue
+		_queue_mesh(_props, "rock_largeA.glb", pos, randf_range(0.0, 360.0), Vector3(1.2, 1.2, 1.2))
+
+
+func _queue_sunless_scatter() -> void:
+	var gothic := ["statue_columnDamaged.glb", "statue_block.glb", "statue_obelisk.glb", "platform_stone.glb"]
+	var dead_forest := ["tree_simple_dark.glb", "tree_tall_dark.glb", "stump_oldTall.glb"]
+	for i in 14:
+		var angle := TAU * float(i) / 14.0 + randf_range(-0.2, 0.2)
+		var dist := randf_range(island_radius * 0.22, island_radius * 0.88)
+		if dist < 9.0:
+			continue
+		var pos := Vector3(cos(angle) * dist, -0.02, sin(angle) * dist)
+		var prop: String = dead_forest[i % dead_forest.size()]
+		_queue_mesh(_props, prop, pos, randf_range(0.0, 360.0), Vector3(1.5, 1.7, 1.5), true)
+	for i in 10:
+		var angle := randf() * TAU
+		var dist := randf_range(10.0, island_radius * 0.82)
+		var pos := Vector3(cos(angle) * dist, -0.03, sin(angle) * dist)
+		var ruin: String = gothic[i % gothic.size()]
+		_queue_mesh(_props, ruin, pos, randf_range(0.0, 360.0), Vector3(1.15, 1.25, 1.15), true)
+	for i in 6:
+		var angle := TAU * float(i) / 6.0
+		var dist := randf_range(island_radius * 0.5, island_radius * 0.78)
+		var pos := Vector3(cos(angle) * dist, -0.04, sin(angle) * dist)
+		_queue_mesh(_props, "cliff_block_stone.glb", pos, randf_range(0.0, 360.0), Vector3(1.5, 1.5, 1.5), true)
+		_queue_mesh(_props, "fence_gate.glb", pos + Vector3(1.5, 0, 0.6), randf_range(0.0, 360.0), Vector3(1.0, 1.0, 1.0), true)
+
+
+func _queue_swamp_shallows() -> void:
+	for x in range(-3, 4):
+		for z in range(-22, 28, 4):
+			if absf(x) <= 1 and z > -18:
+				continue
+			var pos := Vector3(float(x) * 3.5, -0.08, float(z))
+			if Vector2(pos.x, pos.z).length() > island_radius - 2.0:
+				continue
+			_queue_mesh(
+				_water,
+				"ground_riverTile.glb",
+				pos,
+				randf_range(0.0, 360.0),
+				Vector3(tile_scale * 0.85, 1.0, tile_scale * 0.85)
+			)
 
 
 func _queue_shore_rocks() -> void:
@@ -572,6 +771,14 @@ func _build_region_landmarks() -> void:
 			for i in 5:
 				var offset := Vector3(randf_range(-8, 8), 0, randf_range(-16, -8))
 				_add_mesh(_props, "hanging_moss.glb", offset, randf_range(0, 360), Vector3.ONE * randf_range(0.9, 1.3))
+		"rotfen_marsh":
+			_build_trail(Vector3(0, 0, -20), Vector3(0, 0, 26), 24)
+			_build_trail(Vector3(-8, 0, 2), Vector3(-8, 0, 8), 4)
+			_add_mesh(_props, "statue_column.glb", Vector3(0, 0, 28), 0.0, Vector3.ONE * 2.0, true)
+			_add_mesh(_props, "statue_ring.glb", Vector3(-6, 0, 16), 0.0, Vector3.ONE * 1.1)
+			_add_mesh(_props, "statue_ring.glb", Vector3(0, 0, 18), 0.0, Vector3.ONE * 1.1)
+			_add_mesh(_props, "statue_ring.glb", Vector3(6, 0, 20), 0.0, Vector3.ONE * 1.1)
+			_add_prop_cluster(Vector3(-8, 0, 4), ["campfire_planks.glb", "tent_smallClosed.glb", "log_stack.glb"], 1.5)
 
 
 func _build_trail(from: Vector3, to: Vector3, steps: int) -> void:
@@ -587,7 +794,7 @@ func _add_prop_cluster(center: Vector3, assets: Array, spread: float) -> void:
 	for i in assets.size():
 		var offset := Vector3(randf_range(-spread, spread), 0.0, randf_range(-spread, spread))
 		var pos := center + offset
-		if terrain_mode == "island" and Vector2(pos.x, pos.z).length() > island_radius - 2.5:
+		if terrain_mode in ["island", "swamp"] and Vector2(pos.x, pos.z).length() > island_radius - 2.5:
 			continue
 		var glb: String = assets[i]
 		var scale := Vector3.ONE * randf_range(0.9, 1.35)
@@ -644,6 +851,20 @@ func _apply_region_layout(layout: Dictionary) -> void:
 	var kind: String = layout.get("kind", terrain_mode)
 	if kind == "camp":
 		terrain_mode = "camp"
+	elif kind == "swamp":
+		terrain_mode = "swamp"
+	elif kind == "volcanic":
+		terrain_mode = "volcanic"
+	elif kind == "frozen":
+		terrain_mode = "frozen"
+	elif kind == "coastal":
+		terrain_mode = "coastal"
+	elif kind == "blighted":
+		terrain_mode = "blighted"
+	elif kind == "desert":
+		terrain_mode = "desert"
+	elif kind == "sunless":
+		terrain_mode = "sunless"
 	elif kind in ["island", "stub"]:
 		terrain_mode = "island"
 	if layout.has("radius"):
@@ -690,6 +911,15 @@ func _apply_land_tile_material(node: Node3D) -> void:
 	var dirt := Color(0.30, 0.24, 0.16)
 	var rock_tint := Color(0.24, 0.26, 0.22)
 	var corruption := Color(0.14, 0.18, 0.12)
+	if terrain_mode == "swamp":
+		grass = Color(0.14, 0.22, 0.16)
+		dirt = Color(0.18, 0.16, 0.12)
+		corruption = Color(0.08, 0.22, 0.18)
+	elif terrain_mode == "desert":
+		grass = Color(0.42, 0.32, 0.18)
+		dirt = Color(0.36, 0.26, 0.14)
+		rock_tint = Color(0.48, 0.34, 0.2)
+		corruption = Color(0.28, 0.18, 0.1)
 	var col := grass.lerp(dirt, clampf(patch * 0.35 + 0.15, 0.0, 0.55))
 	col = col.lerp(rock_tint, clampf(absf(sin(pos.x * 0.41 + pos.z * 0.33)), 0.0, 0.22))
 	col = col.lerp(corruption, clampf(dist_norm * 0.35, 0.0, 0.3))

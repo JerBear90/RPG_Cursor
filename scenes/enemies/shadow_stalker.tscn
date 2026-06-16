@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://shadowstalker001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="ShadowStalker" instance=ExtResource("1")]
+enemy_id = "shadow_stalker"
+display_name = "Shadow Stalker"
+enemy_level = 9
+max_health = 52.0
+damage = 17.0
+move_speed = 5.2
+detection_range = 17.0
+attack_range = 2.3
+loot_table_id = "shadow_stalker"
+xp_reward = 38
+experience_reward = 28
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Matt_SingleWeapon.gltf"

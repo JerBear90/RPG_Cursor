@@ -1,0 +1,131 @@
+Pet System, Beast Bond, Pet Shelter, and Companion Combat — Production Report
+=============================================================================
+Date: 2026-06-10
+Scope: First playable shared party pet system (Phase 0–8 preserved)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0** (verified after this pass)
+
+---
+
+## Changes Summary
+
+### Beast Bond Skill Branch
+* **Beast Bond** — unlocks pet system access (level 3, 1 SP)
+* **Loyal Companion** — +10 pet max HP per rank (max 2)
+* **Scavenger Nose** — +10% pet resource find per rank (stored/display)
+* **Pack Tactics** — +5% pet damage vs shared target per rank (max 2)
+* **Quick Recall** — faster pet recall speed (max 1)
+* Legacy **Wolf Bond** preserved — also grants Beast Bond access
+
+### Pet Shelter (Hearthhold Camp)
+* Requires Beast Bond + Pet Shelter Level 1 upgrade (Wood x8, Cloth x4, Hide x2, Bone x3, 20 copper)
+* Interact: adopt/summon Ash Hound, recover downed pet
+* Removed auto-unlock on Hearthhold region entry
+* Toasts: `Beast Bond Required`, `Pet Shelter Level 1 Required`, `P1 adopted Ash Hound`, `Pet summoned`
+
+### Shared Party Pet Architecture
+* One active party pet (Ash Hound) — avoids co-op crowding
+* Follows party center; warps if >15m; stuck recovery after 3s
+* Commands: Follow, Stay, Attack, Defend, Recall (pet wheel / D-pad Down)
+* Stats: 60 HP, 6 damage, 1.5s attack CD, 8m detection, 2.5m follow distance
+
+### Pet Scripts
+* `pet_data.gd`, `pet_gear_data.gd`, `pet_stats.gd`, `pet_ai.gd`, `pet_controller.gd`
+* `ash_hound.gd` extends pet controller
+* `pet_shelter.gd` — shelter requirement helpers
+* `pet_command_wheel.gd` — alias for command wheel UI
+
+### Pet Combat
+* Pet in `"pet"` group; hurtbox team `"pet"`, hitbox team `"pet"`
+* Takes damage, can be downed (not permanently killed)
+* Recovers at camp rest, Pet Shelter interact, or shelter recovery action
+* Does not drain player weapon durability
+
+### Pet Gear (placeholder)
+* Items: Ash Collar (+10 HP), Bone Charm (+1 dmg), Small Pack (+discovery display)
+* `PetManager.equipped_gear_id` applies modifiers when set
+
+### Pet HUD
+* Compact status label: `Ash Hound | HP 42 / 60 | Follow`
+* Hidden when no active pet
+* Downed/recovered toasts
+
+### Save / Load
+* Beast bond flag, adopted pets, active pet ID, names, HP/downed state, command, gear
+* Legacy `unlocked` array migrates to adopted pets
+* Pet respawns near party on level load
+
+---
+
+## Manual Verification Checklist
+
+1. [ ] Solo New Game still behaves unchanged.
+2. [ ] Local Co-op still spawns both players safely.
+3. [ ] Beast Bond skill appears in skill tree.
+4. [ ] Beast Bond can be unlocked.
+5. [ ] Pet Shelter exists in Hearthhold Camp.
+6. [ ] Pet Shelter shows Beast Bond requirement.
+7. [ ] Pet Shelter Level 1 upgrade consumes resources once.
+8. [ ] Pet Shelter level saves/loads.
+9. [ ] Ash Hound can be adopted/summoned.
+10. [ ] Pet HUD appears when pet is active.
+11. [ ] Pet HUD hides when no pet is active.
+12. [ ] Pet follows P1 in solo.
+13. [ ] Pet follows party correctly in local co-op.
+14. [ ] Pet recalls if too far.
+15. [ ] Pet moves through region transition.
+16. [ ] Pet moves through Waystone travel.
+17. [ ] Pet appears after camp rest.
+18. [ ] Pet command Follow works.
+19. [ ] Pet command Stay works.
+20. [ ] Pet command Attack works.
+21. [ ] Pet command Defend works.
+22. [ ] Pet command Recall works.
+23. [ ] Pet attacks hostile enemy.
+24. [ ] Pet does not attack friendly NPC.
+25. [ ] Pet can take damage.
+26. [ ] Pet can be downed.
+27. [ ] Downed pet stops attacking.
+28. [ ] Pet recovers at camp/rest/base according to implemented rules.
+29. [ ] Pet does not trigger party wipe.
+30. [ ] Pet does not duplicate boss rewards.
+31. [ ] Pet does not break boss arena entry.
+32. [ ] Beast Bond passive affects pet access.
+33. [ ] Loyal Companion affects pet HP if implemented.
+34. [ ] Pack Tactics affects pet damage if implemented.
+35. [ ] Quick Recall affects recall if implemented.
+36. [ ] Pet gear placeholder displays if implemented.
+37. [ ] Pet gear effect applies if implemented.
+38. [ ] Save/load preserves active pet.
+39. [ ] Save/load preserves pet name/HP/command.
+40. [ ] Older save with no pet data loads safely.
+41. [ ] Existing spellcasting still works.
+42. [ ] Existing skill tree still works.
+43. [ ] Existing equipment/gem systems still work.
+44. [ ] Existing resource gathering still works.
+45. [ ] Existing co-op revive still works.
+46. [ ] Existing Waystone travel still works.
+47. [ ] Existing boss fight still works.
+48. [ ] `.\start game.ps1` exits 0.
+
+---
+
+## Known Limitations (Post-Pass)
+
+* Only Ash Hound implemented (Grove Fox, Bone Raven, etc. not built)
+* One shared party pet — not per-player pets
+* Scavenger Nose resource find is stored/display only
+* Pet gear equip UI is placeholder — items exist, manual `equipped_gear_id` only
+* Pet uses placeholder German Shepherd mesh, not custom ash-gray art
+* No pet breeding, leveling, or multiple active pets
+* Pet wheel gamepad-only (D-pad Down hold); no keyboard bind yet
+* No automated tests added
+
+---
+
+## NPC Mission Pass Cross-Summary (2026-06-10)
+
+The NPC mission/reputation pass adds **Beast Handler** mission **A Hound in the Ash**, which gates pet adoption flow alongside existing Beast Bond + Pet Shelter requirements. Pet system behavior is unchanged; mission objectives hook `PetManager.pet_adopted`, Beast Bond skill unlock, and pet shelter upgrades. See `tests/production_npc_mission_reputation_report.txt` for full NPC mission checklist.

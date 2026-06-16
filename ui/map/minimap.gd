@@ -148,16 +148,11 @@ func _collect_edge_targets() -> Array[Dictionary]:
 func _update_distance_readout() -> void:
 	if _distance == null:
 		return
-	var player := _get_player()
-	if player == null:
+	var dist := ObjectiveRouter.get_distance_to_tracked(get_tree())
+	if dist < 0.0:
 		_distance.visible = false
 		return
-	var target := MinimapMarkerService.get_tracked_objective_position(get_tree())
-	if target == Vector3.ZERO:
-		_distance.visible = false
-		return
-	var dist := player.global_position.distance_to(target)
-	_distance.text = "%d m" % int(dist)
+	_distance.text = "%dm" % int(dist)
 	_distance.visible = true
 	if MapManager.has_waypoint():
 		_distance.add_theme_color_override("font_color", UiColors.TEXT_WAYPOINT)

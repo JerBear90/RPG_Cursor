@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3 uid="uid://hollowking001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+[ext_resource type="Script" path="res://scripts/enemies/bosses/hollow_king.gd" id="2"]
+
+[node name="HollowKing" instance=ExtResource("1")]
+script = ExtResource("2")
+enemy_id = "hollow_king"
+display_name = "The Hollow King"
+enemy_level = 14
+max_health = 520.0
+damage = 26.0
+move_speed = 3.0
+detection_range = 0.0
+attack_range = 3.2
+loot_table_id = "hollow_king"
+xp_reward = 260
+experience_reward = 240
+respawns = false
+head_bar_offset = 3.1
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Matt_SingleWeapon.gltf"
+
+[node name="PaleCore" type="OmniLight3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 0.2)
+light_color = Color(0.55, 0.75, 1, 1)
+light_energy = 0.85
+omni_range = 4.0

@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://kenney_tree_dead"]
+
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="1"]
+
+[node name="KenneyTreeDead" type="Node3D"]
+metadata/kenney_pack = "Nature Kit"
+metadata/kenney_source = "tree_tall_dark.glb"
+
+[node name="Mesh" type="Node3D" parent="."]
+script = ExtResource("1")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/tree_tall_dark.glb"
+mesh_scale = Vector3(1.0, 1.0, 1.0)
+fallback_kind = "tree"

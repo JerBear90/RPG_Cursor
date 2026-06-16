@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://shellbackbrute001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="ShellbackBrute" instance=ExtResource("1")]
+enemy_id = "shellback_brute"
+display_name = "Shellback Brute"
+enemy_level = 9
+max_health = 110.0
+damage = 20.0
+move_speed = 3.8
+detection_range = 16.0
+attack_range = 3.0
+loot_table_id = "shellback_brute"
+xp_reward = 65
+experience_reward = 49
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Zombie_Chubby.gltf"
+mesh_scale = Vector3(1.4, 1.4, 1.4)

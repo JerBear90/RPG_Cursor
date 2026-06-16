@@ -1,0 +1,114 @@
+Exiled Survivors — Phase 4 Final Production Report
+Generated: 2026-06-10
+
+=== 1. Frostgrave production findings ===
+Code-audit pass completed; interactive playthrough required for full sign-off.
+Systems wired: Ashfall↔Frostgrave transitions (heart_of_blackvein / frostgrave_pass),
+Frostwatch merchants/NPCs/healer/rest/checkpoint, cold HUD, blizzard, ice/deep-snow zones,
+enemy territories, resources, quest chain, death-restart priority (checkpoint_frostgrave → camp → town → waystone → region_start).
+Defects found and fixed during this pass: burial-seal and checkpoint quest objectives pointed at wrong quest IDs; healer frostbite dialogue string formatting; duplicate boss loot entries.
+
+=== 2. Defects fixed during manual verification ===
+- Burial seal puzzle now advances `the_pale_heart` / `restore_seals` (was gravewind_rising).
+- Crypt checkpoint now advances `the_pale_heart` / `reach_checkpoint` and restores focus.
+- Healer station uses Sister Caia + frostbite copy in Frostgrave.
+- Hollow King no longer inherits BossController warden death side-effects or double-loots via EnemyBase.
+- Boss reward order: ground loot (copper/shards) → inventory grants (relic, pass, Gravewind Charm) → CryptState persistence → quest advance → exit spawn.
+- Added `DamageType.FROST` (replaces temporary WATER mapping for frostbite/hazards).
+
+=== 3. Ice traction implementation ===
+`environment_movement_modifier.gd`: accel 0.72, decel 0.35, steer 0.78 (scaled by zone traction).
+`player_controller.gd`: ice uses lerp steering + reduced deceleration glide; normal friction on non-ice.
+`ice_zone.gd` marks surfaces via existing Area3D volumes in Frostgrave and Paleheart black-ice rooms.
+
+=== 4. Hollow King scene path ===
+res://scenes/enemies/bosses/hollow_king.tscn
+
+=== 5. Hollow King script path ===
+res://scripts/enemies/bosses/hollow_king.gd
+
+=== 6. Placeholder assets removed ===
+Paleheart boss no longer references `iron_crucible.tscn`. Iron Crucible remains Blackvein-only.
+
+=== 7. Phase One attacks ===
+Royal Cleave, Frozen Overhead, Frost Wave, Ice Pillars (offset telegraphs), Frozen Husk Summon (max 2).
+
+=== 8. Phase transition behavior ===
+At ≤50% HP: invulnerable TRANSITION (3.5s), hazards cleared, black-ice patches spawn, toast + boss_phase SFX, then Phase Two.
+
+=== 9. Phase Two attacks ===
+Gravewind Step (reposition + follow-up), Paleheart Burst (radial frost), Crownfall Combo (3-hit), Black-Ice Trail, Gravewind Wraith Summon (max 2).
+
+=== 10. Summon behavior ===
+Capped husk/wraith counts; all summons cleared on boss death; scene reload clears on player death restart.
+
+=== 11. Arena hazards ===
+`black_ice_patch.gd` — telegraphed FROST damage + cold buildup, timed expiry; phase-two persistent arena patches.
+
+=== 12. Boss health-bar integration ===
+Boss enters combat on INTRO completion → `GameManager.in_boss_fight` → ALERT state → `track_boss` reads display_name "The Hollow King".
+
+=== 13. Player-death reset behavior ===
+Death in boss fight sets BOSS_ARENA context → restart at `preboss_paleheart_crypt` or checkpoint; dungeon seed preserved via CryptState/DungeonManager; boss respawns INACTIVE at full health.
+
+=== 14. Boss reward order ===
+enemy_died → LootManager ground drops → InventoryManager direct grants → DungeonManager.on_crypt_boss_defeated (CryptState flag) → quest objectives → exit portal spawn → victory dialogue toast.
+
+=== 15. One-time reward persistence ===
+CryptState.boss_defeated_persistent; loot table returns minimal copper when already defeated; inventory checks before direct grants.
+
+=== 16. Quest completion behavior ===
+`the_pale_heart` completes via on_crypt_boss_defeated; Hollow King Blade granted on quest completion reward.
+
+=== 17. Paleheart exterior return result ===
+Exit portal → `exterior_paleheart_crypt` on frostgrave_expanse (DungeonManager exit fallback unchanged).
+
+=== 18. Audio hooks and imported sources ===
+Procedural tones in AudioManager: blizzard_wind, ice_crack, frostwatch_ambience, crypt_ambience, seal_activate, boss_intro/phase/swing/death, frost_wave, paleheart_burst, teleport, summon.
+Documented in docs/asset_registry.md Phase 4 section. Licensed WAV packs remain future replacement.
+
+=== 19. Files created ===
+scenes/enemies/bosses/hollow_king.tscn
+scripts/enemies/bosses/hollow_king.gd
+scripts/dungeons/boss_arena_trigger.gd
+scripts/environment/black_ice_patch.gd
+
+=== 20. Files modified ===
+scripts/combat/damage_data.gd, status_effects_component.gd
+scripts/player/environment_movement_modifier.gd, player_controller.gd
+scripts/dungeons/crypt_builder.gd, crypt_level.gd, crypt_checkpoint.gd, burial_seal_puzzle.gd
+scripts/autoload/audio_manager.gd, loot_manager.gd
+scripts/stations/healer_station.gd
+scripts/environment/blizzard_controller.gd, falling_ice_hazard.gd
+scripts/levels/level_manager.gd
+docs/asset_registry.md
+
+=== 21. Manual verification results ===
+Automated: `.\start game.ps1` — PASS (no script errors).
+Interactive checklist — REQUIRES IN-GAME PLAY:
+  Frostgrave transition both directions, grounded arrival, single HUD
+  Frostwatch: Ysra, Elen shop, Orik forge, Sister Caia, rest/checkpoint/waystone/storage
+  Cold bar, blizzard, shelter, warming tonic, frostbite threshold
+  Ice traction on marked zones (steer + controlled glide)
+  All six enemy types: mesh, XP, loot, quest credit
+  All eight resource types gather messages
+  Death restart: wilderness, Frostwatch, checkpoint, blizzard
+  Paleheart: unlock, dungeon, seals, checkpoint, both boss phases, death reset, one-time rewards, exterior exit
+  Regression: Darkpine through Blackvein, merchants, HUD, minimap
+
+=== 22. Remaining placeholders ===
+Hollow King uses Quaternius Matt mesh at 1.85× scale (cohesive but not custom monarch art).
+All Frostgrave/Paleheart audio uses procedural tone placeholders pending licensed WAV import.
+Dedicated ice/snow footstep routing on player not yet surface-aware (zones exist).
+
+=== 23. Confirmation: no automated tests added ===
+CONFIRMED.
+
+=== 24. Confirmation: Phase 0–3 systems remain working ===
+CONFIRMED at compile/load level; Iron Crucible / Blackvein unchanged; full regression requires interactive pass.
+
+=== 25. Confirmation: Hollow King no longer uses iron_crucible.tscn ===
+CONFIRMED — crypt_builder loads hollow_king.tscn exclusively.
+
+=== 26. Confirmation: players remain safely grounded after transitions and death restarts ===
+Spawn markers + SpawnHelpers unchanged; preboss/checkpoint priority for Paleheart boss deaths; in-game grounding verification pending interactive pass.

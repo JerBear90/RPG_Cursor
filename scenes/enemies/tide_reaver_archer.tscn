@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3 uid="uid://tidereaverarcher001"]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/bandit_archer.tscn" id="1"]
+
+[node name="TideReaverArcher" instance=ExtResource("1")]
+enemy_id = "tide_reaver_archer"
+display_name = "Tide Reaver Harpooner"
+enemy_level = 7
+max_health = 44.0
+damage = 12.0
+move_speed = 5.0
+loot_table_id = "tide_reaver_archer"
+xp_reward = 32
+experience_reward = 24
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Matt_SingleWeapon.gltf"

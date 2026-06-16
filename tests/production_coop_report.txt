@@ -1,0 +1,525 @@
+Two-Player Local Co-op — Production Completion Report
+====================================================
+Date: 2026-06-10
+Scope: Co-op foundation + gameplay layer (field revive, P2 HUD, targeting, camera)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0** (clean compile)
+
+---
+
+## Co-op Mode Entry
+
+* Solo New Game → `CoopMode.SINGLE_PLAYER`
+* Local Co-op → `GameManager.start_new_game(true)` → `CoopMode.LOCAL_COOP_TWO_PLAYER`
+* Saves store/restore `co_op` flag and coop mode
+
+---
+
+## Player Architecture
+
+| Item | Detail |
+|------|--------|
+| Scene | `res://scenes/player/player.tscn` |
+| P1 | `player_index = 0`, Player1, Matt mesh |
+| P2 | `player_index = 1`, Player2, Sam mesh |
+| Field revive | `CoopFieldRevive` node on each player instance |
+
+---
+
+## Input Routing
+
+* P1: default InputMap actions + keyboard/mouse
+* P2: `p2_*` actions (arrows + controller device 1)
+* Dialogue confirm/cancel routes via `interacting_player_index`
+* Field revive uses `interact` / `p2_interact` hold
+
+---
+
+## Shared Camera
+
+* Solo: OTS attach unchanged
+* Co-op: midpoint of all registered players (includes downed)
+* Dynamic zoom: `coop_min_back` 2.73 → `coop_max_back` 6.8
+* Separation multiplier: `coop_zoom_separation` 14.0
+* Smooth speed: `coop_zoom_smooth_speed` 0.1
+* Close-player floor: `coop_close_separation_floor` 2.0 (reduces jitter)
+* Soft tether cap: `coop_soft_tether_distance` 18.0
+
+---
+
+## Spawn & Death
+
+* P1 at marker; P2 at validated companion offset
+* Single death: downed/inactive, no level restart
+* Party wipe: existing restart for both with offsets
+* Field revive: 35% HP (`FIELD_REVIVE_HP_RATIO`)
+* Camp/transition/checkpoint revive: 45% HP
+
+---
+
+## Field Hold-to-Revive
+
+* Range: 2.25m (`FIELD_REVIVE_RANGE`)
+* Hold: 2.0s (`FIELD_REVIVE_HOLD_SEC`)
+* Revive HP: 35%
+* Cancels on: out of range, damage to reviver, attack/dodge/jump/spell, menu/dialogue, release interact
+* Prompts: player-specific via `GameManager.coop_player_prompts`
+* Progress shown as percentage in prompt text
+
+---
+
+## HUD
+
+* P1 vitals/layout: unchanged
+* P1 downed: `Player 1 Downed | Waiting for Revive` on interact prompt
+* P2 vitals: compact HP/MP/ST in top-left
+* P2 actions: `P2ActionLabel` — Light/Heavy/Spell/Dodge/Interact bindings
+* P2 downed: `P2 Downed | Waiting for Revive`
+* P2 revive: `Hold [key] Revive Player N (XX%)`
+* Minimap: P1 arrow + P2 blue dot
+
+---
+
+## Interaction Ownership
+
+* `interacting_player_index` set in `InteractableBase.interact()` and `player_interaction`
+* Dialogue confirm blocked for non-owner (P2 uses p2_interact / joypad 1)
+* Resets to 0 on dialogue close
+* Co-op field-revive prompts take priority over world interact prompts
+
+---
+
+## Enemy Targeting
+
+* `EnemyBase._pick_nearest_living_player()` — closest living player in range
+* Ignores downed players
+* Target switch cooldown: 1.0s
+* Switches when another player is ~28% closer (`TARGET_SWITCH_CLOSER_RATIO` 0.72)
+* Damage aggro validates living target
+
+---
+
+## Shared Progress (unchanged)
+
+Inventory, currency, quests, regions, waystones, base, achievements — all shared.
+
+---
+
+## Manual Checks
+
+| # | Check | Expected |
+|---|-------|----------|
+| 1 | Solo New Game | One player, unchanged behavior |
+| 2 | Local Co-op start | P1 + P2 with safe offsets |
+| 3 | Independent movement | WASD vs arrows/controller 2 |
+| 4 | Both targeted | Enemies aggro either player |
+| 5 | Retarget on down | Living player becomes focus |
+| 6 | Kill P1 only | No level restart |
+| 7 | P2 near P1 | Revive prompt appears |
+| 8 | Hold revive | P1 revives ~35% HP |
+| 9 | Move away mid-revive | Revive cancels |
+| 10 | Damage during revive | Revive cancels |
+| 11 | Kill P2 only | P1 can revive P2 |
+| 12 | Both die | Party wipe restart |
+| 13 | Camp rest | Revives downed player |
+| 14 | Region transition | Both move + revive |
+| 15 | P2 interact prompts | Correct p2_* labels |
+| 16 | NPC dialogue | Owner controls confirm/cancel |
+| 17 | Chest/waystone/camp | Wrong player cannot confirm dialogue |
+| 18 | Co-op camera | Both visible during combat/downed/revive |
+| 19 | P1 HUD | Unchanged layout |
+| 20 | P2 HUD | Vitals + action line update |
+
+---
+
+## Confirmations
+
+* No automated tests added
+* No Phase 0–8 content removed
+* Solo mode preserved
+* No placeholder/invisible P2
+* `.\start game.ps1` exits 0
+
+---
+
+## Co-op Combat / Boss / Loot / Progression Pass
+
+Date: 2026-06-10
+
+### Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0**
+
+### Boss Fight (Co-op)
+
+* `EnemyBase.refresh_living_target()` — bosses/enemies retarget living players when current target is downed
+* Dungeon bosses (`hollow_king`, `solar_tyrant`, `heart_of_blight`, `tidebound_sovereign`) call `refresh_living_target()` before attacks
+* `BossArenaTrigger` waits for both players in co-op; pulls lagging P2 into arena safely
+* `BossController` awards skill points to each active player in co-op
+* Shared boss health bar remains on P1 HUD (visible to both on shared screen)
+* Co-op camera adds boss-aware zoom padding during `in_boss_fight`
+
+### Loot and Currency Feedback
+
+* `loot_pickup.gd` / `currency_pickup.gd` — single collect, attribution toast, `ResourceFeedbackManager` grant
+* `ResourceFeedbackManager.pickup_toast` — shared notification (`P1 picked up …`, `P2 picked up …`)
+* Duplicate pickup guarded with `_collected` flag
+
+### XP and Level-Up
+
+* `combat_xp_gained` includes `player_index`; float text shows `P1` / `P2` prefix in co-op
+* P1 level-up toast: `P1 Level Up!`; P2: `P2 Level Up!`
+* XP bar remains P1-bound (per-player stats unchanged)
+
+### Quest Notifications
+
+* `quest_started` → `New Quest` toast
+* `quest_updated` → `Quest Updated` toast with summary
+* Quest tracker distance uses nearest living player in co-op
+
+### P2 Combat Feedback
+
+* Compact `P2ActionLabel` shows transient feedback: Hit, Downed, Revived, Low Stamina, No Focus, Spell Cooldown, Revive Canceled
+* Field revive completion shows `P2 Revived | +35% HP` on P2 HUD line
+
+### Pause / Menu Ownership
+
+* `GameManager.menu_owner_index` tracks active full-screen menu owner
+* P2 menu actions: `p2_pause` (Backspace + controller 2), `p2_open_inventory`, `p2_confirm`, `p2_cancel`, etc.
+* Wrong-player confirm/cancel blocked while menu is open
+* Full-screen menus pause tree for both players
+* Interaction-opened menus inherit `interacting_player_index`
+
+### Manual Checks (Combat / Boss / Loot Pass)
+
+| # | Check | Expected |
+|---|-------|----------|
+| 1 | Solo New Game | Unchanged |
+| 2 | Local Co-op spawn | Both players safe offsets |
+| 3 | Enemy targets P1 | When P1 closer |
+| 4 | Enemy targets P2 | When P2 closer |
+| 5 | Retarget on down | Living player focused |
+| 6 | Boss + P1 down | Boss continues |
+| 7 | Boss + P2 down | Boss continues |
+| 8 | Boss target switch | No crash/soft-lock |
+| 9 | Boss defeat rewards | Granted once (shared inventory/quests) |
+| 10 | Boss reward feedback | Toast/HUD visible |
+| 11 | P1 pickup | Single shared inventory/currency add |
+| 12 | P2 pickup | Single shared inventory/currency add |
+| 13 | Pickup notification | Visible in co-op |
+| 14 | P1 quest trigger | Shared quest updates |
+| 15 | P2 quest trigger | Shared quest updates |
+| 16 | Quest notification | Visible in co-op |
+| 17 | XP / level-up | P1/P2 attribution per current per-player stats |
+| 18 | P2 damage/downed/revived | Compact feedback line |
+| 19 | P2 stamina/focus/cooldown | Feedback when applicable |
+| 20 | Pause open/close | Owning player controls menu |
+| 21 | Full-screen menu | Both players blocked (tree paused) |
+| 22 | Dialogue/menu ownership | No wrong-player confirm |
+| 23 | Co-op camera combat | Both players visible |
+| 24 | Co-op camera boss arena | Boss + both players readable |
+| 25 | Party wipe | Existing restart |
+| 26 | Camp/transition revive | Still works |
+| 27 | `.\start game.ps1` | Exit 0 |
+
+---
+
+## Co-op Camp / Waystone / Inventory / Base Flow Pass
+
+Date: 2026-06-10
+
+### Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0**
+
+### Camp Rest
+
+* Living players must be within 5m (`COOP_CAMP_RADIUS`); downed partners may be far and revive at 45% on rest
+* Party repositioned via `SpawnHelpers.place_party_at_marker()` after rest
+* Hunger/thirst/stamina/focus restored for all registered players
+* Co-op toasts: `Camp Rest: Reviving downed ally`, `Camp Rest Complete`
+* Camera refreshed via `GameManager.refresh_coop_camera()`
+
+### Camp Chest / Item Box
+
+* Camp chest opens deposit menu with quest/equipped/locked protection via `InventoryManager.try_send_to_base()`
+* Item Box deposit/withdraw uses same protection + shared toasts
+* Menu owner from `interacting_player_index` / `menu_owner_index`
+
+### Waystone / Region Travel
+
+* Waystone sets travel origin; pulls distant living companions before travel
+* Waystone travel fades to black; arrival uses `place_party_at_marker()` + fade from black
+* Downed allies revive at destination (45% via placement helper)
+* Region gates pull companions and require living players near gate (or after pull)
+* Travel blocked during combat, boss fights, dialogue, and pause
+
+### Crafting Stations
+
+* Workbench/Forge use shared inventory; menu owner controls input
+* Co-op craft toast: `P{n} crafted {item}`
+
+### Save / Load (Co-op)
+
+* Save schema v3: `player_positions[]`, `player_progress_all[]`, `co_op` flag
+* Continue load restores P2 saved position when available; falls back to party offset
+* Per-player progress applied on load for each active player
+
+### Manual Checks (Camp / Base Flow Pass)
+
+| # | Check | Expected |
+|---|-------|----------|
+| 1 | Solo New Game | Unchanged |
+| 2 | Local Co-op spawn | Both players safe |
+| 3 | P1 camp interact | Works |
+| 4 | P2 camp interact | Works with P2 bindings |
+| 5 | Camp rest proximity | Living players near camp; downed partner OK |
+| 6 | Camp rest revive | Downed at 45% HP |
+| 7 | Camp rest needs | Hunger/thirst restored |
+| 8 | Camp rest reposition | Both near fire |
+| 9 | Camp chest owner | Correct menu owner |
+| 10 | Camp chest input | Wrong player blocked |
+| 11 | Camp chest deposit | Removes from shared inventory |
+| 12 | Base storage receive | Item in Hearthhold storage |
+| 13 | Protected items | Quest/equipped/locked blocked |
+| 14 | Item Box owner | Correct menu owner |
+| 15 | Item Box ops | No dup/loss |
+| 16 | Waystone owner | Correct menu owner |
+| 17 | Waystone travel | Both players travel |
+| 18 | Waystone combat block | Blocked in combat |
+| 19 | Downed P2 travel | Revives at destination |
+| 20 | Region transition | Both move together |
+| 21 | Region + downed | Revives at transition value |
+| 22 | Workbench/Forge owner | Correct menu owner |
+| 23 | Crafting resources | Consumed once from shared pool |
+| 24 | Crafted item | Added once |
+| 25 | P2 resource pickup | Contributes to shared tracking |
+| 26 | Save after base flow | Reloads camp/waystone/storage state |
+| 27 | Co-op save load | Both players spawn safely |
+| 28 | Solo save/load | Unchanged |
+| 29 | Camera after travel/rest | Frames both players |
+| 30 | `.\start game.ps1` | Exit 0 |
+
+---
+
+## Co-op UI / Steam Deck / Interaction Polish Pass
+
+Date: 2026-06-10
+
+### Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0**
+
+### Changes
+
+* Unified co-op prompt copy via `CoopUiCopy` (`P1`/`P2` tags, `Player 1`/`Player 2` long form)
+* Field revive prompts: `P1: Hold A to Revive Player 2`, progress `P1 reviving Player 2 — 45%`, cancel reasons
+* Interaction prompts: `P1: Press E — …` / `P2: Press A — …` with correct bindings per player
+* P2 compact HUD font scaling (~20px at base, scaled by `SettingsManager.ui_scale`) + separator from P1 block
+* Toast priority queue: critical > important > normal; duplicate normal toasts throttled (~900ms)
+* Full-screen menu footer: `Controlled by P1 | A Confirm | B Cancel`
+* Menu owner / prompts reset on death, region change, Waystone travel, camp rest
+* Duplicate menu open blocked when a menu is already active; interact blocked during full-screen menus
+* Minimap P2 dot shows downed state (desaturated/warning color)
+* Save/load slot preview: Solo Save / Local Co-op Save with P1/P2 level lines
+
+### Manual Checks (UI / Steam Deck / Interaction Polish)
+
+| # | Check | Expected |
+|---|-------|----------|
+| 1 | Solo HUD | Unchanged |
+| 2 | Co-op HUD | P1 and P2 clearly labeled |
+| 3 | P2 compact HUD layout | Does not overlap P1 HUD |
+| 4 | P2 action label | Correct P2 bindings |
+| 5 | P2 prompts | No P1-only bindings |
+| 6 | P1 prompts | No P2-only bindings |
+| 7 | Revive prompt | Correct reviver and downed player |
+| 8 | Revive progress text | Readable percentage |
+| 9 | Revive cancel reason | Shows when applicable |
+| 10 | Camp prompts | Readable, co-op-specific |
+| 11 | Waystone prompts | Readable, co-op-specific |
+| 12 | Storage deposit prompts | Readable |
+| 13 | Crafting prompts | Readable |
+| 14 | Pickup toasts | Throttled during rapid pickups |
+| 15 | Critical toasts | Visible over normal pickup toasts |
+| 16 | Quest update toast | Visible in co-op |
+| 17 | Level-up toast | Visible in co-op |
+| 18 | Boss health bar | Readable in co-op |
+| 19 | Minimap dots (movement) | P1/P2 update |
+| 20 | Minimap dots (region) | P1/P2 update after transition |
+| 21 | Minimap dots (Waystone) | P1/P2 update after travel |
+| 22 | Full-screen menu owner | Label or enforced ownership |
+| 23 | P1 menus | Open/close safely |
+| 24 | P2 menus | Open/close safely |
+| 25 | Wrong-player input | Confirm/cancel blocked |
+| 26 | Menu movement block | Both players blocked |
+| 27 | Menu owner after close | Resets |
+| 28 | Menu owner after camp rest | Resets |
+| 29 | Menu owner after Waystone | Resets |
+| 30 | Menu owner after region | Resets |
+| 31 | Dual interact | No duplicate menus/rewards |
+| 32 | Down during menu | No soft-lock |
+| 33 | Party wipe during menu | No soft-lock |
+| 34 | Steam Deck 1280×800 | Readable layout |
+| 35 | Desktop layout | Acceptable |
+| 36 | `.\start game.ps1` | Exit 0 |
+
+---
+
+## Co-op Progression / Save Compatibility / Deposit QoL / Regression Pass
+
+Date: 2026-06-10
+
+### Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0**
+
+### Changes
+
+* P2 compact progression line: `P2 Lv 7 | XP 340 / 500` (updates on XP gain, level-up, save/load, region transition)
+* Save v2 co-op fallback: P2 spawns at party offset with default stats; debug log only; next save writes v3
+* Save slot UI: `P2 Level: --` when older saves lack P2 progress data
+* Camp chest: menu stays open after deposit, list refreshes, full-stack deposit, `Deposit All Resources` for materials
+* Waystone travel: specific block messages (combat/boss/dialogue/menu); companion-pull toast only when a player is distant; downed revive line when applicable
+
+### Manual Checks (Progression / Save / Deposit / Regression)
+
+| # | Check | Expected |
+|---|-------|----------|
+| 1 | Solo New Game | Unchanged |
+| 2 | Local Co-op start | Both players spawn safely |
+| 3 | P2 level display | Visible in co-op |
+| 4 | P2 level display solo | Hidden |
+| 5 | P2 level after XP | Updates |
+| 6 | P2 level after level-up | Updates |
+| 7 | P2 level after save/load | Persists |
+| 8 | P2 level UI scale | Respects `SettingsManager.ui_scale` |
+| 9 | v3 co-op save positions | P1/P2 load correctly |
+| 10 | v3 co-op save progress | P1/P2 load correctly |
+| 11 | v2 save load | No crash |
+| 12 | v2 co-op P2 fallback | Safe offset + default P2 stats |
+| 13 | Save after v2 load | Writes v3 structure |
+| 14 | Save slot solo text | Clean labels |
+| 15 | Save slot co-op text | Clean labels |
+| 16 | Camp chest after deposit | Menu stays open |
+| 17 | Camp chest refresh | List updates |
+| 18 | Stack deposit | Full stack count |
+| 19 | Deposit all resources | Materials only, summary toast |
+| 20 | Deposit protections | Quest/equipped/locked blocked |
+| 21 | Deposit integrity | No dup/loss |
+| 22 | Deposit feedback | Readable toasts |
+| 23 | Waystone travel toast | Both players will travel (when needed) |
+| 24 | Waystone pull message | Shows when companion distant |
+| 25 | Waystone downed message | Revive at destination line |
+| 26 | Waystone blocks | Combat/boss/menu conflicts |
+| 27 | Region transition | Both players move safely |
+| 28 | Field revive | Still works |
+| 29 | Camp rest | Revives and repositions party |
+| 30 | Boss targeting | Ignores downed players |
+| 31 | Boss rewards | Award once |
+| 32 | Shared loot/currency | Award once |
+| 33 | Quest updates | Visible in co-op |
+| 34 | Menu owner | Wrong-player input blocked |
+| 35 | Minimap dots | P1/P2 update |
+| 36 | Co-op camera | Frames both players |
+| 37 | Party wipe | Restarts safely |
+| 38 | `.\start game.ps1` | Exit 0 |
+
+---
+
+## Resource Loop Pass (Summary)
+
+Date: 2026-06-10
+
+See full report: `tests/production_resource_loop_report.txt`
+
+* Destructible drop tables expanded (crate, barrel, scrap, bone, crystal, roots, rock)
+* Resource nodes now interactable with co-op gather lock and P1/P2 gather toasts
+* New core materials, crafting recipes, and base station upgrade costs wired
+* Forge L2 tracked material progress on pickup
+* Build: `.\start game.ps1` exit 0
+
+---
+
+## Known Limitations
+
+* P2 does not have a full duplicate ability bar (compact action line + level/XP line only)
+* XP/stats remain per-player `StatsComponent` (not merged into a single party level)
+* P1 XP bar reflects P1 only; P2 uses compact `P2 Lv | XP` line (no full XP bar)
+* Online multiplayer and split-screen not in scope
+* Hold-to-revive progress uses text percentage (polished copy), not a dedicated progress bar widget
+* Pickup toasts throttle duplicates but do not batch `Wood x10` style aggregation yet
+* P2 compact HUD sits below P1 vitals block; very small viewports may need manual UI scale tweak
+* Some environmental weather controllers may still gate on P1-adjacent logic only
+* Dungeon spawn scripts use simple i×2 offset rather than `get_party_offset`
+* Enemy target indicator UI not added (enemies face/aim via existing `PlanarFacing` only)
+* Boss arena co-op entry pulls distant P2; does not block entry if P2 is downed outside arena
+* Item Box deposit is one item per confirm (camp chest has deposit-all + full-stack)
+* Older v2 co-op saves load P2 at level 1 until re-saved as v3 with P2 progress
+* Waystone travel pulls distant living companions rather than hard-blocking until both stand at stone (pull message shown when applicable)
+
+---
+
+## Deferred
+
+* Online netcode, rollback, replication
+* Split-screen camera
+* Per-player quest/inventory split
+* Dedicated revive progress bar UI asset
+* Full P2 XP bar widget (compact text line only today)
+
+---
+
+## Files Created
+
+* `scripts/player/coop_field_revive.gd`
+* `scripts/ui/coop_ui_copy.gd`
+
+## Files Modified
+
+* `scenes/player/player.tscn`
+* `scripts/autoload/game_manager.gd`
+* `scripts/autoload/dialogue_manager.gd`
+* `scripts/autoload/resource_feedback_manager.gd`
+* `scripts/autoload/combat_experience_manager.gd`
+* `scripts/autoload/input_manager.gd`
+* `scripts/ai/enemy_base.gd`
+* `scripts/ai/boss_controller.gd`
+* `scripts/camera/camera_rig.gd`
+* `scripts/dungeons/boss_arena_trigger.gd`
+* `scripts/enemies/bosses/hollow_king.gd`
+* `scripts/enemies/bosses/solar_tyrant.gd`
+* `scripts/enemies/bosses/heart_of_blight.gd`
+* `scripts/enemies/bosses/tidebound_sovereign.gd`
+* `scripts/pickups/loot_pickup.gd`
+* `scripts/pickups/currency_pickup.gd`
+* `scripts/player/player_combat.gd`
+* `scripts/player/player_interaction.gd`
+* `scripts/player/coop_field_revive.gd`
+* `scripts/interactables/interactable_base.gd`
+* `scripts/autoload/save_manager.gd`
+* `scripts/autoload/waystone_manager.gd`
+* `scripts/autoload/region_transition_manager.gd`
+* `scripts/autoload/scene_transition_manager.gd`
+* `scripts/camps/camp_site.gd`
+* `scripts/camps/camp_chest.gd`
+* `scripts/waystones/waystone.gd`
+* `scripts/levels/region_transition_gate.gd`
+* `scripts/levels/level_manager.gd`
+* `scripts/base/base_station.gd`
+* `scripts/autoload/inventory_manager.gd`
+* `scripts/ui/game_hud.gd`
+* `scripts/ui/coop_ui_copy.gd`
+* `scripts/ui/minimap_control.gd`
+* `scripts/ui/main_menu.gd`
+* `ui/components/notification_toast.gd`
+* `ui/hud/player_hud.gd`
+* `scripts/camps/camp_site.gd`
+* `tests/production_coop_report.txt`

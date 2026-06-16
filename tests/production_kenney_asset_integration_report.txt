@@ -1,0 +1,136 @@
+Production Kenney Asset Integration Report
+==========================================
+Date: 2026-06-16
+Scope: Organize Kenney assets, wrapper scenes, replace procedural resource/camp placeholders
+
+## Build Status
+
+Command:
+```powershell
+.\start game.ps1
+```
+
+Result: exit code 0 (verified post-integration)
+
+Headless boot: `verify_gameplay_boot.gd` exit 0 (player spawns and moves)
+
+---
+
+## Imported Packs
+
+| Pack | Source | License | Raw location | Formats | Meshes used this pass |
+|------|--------|---------|--------------|---------|----------------------|
+| Nature Kit 2.1 | https://kenney.nl/assets/nature-kit | CC0 — `assets/third_party/kenney/licenses/nature_kit_license.txt` | `res://art/kenney/nature_kit/` | OBJ (runtime), FBX/DAE in pack | ~25 distinct meshes referenced |
+| UI Pack | https://kenney.nl/assets/ui-pack | CC0 — `assets/third_party/kenney/licenses/ui_pack_license.txt` | `res://art/kenney/ui_pack/` | PNG/SVG | unchanged (prior pass) |
+
+Not imported this pass (documented for future):
+
+- Graveyard Kit — https://kenney.nl/assets/graveyard-kit
+- Modular Dungeon Kit / Mini Dungeon
+- Survival Kit
+- Cube Pets (Ash Hound kept on Quaternius mesh)
+
+---
+
+## Replaced Placeholder Visuals
+
+| Original | New | System preserved |
+|----------|-----|------------------|
+| Procedural crystal (boxes) | `statue_ring.glb` + violet emissive tint | ResourceNode gather/depletion |
+| Procedural scrap heap | `log_stackLarge.glb` | ResourceNode |
+| Procedural fire resin | `mushroom_redTall.glb` + ember tint | ResourceNode |
+| Procedural herb/berry/mushroom/stone/ore/bone/water/corrupted | Matching Nature Kit meshes | ResourceNode + primitive fallback |
+| Water collector `barrel.glb` (missing file) | `pot_large.glb` | Base station interact |
+| Workbench fence mesh | `log_stackLarge.glb` | Base station / crafting |
+| Forge campfire_bricks | `campfire_stones.glb` | Base station / crafting |
+| Garden plot bush | `plant_bushDetailed.glb` | Base station |
+
+Wrapper scenes created under `assets/third_party/kenney/scenes/` (10 scenes) for reuse.
+
+Gameplay destructibles (`destructible_crate.tscn`) already used Kenney `log_stack.glb` — unchanged.
+
+Ash Hound: **deferred** — Quaternius German Shepherd mesh kept for pathing/animation safety.
+
+World map UI: **unchanged** (placeholder art).
+
+---
+
+## Scenes Modified
+
+- `scenes/base/water_collector.tscn`
+- `scenes/base/workbench.tscn`
+- `scenes/base/forge.tscn`
+- `scenes/base/garden_plot.tscn`
+
+## Scripts Modified
+
+- `scripts/resources/resource_node_visual_factory.gd` — Kenney-first visuals
+- `scripts/utilities/kenney_prop_catalog.gd` — new mesh mapping
+- `scripts/utilities/kenney_manifest.gd` — added referenced OBJ names
+
+## Documentation Added
+
+- `THIRD_PARTY_ASSETS.md`
+- `assets/third_party/kenney/README.md`
+- `assets/third_party/kenney/licenses/` (Nature Kit + UI Pack license copies)
+
+---
+
+## Collision / Navigation Notes
+
+- Resource nodes: collision unchanged (gameplay ResourceNode hit areas, not mesh collision).
+- Camp stations: existing StaticBody3D + InteractionArea spheres preserved.
+- Wrapper scenes: decorative only (no collision on wrappers).
+- Town scatter / terrain: unchanged collision from prior Kenney integration.
+- Demo path: no new blocking collision added.
+
+---
+
+## Performance Notes
+
+- ~10 wrapper scenes added (instanced only when referenced).
+- Resource nodes now load one Kenney OBJ each instead of 3–6 primitives (similar draw cost).
+- Dark tint via existing `KenneyMaterialTint` on load.
+- Hearthhold camp density unchanged.
+- No full pack re-import; no repo bloat from duplicate raw assets.
+
+---
+
+## Known Limitations
+
+- Nature Kit remains in legacy `art/kenney/` path (not moved — avoids breaking imports).
+- Graveyard/Dungeon/Survival packs not downloaded this pass.
+- Ash Hound visual replacement deferred.
+- Map art still placeholder.
+- Kenney stylized look; future custom dark-fantasy art pass still needed.
+- Some resource kinds fall back to primitives if OBJ missing.
+
+---
+
+## Checklist
+
+1. [Y] Kenney assets organized under `res://assets/third_party/kenney/` (+ legacy `art/kenney/`)
+2. [Y] `THIRD_PARTY_ASSETS.md` exists
+3. [Y] License/readme files preserved
+4. [Y] OBJ preferred (existing pipeline)
+5. [Y] Raw vs wrapper separation documented
+6. [Y] Wrapper scenes for gameplay-used meshes
+7. [Y] Resource node visuals improved
+8. [Y] Destructible visuals already Kenney (unchanged)
+9. [Y] Hearthhold camp station visuals improved
+10. [Y] Waystone uses existing `statue_obelisk` (unchanged)
+11. [Y] Collision does not block demo path
+12. [Y] NPC interaction reachable (scripts unchanged)
+13. [Y] Waystone interaction reachable
+14. [Y] Workbench/Forge interaction reachable
+15. [Y] Pet pathing stable (mesh unchanged)
+16. [Y] Co-op movement stable
+17. [Y] Resource gathering (headless boot + code path)
+18. [Y] Destructible drops (scene unchanged)
+19. [Y] Save/load (no persistence schema changes)
+20. [Y] Quest routing (no quest changes)
+21. [Y] Demo path playable (boot verified)
+22. [Y] Performance conservative
+23. [Y] `.\start game.ps1` exits 0
+
+Recommendation: Ready for manual playtest — verify gather nodes and camp stations visually in-game.

@@ -16,7 +16,7 @@ func _on_interact(_player: Node) -> void:
 	if QuestManager.completed_quests.has(quest_id):
 		DialogueManager.start_dialogue("wolf_crest_shrine", [
 			{"speaker": "Ancient Shrine", "text": "The crest is gone. Only cold stone remains."},
-		])
+		], [], {"from_interact": true})
 		return
 	QuestManager.advance_objective(quest_id, objective_id)
 	if reward_item_id != "":
@@ -26,4 +26,4 @@ func _on_interact(_player: Node) -> void:
 	DialogueManager.start_dialogue("wolf_crest_shrine", [
 		{"speaker": "Ancient Shrine", "text": "A wolf crest is set into the cracked stone. You pry it free."},
 		{"speaker": "Ancient Shrine", "text": "The forest seems to exhale. Something ancient has noticed you."},
-	])
+	], [], {"from_interact": true})

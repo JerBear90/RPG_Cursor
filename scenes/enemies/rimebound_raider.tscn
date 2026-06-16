@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://rimeboundraider001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="RimeboundRaider" instance=ExtResource("1")]
+enemy_id = "rimebound_raider"
+display_name = "Rimebound Raider"
+enemy_level = 5
+max_health = 54.0
+damage = 14.0
+move_speed = 4.2
+detection_range = 14.0
+attack_range = 2.4
+loot_table_id = "rimebound_raider"
+xp_reward = 32
+experience_reward = 24
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Male_1.gltf"

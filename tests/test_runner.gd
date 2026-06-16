@@ -4,6 +4,9 @@ extends Node
 const LOG_PATH := "res://tests/last_run.log"
 const _CombatTests = preload("res://tests/combat_damage_xp_test.gd")
 const _HudHealthTests = preload("res://tests/hud_health_signal_test.gd")
+const _InputControlSchemeTests = preload("res://tests/input_control_scheme_test.gd")
+const _InputPersistenceTests = preload("res://tests/input_persistence_test.gd")
+const _LevelRestartTests = preload("res://tests/level_restart_test.gd")
 const DUNGEON_ROOM := preload("res://scripts/dungeons/dungeon_room.gd")
 const _Kenney = preload("res://scripts/utilities/kenney_paths.gd")
 const _KenneyManifest = preload("res://scripts/utilities/kenney_manifest.gd")
@@ -15,7 +18,7 @@ var _failed := 0
 func _ready() -> void:
 	_log_line("=== Exiled Survivors Test Runner ===")
 	_log_line("Godot %s" % Engine.get_version_info().string)
-	_run_all()
+	await _run_all()
 	_flush_log()
 	_log_line("")
 	_log_line("Results: %d passed, %d failed" % [_passed, _failed])
@@ -127,6 +130,21 @@ func _run_all() -> void:
 	_test_island_terrain()
 	_test_combat_damage_xp()
 	_test_hud_health_signals()
+	await _test_input_control_scheme()
+	await _test_input_persistence()
+	await _test_level_restart()
+
+
+func _test_level_restart() -> void:
+	await _LevelRestartTests.run(self)
+
+
+func _test_input_persistence() -> void:
+	await _InputPersistenceTests.run(self)
+
+
+func _test_input_control_scheme() -> void:
+	await _InputControlSchemeTests.run(self)
 
 
 func _test_hud_health_signals() -> void:

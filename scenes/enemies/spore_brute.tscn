@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://sporebrute001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="SporeBrute" instance=ExtResource("1")]
+enemy_id = "spore_brute"
+display_name = "Spore Brute"
+enemy_level = 7
+max_health = 180.0
+damage = 22.0
+move_speed = 2.8
+detection_range = 12.0
+attack_range = 2.8
+loot_table_id = "spore_brute"
+xp_reward = 120
+experience_reward = 60
+respawns = false
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Zombie_Ribcage.gltf"

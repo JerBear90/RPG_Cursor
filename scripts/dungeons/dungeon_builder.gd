@@ -1,6 +1,8 @@
 extends Node3D
 ## Builds procedural dungeon geometry, enemies, and boss room from DungeonManager layout.
 
+signal build_completed
+
 const _Kenney = preload("res://scripts/utilities/kenney_paths.gd")
 const FLOOR_TILE := preload("res://scenes/dungeons/dungeon_floor_tile.tscn")
 const ENTRANCE_SCENE := preload("res://scenes/dungeons/dungeon_entrance.tscn")
@@ -19,10 +21,16 @@ var _cell_size: float = 2.0
 var _boss_node: Node = null
 var _exit_portal: DungeonExitPortal
 var _treasure_chest: DungeonTreasureChest
+var _build_complete: bool = false
 
 
 func _ready() -> void:
+	add_to_group("dungeon_builder")
 	call_deferred("_build")
+
+
+func is_build_complete() -> bool:
+	return _build_complete
 
 
 func _build() -> void:
@@ -36,6 +44,8 @@ func _build() -> void:
 		if room is DungeonRoom:
 			_build_room(room)
 	_spawn_exit_and_treasure(rooms)
+	_build_complete = true
+	build_completed.emit()
 
 
 func _build_room(room: DungeonRoom) -> void:
@@ -102,12 +112,28 @@ func _spawn_combat_enemies(room: DungeonRoom) -> void:
 	if container == null:
 		return
 	var center := room.get_world_center(_cell_size)
+	var room_enemies: Array[Node] = []
 	for i in room.enemy_count:
 		var scene: PackedScene = ENEMY_SCENES[i % ENEMY_SCENES.size()]
 		var enemy: Node3D = scene.instantiate()
 		var offset := Vector3(randf_range(-3, 3), 0, randf_range(-3, 3))
 		enemy.position = center + offset
 		container.add_child(enemy)
+		room_enemies.append(enemy)
+		if enemy.has_signal("enemy_died"):
+			enemy.enemy_died.connect(func(_e): _on_combat_room_enemy_died(room, center, room_enemies))
+
+
+func _on_combat_room_enemy_died(room: DungeonRoom, center: Vector3, room_enemies: Array[Node]) -> void:
+	for enemy in room_enemies:
+		if is_instance_valid(enemy):
+			return
+	WorldStateManager.dungeon_checkpoint_room = room.room_index
+	WorldStateManager.register_checkpoint(
+		"dungeon_checkpoint_room_%d" % room.room_index,
+		"procedural_dungeon",
+		center
+	)
 
 
 func _spawn_treasure_room(room: DungeonRoom) -> void:
@@ -134,10 +160,6 @@ func _spawn_boss_room(room: DungeonRoom) -> void:
 		_boss_node.enemy_died.connect(_on_boss_died)
 	container.add_child(_boss_node)
 	_boss_node.add_to_group("boss")
-	for hud in get_tree().get_nodes_in_group("game_hud"):
-		if hud.has_method("track_boss"):
-			hud.track_boss(_boss_node)
-	GameManager.in_boss_fight = true
 
 
 func _spawn_exit_and_treasure(rooms: Array) -> void:

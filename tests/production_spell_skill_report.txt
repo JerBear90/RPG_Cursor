@@ -1,0 +1,127 @@
+Spellcasting, Focus, Skill Trees, and Build Progression — Production Report
+=============================================================================
+Date: 2026-06-10
+Scope: First playable spellcasting + skill-tree foundation (Phase 0–8 preserved)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0** (verified after this pass)
+
+---
+
+## Changes Summary
+
+### Focus Resource (`focus_component.gd`)
+* `max_focus`, `current_focus`, `regen_rate`, `focus_regen_delay`, `focus_cost_multiplier`
+* Regen pauses until delay elapses after spending Focus
+* Serialize/deserialize for save/load; current Focus restored after derived stat recalc
+* P1/P2 independent pools; Amethyst gem + Spirit stat + Arcane Focus skill feed max Focus
+
+### Spell System
+* New scripts: `spell_data.gd`, `spell_registry.gd`, `spell_caster.gd`, `spell_cooldown_manager.gd`, `spell_area_effect.gd`, `spell_tree_controller.gd`
+* `player_spellcaster.gd` refactored to use registry/cooldown/selection helpers
+* Four prototype spells with prompt values:
+  * **Ember Bolt** — fire projectile, 15 Focus, 1.2s CD, 12 dmg + Int scaling
+  * **Healing Mist** — 4m radius heal, 25 Focus, 8s CD, 20 HP + Spirit scaling, heals co-op ally
+  * **Venom Dart** — poison projectile, 18 Focus, 2s CD, 8 dmg + 4-tick poison DoT
+  * **Shadow Lash** — 5m cone dark strike, 22 Focus, 4s CD, 18 dmg + Int scaling
+* Cast toasts: `P1 cast Ember Bolt`, `P2 No Focus`, `Spell Cooldown`, `Spell Locked`
+
+### Skill Tree (`player_skill_tree.gd`)
+* Ranked nodes (`node_ranks`) with max ranks; legacy nodes preserved for older saves
+* Prototype branches: Combat Mastery, Survival, Crafting, Fire, Water, Poison, Dark, Co-op Support
+* Prototype nodes: Sharpened Strikes, Guard Discipline, Scavenger Eye, Field Dressing, Efficient Repairs, Socket Apprentice, spell unlocks, Ember Control, Soothing Flow, Toxic Handling, Hollow Focus, Reviver's Resolve, Shared Recovery
+* Passive integration: weapon damage, block stamina, repair cost, socket prep cost, revive hold, camp rest bonus, spell damage/heal/focus/cooldown modifiers
+
+### Skill Resources
+* `skill_node_data.gd`, `skill_branch_data.gd`, `skill_tree_data.gd` — Godot Resource schemas for future data-driven trees
+
+### Stat Points
+* Six stats (Strength, Dexterity, Intelligence, Vitality, Endurance, Spirit) spendable from skill tree panel
+* Level-up grants +1 stat point and +1 skill point per player
+* Derived stats refresh on spend (HP, Stamina, Focus)
+
+### UI
+* Skill tree panel (K key): rank display, branch info, stat allocation with current values
+* Spell wheel + quick-spell cycle preserved
+* Focus orb (ManaOrb), spell slot cooldown/insufficient Focus highlight
+* P2 compact vitals include Focus; hidden in solo
+
+### Save / Load
+* Focus current/max, spell unlocks/selection, skill node ranks, stats — per-player in co-op
+* Older saves migrate `unlocked_nodes` array to rank 1; missing fields default safely
+
+---
+
+## Manual Verification Checklist
+
+1. [ ] Solo New Game still behaves unchanged.
+2. [ ] Local Co-op still spawns both players safely.
+3. [ ] Focus appears/updates for P1.
+4. [ ] Focus appears/updates for P2 in co-op.
+5. [ ] Focus hides P2 display in solo.
+6. [ ] Focus regenerates after delay.
+7. [ ] Amethyst focus bonus still applies.
+8. [ ] Ember Bolt casts and consumes Focus.
+9. [ ] Ember Bolt respects cooldown.
+10. [ ] Ember Bolt damages enemy.
+11. [ ] Healing Mist heals caster.
+12. [ ] Healing Mist heals nearby co-op ally.
+13. [ ] Healing Mist does not exceed max HP.
+14. [ ] Venom Dart casts and applies poison/simple DoT.
+15. [ ] Shadow Lash hits targets in front of caster.
+16. [ ] No Focus message displays.
+17. [ ] Spell Cooldown message displays.
+18. [ ] P1 can select/cast unlocked spell.
+19. [ ] P2 can select/cast unlocked spell.
+20. [ ] Locked spell cannot be cast.
+21. [ ] Skill tree opens with correct menu owner.
+22. [ ] Wrong-player input is blocked in skill menu.
+23. [ ] Stat points can be spent.
+24. [ ] Stat changes update derived HP/Focus/Stamina where applicable.
+25. [ ] Skill points can be spent.
+26. [ ] Skill unlocks spell correctly.
+27. [ ] Passive skill bonus applies correctly.
+28. [ ] Reviver's Resolve reduces revive hold time if implemented.
+29. [ ] Efficient Repairs reduces repair cost if implemented.
+30. [ ] Spell selection persists after save/load.
+31. [ ] Skill ranks persist after save/load.
+32. [ ] Stat values persist after save/load.
+33. [ ] P2 progression persists after save/load.
+34. [ ] Older save loads with safe default skill/spell data.
+35. [ ] Existing equipment durability still works.
+36. [ ] Existing repair still works.
+37. [ ] Existing weapon upgrades still work.
+38. [ ] Existing gem sockets still work.
+39. [ ] Existing resource gathering still works.
+40. [ ] Existing camp chest deposit-all still works.
+41. [ ] Existing Waystone travel still works.
+42. [ ] Existing boss fight still works.
+43. [ ] `.\start game.ps1` exits 0.
+
+---
+
+## Known Limitations (Post-Pass)
+
+* Ember Bolt still default-unlocked for solo continuity; skill node also unlocks it
+* Shadow Lash unlockable via skill node or Warden quest reward
+* Scavenger Eye resource discovery bonus stored/displayed; full discovery system not wired
+* Spell wheel is functional radial overlay; not a full hold-to-aim system
+* Skill tree uses button grid layout, not full visual tree editor positions for all branches
+* Spell cooldowns reset on load (not serialized)
+* Only +1 equipment upgrade/reinforcement wired
+* No automated tests added
+
+---
+
+## Pet System Pass (2026-06-10)
+
+See full checklist: `tests/production_pet_system_report.txt`
+
+* Beast Bond skill branch with Loyal Companion, Scavenger Nose, Pack Tactics, Quick Recall
+* Shared party Ash Hound pet with follow/combat/downed/recovery
+* Pet Shelter L1 gating at Hearthhold (Beast Bond + upgrade required)
+* Pet command wheel: Follow, Stay, Attack, Defend, Recall
+* Pet HUD status line; save/load for pet HP, command, adoption state
+* Removed Hearthhold auto pet unlock bypass

@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://pyrecultist001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="PyreCultist" instance=ExtResource("1")]
+enemy_id = "pyre_cultist"
+display_name = "Pyre Cultist"
+enemy_level = 9
+max_health = 50.0
+damage = 16.0
+move_speed = 3.8
+detection_range = 16.0
+attack_range = 11.5
+loot_table_id = "pyre_cultist"
+xp_reward = 42
+experience_reward = 32
+is_ranged = true
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Zombie.gltf"

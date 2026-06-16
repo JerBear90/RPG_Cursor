@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://roottitan001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="RootTitan" instance=ExtResource("1")]
+enemy_id = "root_titan"
+display_name = "Root Titan"
+enemy_level = 8
+max_health = 220.0
+damage = 22.0
+move_speed = 3.2
+detection_range = 20.0
+attack_range = 3.2
+loot_table_id = "root_titan"
+xp_reward = 120
+experience_reward = 90
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Zombie.gltf"

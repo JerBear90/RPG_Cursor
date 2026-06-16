@@ -57,8 +57,14 @@ func _populate_load_slots() -> void:
 		if SaveManager.has_save(slot):
 			var preview := SaveManager.get_save_preview(slot)
 			var region: String = preview.get("region", "Unknown")
-			var coop := "Co-op" if preview.get("co_op", false) else "Solo"
-			_load_list.add_item("Slot %d — %s (%s)" % [slot + 1, region, coop])
+			var mode := "Local Co-op Save" if preview.get("co_op", false) else "Solo Save"
+			var levels := "P1 Level: %d" % int(preview.get("p1_level", 1))
+			if preview.get("co_op", false):
+				if preview.get("p2_level_known", false):
+					levels += " | P2 Level: %d" % int(preview.get("p2_level", 1))
+				else:
+					levels += " | P2 Level: --"
+			_load_list.add_item("Slot %d — %s | %s (%s)" % [slot + 1, region, levels, mode])
 		else:
 			_load_list.add_item("Slot %d — Empty" % [slot + 1])
 

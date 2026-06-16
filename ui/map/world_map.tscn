@@ -8,10 +8,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -320.0
-offset_top = -240.0
-offset_right = 320.0
-offset_bottom = 240.0
+offset_left = -400.0
+offset_top = -280.0
+offset_right = 400.0
+offset_bottom = 280.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
@@ -36,12 +36,24 @@ theme_override_constants/separation = 8
 unique_name_in_owner = true
 layout_mode = 2
 text = "World Map"
+horizontal_alignment = 1
 
 [node name="RegionList" type="ItemList" parent="Margin/HBox/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
-custom_minimum_size = Vector2(0, 320)
+custom_minimum_size = Vector2(0, 180)
+
+[node name="RegionDetail" type="Label" parent="Margin/HBox/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="MapCanvasHost" type="Control" parent="Margin/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(360, 360)
+size_flags_horizontal = 3
 
 [node name="Legend" type="VBoxContainer" parent="Margin/HBox"]
 unique_name_in_owner = true

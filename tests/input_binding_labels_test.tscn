@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://input_binding_labels_test"]
+
+[ext_resource type="Script" path="res://tests/input_binding_labels_test.gd" id="1"]
+
+[node name="InputBindingLabelsTest" type="Node"]
+script = ExtResource("1")

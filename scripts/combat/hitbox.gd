@@ -74,6 +74,8 @@ func _on_area_entered(area: Area3D) -> void:
 		return
 	_hit_targets.append(id)
 	hurtbox.apply_hit(self)
+	if team == "player" and _source != null:
+		EquipmentManager.on_player_weapon_hit(_source)
 
 
 func _find_combat_owner() -> Node:

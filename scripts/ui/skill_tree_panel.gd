@@ -45,12 +45,12 @@ func _build_ui() -> void:
 	root.add_child(_stat_row)
 	_detail_label = Label.new()
 	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_label.custom_minimum_size = Vector2(0, 56)
+	_detail_label.custom_minimum_size = Vector2(0, 72)
 	root.add_child(_detail_label)
 	var actions := HBoxContainer.new()
 	root.add_child(actions)
 	var unlock_btn := Button.new()
-	unlock_btn.text = "Unlock Node"
+	unlock_btn.text = "Unlock / Rank Up"
 	unlock_btn.pressed.connect(_on_unlock_pressed)
 	actions.add_child(unlock_btn)
 	var close_btn := Button.new()
@@ -69,29 +69,41 @@ func _refresh() -> void:
 		return
 	var tree := _player.get_node("SkillTree")
 	var stats := _player.get_node("StatsComponent") as StatsComponent
-	_points_label.text = "Skill Points: %d  |  Stat Points: %d" % [
-		stats.unspent_skill_points, stats.unspent_stat_points,
+	_points_label.text = "Skill Points: %d  |  Stat Points: %d  |  Lv %d" % [
+		stats.unspent_skill_points, stats.unspent_stat_points, stats.level,
 	]
 	for node_id in tree.get_all_node_ids():
 		_add_node_button(tree, node_id)
 	if stats.unspent_stat_points > 0:
 		for stat_name in ["strength", "vitality", "dexterity", "intelligence", "endurance", "spirit"]:
 			var btn := Button.new()
-			btn.text = "+1 %s" % stat_name.capitalize()
+			btn.text = "+1 %s (%d)" % [stat_name.capitalize(), _get_stat_value(stats, stat_name)]
 			btn.pressed.connect(_on_stat_pressed.bind(stat_name))
 			_stat_row.add_child(btn)
 	_canvas.queue_redraw()
 	_update_detail()
 
 
+func _get_stat_value(stats: StatsComponent, stat_name: String) -> int:
+	match stat_name:
+		"strength": return stats.strength
+		"vitality": return stats.vitality
+		"dexterity": return stats.dexterity
+		"intelligence": return stats.intelligence
+		"endurance": return stats.endurance
+		"spirit": return stats.spirit
+	return 0
+
+
 func _add_node_button(tree: Node, node_id: String) -> void:
 	var layout: Dictionary = tree.get_node_layout(node_id)
 	var pos: Vector2 = layout.get("pos", Vector2.ZERO)
+	var data: Dictionary = tree.SKILL_NODES.get(node_id, {})
+	var rank := tree.get_node_rank(node_id) if tree.has_method("get_node_rank") else (1 if node_id in tree.unlocked_nodes else 0)
+	var max_r := int(data.get("max_rank", 1))
 	var btn := Button.new()
-	var unlocked_nodes: Array = tree.unlocked_nodes
-	var unlocked: bool = node_id in unlocked_nodes
-	var prefix := "[X] " if unlocked else "[ ] "
-	btn.text = prefix + str(tree.SKILL_NODES.get(node_id, {}).get("name", node_id))
+	var prefix := "[%d/%d] " % [rank, max_r] if rank > 0 else "[ ] "
+	btn.text = prefix + str(data.get("name", node_id))
 	btn.position = pos
 	btn.size = NODE_SIZE
 	btn.toggle_mode = true
@@ -111,7 +123,8 @@ func _draw_connections() -> void:
 		for req in requires:
 			var req_layout: Dictionary = tree.get_node_layout(str(req))
 			var to_pos: Vector2 = req_layout.get("pos", Vector2.ZERO) + NODE_SIZE * 0.5
-			var color := Color(0.4, 0.7, 0.9) if str(req) in tree.unlocked_nodes else Color(0.3, 0.3, 0.35)
+			var met := tree.get_node_rank(str(req)) > 0 if tree.has_method("get_node_rank") else str(req) in tree.unlocked_nodes
+			var color := Color(0.4, 0.7, 0.9) if met else Color(0.3, 0.3, 0.35)
 			_canvas.draw_line(from_pos, to_pos, color, 2.0)
 
 
@@ -140,6 +153,7 @@ func _on_stat_pressed(stat_name: String) -> void:
 			stats.endurance += 1
 		"spirit":
 			stats.spirit += 1
+	stats.stat_changed.emit()
 	if _player.has_node("SkillTree"):
 		(_player.get_node("SkillTree")).refresh_derived_stats()
 	_refresh()
@@ -159,7 +173,17 @@ func _update_detail() -> void:
 		return
 	var tree := _player.get_node("SkillTree")
 	var data: Dictionary = tree.SKILL_NODES.get(_selected_node, {})
-	_detail_label.text = "%s\n%s" % [
+	var branch_id := str(data.get("branch", ""))
+	var branch := tree.BRANCH_LABELS.get(branch_id, branch_id.replace("_", " ").capitalize())
+	var rank := tree.get_node_rank(_selected_node) if tree.has_method("get_node_rank") else 0
+	var max_r := int(data.get("max_rank", 1))
+	var can := tree.can_unlock(_selected_node)
+	var req_text := "Requirements met" if can else "Missing requirements or skill points"
+	_detail_label.text = "%s\nBranch: %s\nRank: %d / %d  |  Cost: %d SP\n%s\n%s" % [
 		str(data.get("name", _selected_node)),
+		branch,
+		rank, max_r,
+		int(data.get("cost", 1)),
 		str(data.get("desc", "")),
+		req_text,
 	]

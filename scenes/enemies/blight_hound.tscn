@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://blighthound001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="BlightHound" instance=ExtResource("1")]
+enemy_id = "blight_hound"
+display_name = "Blight Hound"
+enemy_level = 6
+max_health = 38.0
+damage = 11.0
+move_speed = 6.8
+detection_range = 17.0
+attack_range = 2.1
+loot_table_id = "blight_hound"
+xp_reward = 28
+experience_reward = 20
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_GermanShepherd.gltf"

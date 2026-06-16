@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3 uid="uid://heartofblight001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+[ext_resource type="Script" path="res://scripts/enemies/bosses/heart_of_blight.gd" id="2"]
+
+[node name="HeartOfBlight" instance=ExtResource("1")]
+script = ExtResource("2")
+enemy_id = "blightheart"
+display_name = "The Blightheart"
+enemy_level = 17
+max_health = 620.0
+damage = 26.0
+move_speed = 3.0
+detection_range = 0.0
+attack_range = 3.6
+loot_table_id = "blightheart"
+xp_reward = 300
+experience_reward = 280
+respawns = false
+head_bar_offset = 3.4
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Matt_SingleWeapon.gltf"
+
+[node name="BlightCore" type="OmniLight3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0.2)
+light_color = Color(0.42, 0.88, 0.38, 1)
+light_energy = 1.15
+omni_range = 6.0
+
+[node name="RootCrown" type="OmniLight3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)
+light_color = Color(0.58, 0.32, 0.78, 1)
+light_energy = 0.7
+omni_range = 3.5

@@ -1,0 +1,111 @@
+Gem Socket System — Production Report
+=====================================
+Date: 2026-06-10
+Scope: First complete gem socket pass (Phase 0–8 preserved, solo + local co-op)
+
+## Build Status
+
+Command: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\start game.ps1"`
+Result: **exit code 0** (verified after this pass)
+
+---
+
+## Changes Summary
+
+### Gem Item Definitions (`ItemDatabase`)
+* Eight prototype gems: Ruby, Sapphire, Emerald, Onyx, Topaz, Amethyst, Diamond, Garnet
+* Each gem has: `gem_id`, `display_name`, `rarity`, `description`, `gem_color`, `allowed_gear_types`, per-gear `effects` map, `sell_value`, stackable `type: gem`
+* Gear items gained `rarity` fields; `get_max_sockets()` follows rarity (common/uncommon 1, rare 2, epic/legendary 3)
+
+### Gem Effect Manager (new autoload)
+* `scripts/autoload/gem_effect_manager.gd` — compatibility checks, modifier merge, socket line formatting, passive aggregation
+* Safe removal costs: 50 copper (common/uncommon), 100 copper / 1 silver (rare+)
+* `random_common_gem_id()` for loot tables
+
+### Socket Insertion / Removal (`EquipmentManager`)
+* `socketed_gems` array synced to `socket_count`; empty slots are `""`
+* `prepare_socket()` appends empty slot to `socketed_gems`
+* `insert_gem()` / `remove_gem(recover)` — Forge L2 required, gem consumed on insert
+* Recover removal returns gem to inventory for currency cost; shatter destroys gem
+* Gem bonuses applied in effective weapon damage, armor HP, shield block efficiency, max durability
+* `_refresh_equipped_players()` after socket changes
+
+### Forge UI (`game_hud.gd`)
+* Per-socket insert lines (compatible gems from shared inventory)
+* Recover (50c) and shatter removal actions per filled socket
+* Menu owner toasts: `P{n} socketed {Gem} into {Gear}`, removal/shatter messages
+
+### Gem Acquisition
+* Crystal destructibles: 12% random common gem (plus shards/dust)
+* Crates: 4% random common gem
+* Crystal resource nodes: 8% common gem on gather
+* Boss Warden: guaranteed Amethyst
+* Forge L2 crafting: Ruby (crystal_shard x2 + fire_resin), Sapphire (+ purified_water), Emerald (+ poison_gland), 25 copper each
+
+### Player Stats
+* Amethyst `focus_max` applied via equipped gem passive modifiers in `player_progress.gd`
+* Stored-but-not-wired modifiers (currency gain, item discovery, resource discovery) display in UI for future systems
+
+### Save / Load
+* `socketed_gems`, `socket_count`, `max_socket_count` serialize with gear instances
+* `normalize_all_items()` + `_sync_socket_array()` pad missing socket data on older saves
+* Unknown gem IDs display as `[Unknown Gem]` without crash
+
+---
+
+## Manual Verification Checklist
+
+1. [ ] Solo New Game still behaves unchanged.
+2. [ ] Local Co-op still spawns both players safely.
+3. [ ] Gem items exist in ItemDatabase.
+4. [ ] Crystal node can drop gem-related materials.
+5. [ ] At least one gem can be obtained through loot or crafting.
+6. [ ] Forge socket menu opens correctly.
+7. [ ] Socketable item with empty socket appears in socket menu.
+8. [ ] Item with no sockets shows clear message.
+9. [ ] Compatible gem can be inserted.
+10. [ ] Incompatible gem is blocked.
+11. [ ] Gem insertion consumes gem once.
+12. [ ] Gem insertion modifies item once.
+13. [ ] Socketed gem appears in equipment UI.
+14. [ ] Gem effect description appears in UI.
+15. [ ] Weapon gem increases appropriate combat value or stored modifier.
+16. [ ] Armor gem increases appropriate defense/value or stored modifier.
+17. [ ] Shield gem increases appropriate block/value or stored modifier.
+18. [ ] Utility gem stores/displays correct modifier.
+19. [ ] Socket removal works.
+20. [ ] Socket removal does not duplicate gem.
+21. [ ] Gem effects are removed after removal.
+22. [ ] Socket replacement works if implemented.
+23. [ ] Max socket limit is respected.
+24. [ ] Rarity-based socket limits are respected.
+25. [ ] P1 can socket gem with correct attribution.
+26. [ ] P2 can socket gem with correct attribution.
+27. [ ] Wrong-player input remains blocked in Forge menu.
+28. [ ] Save/load preserves socketed gem.
+29. [ ] Save/load preserves empty sockets.
+30. [ ] Save/load preserves gem inventory count.
+31. [ ] Save/load recalculates gem bonuses.
+32. [ ] Older save with no gem data loads safely.
+33. [ ] Existing durability still works.
+34. [ ] Existing repair still works.
+35. [ ] Existing weapon upgrade still works.
+36. [ ] Existing armor reinforcement still works.
+37. [ ] Existing resource gathering still works.
+38. [ ] Existing camp chest deposit-all still works.
+39. [ ] Existing Waystone travel still works.
+40. [ ] Existing boss fight still works.
+41. [ ] `.\start game.ps1` exits 0.
+
+---
+
+## Known Limitations (Post-Pass)
+
+* Only +1 weapon upgrade and +1 armor reinforcement implemented (+2/+3 not wired)
+* Gem crafting limited to Ruby, Sapphire, Emerald at Forge L2
+* Some gem effects stored/displayed only (currency gain, item discovery, resource discovery, crit/bleed/poison proc) — not all combat procs wired
+* Recover removal uses 50 copper (common/uncommon) or 1 silver (rare+); shatter is free destroy
+* Tool wear still uses main weapon; dedicated tool items not implemented
+* Helmet/gloves/boots armor slots contribute HP but have no separate reinforcement menu entries
+* Forge socket menu lists per-gem insert lines (prototype density; not a full gem picker UI)
+* No automated tests added

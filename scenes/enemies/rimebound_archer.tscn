@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://rimeboundarcher001"]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/bandit_archer.tscn" id="1"]
+
+[node name="RimeboundArcher" instance=ExtResource("1")]
+enemy_id = "rimebound_archer"
+display_name = "Rimebound Archer"
+enemy_level = 5
+max_health = 46.0
+damage = 11.0
+loot_table_id = "rimebound_archer"
+xp_reward = 28
+experience_reward = 20

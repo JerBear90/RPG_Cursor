@@ -21,6 +21,8 @@ var _insufficient: bool = false
 var _was_on_cd: bool = false
 var _display_name: String = ""
 var _ability_id: String = ""
+var _keyboard_label: String = ""
+var _gamepad_label: String = ""
 
 
 func _ready() -> void:
@@ -62,8 +64,9 @@ func configure(display_name: String, key_text: String, ability_id: String = "", 
 	_display_name = display_name
 	_ability_id = ability_id
 	_empty = ability_id.is_empty() and display_name.is_empty()
-	if _key_label:
-		_key_label.text = key_text
+	_keyboard_label = key_text
+	_gamepad_label = pad_text if pad_text != "" else key_text
+	_apply_binding_display(InputManager.current_device)
 	if _icon:
 		if _empty:
 			_icon.texture = UiIconRegistry.get_icon("ability_default")
@@ -82,13 +85,32 @@ func configure(display_name: String, key_text: String, ability_id: String = "", 
 			_mana_label.visible = false
 	if _empty_label:
 		_empty_label.visible = _empty
-	var tip := display_name
-	if pad_text != "" and pad_text != key_text:
-		tip = "%s\nKeyboard: %s\nController: %s" % [display_name, key_text, pad_text]
-	elif key_text != "":
-		tip = "%s (%s)" % [display_name, key_text]
-	tooltip_text = tip
+	_update_tooltip()
 	_apply_frame()
+
+
+func update_binding_labels(keyboard_text: String, gamepad_text: String, device: int = -1) -> void:
+	_keyboard_label = keyboard_text
+	_gamepad_label = gamepad_text
+	_apply_binding_display(device if device >= 0 else InputManager.current_device)
+	_update_tooltip()
+
+
+func _apply_binding_display(device: int) -> void:
+	if _key_label:
+		var text := _gamepad_label if device == InputManager.DEVICE_GAMEPAD else _keyboard_label
+		_key_label.text = text if text != "" else "—"
+
+
+func _update_tooltip() -> void:
+	var tip := _display_name
+	if _keyboard_label != "" and _gamepad_label != "" and _keyboard_label != _gamepad_label:
+		tip = "%s\nKeyboard: %s\nController: %s" % [_display_name, _keyboard_label, _gamepad_label]
+	elif _keyboard_label != "":
+		tip = "%s (%s)" % [_display_name, _keyboard_label]
+	elif _gamepad_label != "":
+		tip = "%s (%s)" % [_display_name, _gamepad_label]
+	tooltip_text = tip
 
 
 func set_active(active: bool) -> void:

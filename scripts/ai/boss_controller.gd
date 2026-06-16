@@ -55,9 +55,10 @@ func _on_phase_enter(phase: int) -> void:
 func _on_died() -> void:
 	GameManager.in_boss_fight = false
 	AchievementManager.unlock("hollow_grove_broken")
-	var stats := GameManager.get_player(0)
-	if stats and stats.has_node("StatsComponent"):
-		stats.get_node("StatsComponent").unspent_skill_points += 1
+	for i in GameManager.active_player_count:
+		var player := GameManager.get_player(i)
+		if player and player.has_node("StatsComponent"):
+			player.get_node("StatsComponent").unspent_skill_points += 1
 	QuestManager.advance_objective("defeat_warden", "kill_warden", 1)
 	MapManager.clear_region(GameManager.current_region_id)
 	MapManager.discover_region("hollow_grove_shrine")

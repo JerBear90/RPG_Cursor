@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://ui/components/thin_bar.gd" id="2"]
 
 [node name="NotificationToast" type="Control"]
-custom_minimum_size = Vector2(280, 0)
+custom_minimum_size = Vector2(364, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 script = ExtResource("1")
@@ -60,6 +60,13 @@ unique_name_in_owner = true
 layout_mode = 2
 text = ""
 autowrap_mode = 2
+visible = false
+
+[node name="ToastReward" type="Label" parent="ToastPanel/Margin/VBox/HBox/TextVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+autowrap_mode = 0
 visible = false
 
 [node name="ToastTimer" type="TextureProgressBar" parent="ToastPanel/Margin/VBox"]

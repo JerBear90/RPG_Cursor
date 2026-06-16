@@ -8,6 +8,7 @@ class_name QuestTrackerPanel
 @onready var _progress_row: HBoxContainer = %ProgressDistanceRow
 @onready var _progress: Label = %ProgressLabel
 @onready var _distance: Label = %DistanceLabel
+@onready var _hint: Label = %HintLabel
 
 
 func _ready() -> void:
@@ -20,6 +21,8 @@ func _ready() -> void:
 	ArpgTheme.style_label(_objective, UiMetrics.FONT_SM, UiColors.TEXT_SECONDARY)
 	ArpgTheme.style_label(_progress, UiMetrics.FONT_META, UiColors.TEXT_MUTED)
 	ArpgTheme.style_label(_distance, UiMetrics.FONT_META, UiColors.TEXT_QUEST)
+	if _hint:
+		ArpgTheme.style_label(_hint, UiMetrics.FONT_META, UiColors.TEXT_MUTED)
 	visible = false
 
 
@@ -37,7 +40,7 @@ func set_quest(
 	if _type:
 		_type.text = quest_type if quest_type != "" else "QUEST"
 	if _title:
-		_title.text = title
+		_title.text = "Tracked: %s" % title
 	var show_objective := should_show_objective(title, objective_text)
 	if _objective:
 		_objective.text = objective_text if show_objective else ""
@@ -52,6 +55,9 @@ func set_quest(
 	if _distance:
 		_distance.visible = has_distance
 		_distance.text = distance_text
+	if _hint:
+		_hint.visible = true
+		_hint.text = "View: Map | D-pad: Cycle Mission"
 
 
 func clear() -> void:
@@ -67,6 +73,8 @@ func clear() -> void:
 		_progress.visible = false
 	if _distance:
 		_distance.visible = false
+	if _hint:
+		_hint.visible = false
 
 
 func set_from_objective_lines(title: String, lines: PackedStringArray, distance_text: String = "", quest_type: String = "QUEST") -> void:

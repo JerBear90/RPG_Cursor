@@ -87,6 +87,29 @@ func spawn_damage_number(world_pos: Vector3, amount: float, on_player: bool = fa
 	cleanup.tween_callback(label.queue_free)
 
 
+func spawn_combat_status(world_pos: Vector3, status_text: String) -> void:
+	var root := get_tree().current_scene
+	if root == null:
+		return
+	var label := Label3D.new()
+	label.text = status_text
+	label.font_size = 34
+	label.outline_size = 8
+	label.modulate = Color(0.85, 0.9, 1.0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.fixed_size = true
+	label.position = world_pos
+	root.add_child(label)
+	var tween := label.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "position", label.position + Vector3(0, 0.9, 0), 0.75)
+	tween.tween_property(label, "modulate:a", 0.0, 0.75).set_delay(0.1)
+	var cleanup := label.create_tween()
+	cleanup.tween_interval(0.8)
+	cleanup.tween_callback(label.queue_free)
+
+
 func _spawn_burst(world_pos: Vector3, color: Color, start_scale: float, duration: float) -> void:
 	var root := get_tree().current_scene
 	if root == null:

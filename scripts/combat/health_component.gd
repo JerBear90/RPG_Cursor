@@ -73,7 +73,10 @@ func _log_health_hit(result: RefCounted, damage: DamageData) -> void:
 		return
 	var player := _find_player_node()
 	var hud := _find_player_hud()
-	_PlayerHealthDebug.log_hit(player, self, result, damage, hud)
+	_PlayerHealthDebug.log_damage_trace(
+		player, player.get_node_or_null("Combat") if player else null,
+		self, damage, result, hud, "", result.accepted
+	)
 
 
 func _find_player_node() -> Node:

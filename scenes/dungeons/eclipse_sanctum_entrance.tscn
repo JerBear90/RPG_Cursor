@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3 uid="uid://eclipsesanctumentrance001"]
+
+[ext_resource type="Script" path="res://scripts/dungeons/eclipse_sanctum_entrance.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(5.0, 3.5, 3.0)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 4.0
+
+[node name="EclipseSanctumEntrance" type="StaticBody3D"]
+script = ExtResource("1")
+
+[node name="KenneyVisual" type="Node3D" parent="."]
+script = ExtResource("2")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/statue_columnDamaged.glb"
+mesh_scale = Vector3(2.4, 2.4, 2.4)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("BoxShape3D_body")
+
+[node name="InteractionArea" type="Area3D" parent="."]
+collision_layer = 32
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea"]
+shape = SubResource("SphereShape3D_interact")

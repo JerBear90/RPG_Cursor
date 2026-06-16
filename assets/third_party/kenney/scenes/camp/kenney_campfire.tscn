@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://kenney_campfire"]
+
+[ext_resource type="Script" path="res://scripts/utilities/gltf_visual.gd" id="1"]
+
+[node name="KenneyCampfire" type="Node3D"]
+metadata/kenney_pack = "Nature Kit"
+metadata/kenney_source = "campfire_logs.glb"
+
+[node name="Mesh" type="Node3D" parent="."]
+script = ExtResource("1")
+gltf_path = "res://art/kenney/nature_kit/Models/GLTF format/campfire_logs.glb"
+mesh_scale = Vector3(1.1, 1.1, 1.1)
+fallback_kind = "prop"

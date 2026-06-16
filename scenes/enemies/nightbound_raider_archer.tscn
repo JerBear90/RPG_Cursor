@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://nightboundarcher001"]
+
+[ext_resource type="PackedScene" uid="uid://enemybase001" path="res://scenes/enemies/enemy_base.tscn" id="1"]
+
+[node name="NightboundRaiderArcher" instance=ExtResource("1")]
+enemy_id = "nightbound_raider_archer"
+display_name = "Nightbound Archer"
+enemy_level = 8
+max_health = 46.0
+damage = 14.0
+move_speed = 4.3
+detection_range = 17.0
+attack_range = 11.0
+loot_table_id = "nightbound_raider"
+xp_reward = 32
+experience_reward = 24
+is_ranged = true
+
+[node name="CharacterVisual" parent="MeshRoot" index="0"]
+gltf_path = "res://art/characters/_quaternius_zombie_kit/Characters/glTF/Characters_Matt_SingleWeapon.gltf"

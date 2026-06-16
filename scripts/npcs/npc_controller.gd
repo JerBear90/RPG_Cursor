@@ -10,6 +10,8 @@ extends CharacterBody3D
 @export var hostile_health: float = 80.0
 @export var hostile_speed: float = 4.0
 
+const _INTERACT_OPTS := {"from_interact": true}
+
 var anger_state: String = "calm"
 var _health: HealthComponent
 var _attack_hitbox: Hitbox
@@ -17,6 +19,8 @@ var _attack_cd: float = 0.0
 var _combat_target: Node3D
 var _gravity: float = 20.0
 var _character_anim: GltfCharacterAnim
+var _merchant_shop_open_requested: bool = false
+var _merchant_dialogue_active: bool = false
 
 
 func _ready() -> void:
@@ -24,6 +28,8 @@ func _ready() -> void:
 	add_to_group("interactable")
 	if is_merchant:
 		add_to_group("map_merchant")
+		if not MerchantManager.shop_closed.is_connected(_on_merchant_shop_closed):
+			MerchantManager.shop_closed.connect(_on_merchant_shop_closed)
 	_setup_friendly_fire_hurtbox()
 	_character_anim = GltfCharacterAnim.new()
 	_character_anim.name = "CharacterAnim"
@@ -43,7 +49,7 @@ func _physics_process(delta: float) -> void:
 		return
 	PlanarFacing.apply_floor(self, delta, _gravity)
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
-	_combat_target = GameManager.get_player(0)
+	_combat_target = GameManager.get_nearest_living_player(global_position)
 	if _combat_target == null or not is_instance_valid(_combat_target):
 		return
 	var dist := global_position.distance_to(_combat_target.global_position)
@@ -67,39 +73,72 @@ func _physics_process(delta: float) -> void:
 
 func interact(player: Node) -> void:
 	if anger_state == "hostile":
-		DialogueManager.start_dialogue(npc_id, [{"speaker": display_name, "text": "You wanted a fight. Now you've got one."}])
+		DialogueManager.start_dialogue(npc_id, [{"speaker": display_name, "text": "You wanted a fight. Now you've got one."}], [], _INTERACT_OPTS)
 		return
 	if is_merchant:
 		_try_quest_delivery()
-		var lines := DialogueManager.get_npc_greeting(npc_id)
-		DialogueManager.start_dialogue(npc_id, lines)
-		await DialogueManager.dialogue_ended
-		if DialogueManager.ended_by_cancel:
+		if DialogueManager.is_active() or _merchant_dialogue_active:
 			return
-		for hud in get_tree().get_nodes_in_group("game_hud"):
-			hud.open_merchant_menu(npc_id, anger_state)
+		_begin_merchant_trade_dialogue()
 		return
 	var greet := DialogueManager.get_npc_greeting(npc_id)
-	DialogueManager.start_dialogue(npc_id, greet)
+	DialogueManager.start_dialogue(npc_id, greet, [], _INTERACT_OPTS)
 	if is_quest_giver and npc_id == "wounded_scout":
 		QuestManager.start_quest("merchant_errand")
 
 
-func receive_friendly_fire() -> void:
-	if anger_state == "calm":
-		anger_state = "annoyed"
-		DialogueManager.start_dialogue(npc_id, [{"speaker": display_name, "text": "Oi! Swing that thing at me again and I'll charge you double."}])
-		AchievementManager.unlock("angry_vendor")
-	elif anger_state == "annoyed":
-		anger_state = "angry"
-		DialogueManager.start_dialogue(npc_id, [{"speaker": display_name, "text": "That's it. Prices just doubled — and I'm not feeling merciful."}])
-	elif anger_state == "angry":
-		_enable_combat_mode()
+func _begin_merchant_trade_dialogue() -> void:
+	_merchant_dialogue_active = true
+	var lines := DialogueManager.get_npc_greeting(npc_id)
+	var merchant_opts := _INTERACT_OPTS.duplicate()
+	merchant_opts["confirm_label"] = "Trade"
+	merchant_opts["cancel_label"] = "Leave"
+	DialogueManager.start_dialogue(npc_id, lines, ["Trade", "Leave"], merchant_opts)
+	if not DialogueManager.is_active():
+		_merchant_dialogue_active = false
+		return
+	_await_merchant_dialogue_result()
 
 
-func receive_damage(damage: DamageData) -> void:
-	if _health:
-		_health.take_damage(damage)
+func _await_merchant_dialogue_result() -> void:
+	var payload: Array = await DialogueManager.dialogue_finished
+	_merchant_dialogue_active = false
+	if not is_instance_valid(self) or not is_merchant:
+		return
+	var finished_npc: String = str(payload[0])
+	var reason: DialogueManager.DialogueEndReason = payload[1]
+	if finished_npc != npc_id:
+		return
+	match reason:
+		DialogueManager.DialogueEndReason.CONFIRMED:
+			await _open_merchant_shop_once()
+		_:
+			pass
+
+
+func _open_merchant_shop_once() -> void:
+	if _merchant_shop_open_requested:
+		return
+	if not is_instance_valid(self):
+		return
+	_merchant_shop_open_requested = true
+	await get_tree().process_frame
+	if not is_instance_valid(self):
+		_merchant_shop_open_requested = false
+		return
+	if MerchantManager.is_shop_open:
+		_merchant_shop_open_requested = false
+		return
+	for hud in get_tree().get_nodes_in_group("game_hud"):
+		if hud.has_method("open_merchant_menu"):
+			hud.open_merchant_menu(npc_id, anger_state)
+			break
+	if not MerchantManager.is_shop_open:
+		_merchant_shop_open_requested = false
+
+
+func _on_merchant_shop_closed() -> void:
+	_merchant_shop_open_requested = false
 
 
 func _try_quest_delivery() -> void:
@@ -111,7 +150,7 @@ func _try_quest_delivery() -> void:
 	QuestManager.advance_objective("merchant_errand", "deliver_herbs", 3)
 	DialogueManager.start_dialogue(npc_id, [
 		{"speaker": display_name, "text": "These herbs will keep someone alive another night. Take this."},
-	])
+	], [], {"from_interact": false})
 	CurrencyManager.add_silver(1)
 
 
@@ -120,9 +159,26 @@ func _enable_combat_mode() -> void:
 		return
 	anger_state = "hostile"
 	add_to_group("lockable_enemy")
-	DialogueManager.start_dialogue(npc_id, [{"speaker": display_name, "text": "Fine. We'll settle this the old way."}])
+	DialogueManager.start_dialogue(npc_id, [{"speaker": display_name, "text": "Fine. We'll settle this the old way."}], [], {"from_interact": false})
 	GameManager.set_combat_state(true)
 	_setup_combat_components()
+
+
+func receive_friendly_fire() -> void:
+	if anger_state == "calm":
+		anger_state = "annoyed"
+		DialogueManager.start_dialogue(npc_id, [{"speaker": display_name, "text": "Oi! Swing that thing at me again and I'll charge you double."}], [], {"from_interact": false})
+		AchievementManager.unlock("angry_vendor")
+	elif anger_state == "annoyed":
+		anger_state = "angry"
+		DialogueManager.start_dialogue(npc_id, [{"speaker": display_name, "text": "That's it. Prices just doubled — and I'm not feeling merciful."}], [], {"from_interact": false})
+	elif anger_state == "angry":
+		_enable_combat_mode()
+
+
+func receive_damage(damage: DamageData) -> void:
+	if _health:
+		_health.take_damage(damage)
 
 
 func _setup_combat_components() -> void:
@@ -155,7 +211,7 @@ func _try_hostile_attack() -> void:
 		return
 	_attack_cd = 1.4
 	for p in GameManager.get_alive_players():
-		var to_player := p.global_position - global_position
+		var to_player: Vector3 = p.global_position - global_position
 		to_player.y = 0.0
 		if to_player.length_squared() > 0.01:
 			PlanarFacing.face_direction(self, to_player)
